@@ -1,6 +1,6 @@
-//! Task 相关 #[tauri::command] — Week 1a 最小版 CRUD。
+//! Task 相关 #[tauri::command] — CRUD 全量。
 //!
-//! list_tasks / create_task / complete_task
+//! list_tasks / create_task / complete_task / update_task / delete_task
 //! 字段映射对齐 docs/04 §7.2 `tasks` 表。
 
 use chrono::Utc;
@@ -20,14 +20,19 @@ fn row_to_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
         description: row.get("description")?,
         quadrant: row.get("quadrant")?,
         status: row.get("status")?,
+        estimated_minutes: row.get("estimated_minutes")?,
+        due_date: row.get("due_date")?,
+        shelved_at: row.get("shelved_at")?,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
         completed_at: row.get("completed_at")?,
     })
 }
 
-/// 列出任务。status_filter=None 时返回所有非 completed 的任务(pending + in_progress),
-/// 否则按 status 精确过滤。
+const SELECT_COLS: &str =
+    "id, name, description, quadrant, status, estimated_minutes, due_date, shelved_at, created_at, updated_at, completed_at";
+
+/// 列出任务。status_filter=None 时返回所有非 completed、非 shelved 的任务。
 #[tauri::command]
 pub fn list_tasks(
     status_filter: Option<String>,
@@ -35,19 +40,15 @@ pub fn list_tasks(
 ) -> AppResult<Vec<Task>> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     let mut stmt = if status_filter.is_some() {
-        conn.prepare(
-            "SELECT id, name, description, quadrant, status, created_at, updated_at, completed_at
-             FROM tasks
-             WHERE status = ?1
-             ORDER BY sort_order, created_at DESC",
-        )?
+        conn.prepare(&format!(
+            "SELECT {SELECT_COLS} FROM tasks WHERE status = ?1 ORDER BY sort_order, created_at DESC"
+        ))?
     } else {
-        conn.prepare(
-            "SELECT id, name, description, quadrant, status, created_at, updated_at, completed_at
-             FROM tasks
-             WHERE status IN ('pending', 'in_progress')
-             ORDER BY sort_order, created_at DESC",
-        )?
+        conn.prepare(&format!(
+            "SELECT {SELECT_COLS} FROM tasks
+             WHERE status IN ('pending', 'in_progress') AND shelved_at IS NULL
+             ORDER BY sort_order, created_at DESC"
+        ))?
     };
 
     let rows = if let Some(status) = status_filter {
@@ -95,6 +96,9 @@ pub fn create_task(input: CreateTaskInput, db: State<'_, Db>) -> AppResult<Task>
         description: None,
         quadrant: input.quadrant,
         status: "pending".into(),
+        estimated_minutes: None,
+        due_date: None,
+        shelved_at: None,
         created_at: now.clone(),
         updated_at: now,
         completed_at: None,
@@ -120,4 +124,211 @@ pub fn complete_task(id: String, db: State<'_, Db>) -> AppResult<()> {
         return Err(AppError::Custom(format!("task {id} not found")));
     }
     Ok(())
+}
+
+// ---------- Week 2b ----------
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateTaskInput {
+    pub id: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub quadrant: Option<String>,
+    pub estimated_minutes: Option<i64>,
+    pub due_date: Option<String>,
+}
+
+/// 部分更新任务字段。
+#[tauri::command]
+pub fn update_task(input: UpdateTaskInput, db: State<'_, Db>) -> AppResult<Task> {
+    // 验证 name 不为空白
+    if let Some(ref n) = input.name {
+        if n.trim().is_empty() {
+            return Err(AppError::Custom("任务名不能为空".into()));
+        }
+    }
+
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let now = Utc::now().to_rfc3339();
+
+    // 动态 SQL 构建
+    let mut sets = vec!["updated_at = ?1".to_string()];
+    let mut idx: usize = 2;
+    macro_rules! push_set {
+        ($field:expr, $col:expr) => {
+            if $field.is_some() {
+                sets.push(format!("{} = ?{}", $col, idx));
+                idx += 1;
+            }
+        };
+    }
+    push_set!(input.name, "name");
+    push_set!(input.description, "description");
+    push_set!(input.quadrant, "quadrant");
+    push_set!(input.estimated_minutes, "estimated_minutes");
+    push_set!(input.due_date, "due_date");
+
+    let sql = format!(
+        "UPDATE tasks SET {} WHERE id = ?{} AND shelved_at IS NULL",
+        sets.join(", "),
+        idx
+    );
+
+    // 绑定参数
+    let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now)];
+    if let Some(ref v) = input.name {
+        param_values.push(Box::new(v.clone()));
+    }
+    if let Some(ref v) = input.description {
+        param_values.push(Box::new(v.clone()));
+    }
+    if let Some(ref v) = input.quadrant {
+        param_values.push(Box::new(v.clone()));
+    }
+    if let Some(v) = input.estimated_minutes {
+        param_values.push(Box::new(v));
+    }
+    if let Some(ref v) = input.due_date {
+        param_values.push(Box::new(v.clone()));
+    }
+    param_values.push(Box::new(input.id.clone()));
+
+    let params_ref: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|b| b.as_ref()).collect();
+    let affected = conn.execute(&sql, params_ref.as_slice())?;
+    if affected == 0 {
+        return Err(AppError::Custom(format!("task {} not found or already deleted", input.id)));
+    }
+
+    // 回读返回
+    conn.query_row(
+        &format!("SELECT {SELECT_COLS} FROM tasks WHERE id = ?1"),
+        params![input.id],
+        row_to_task,
+    )
+    .map_err(|e| AppError::Custom(e.to_string()))
+}
+
+/// 软删除(shelve)任务。
+#[tauri::command]
+pub fn delete_task(id: String, db: State<'_, Db>) -> AppResult<()> {
+    let now = Utc::now().to_rfc3339();
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+
+    let affected = conn.execute(
+        "UPDATE tasks SET shelved_at = ?1, updated_at = ?1 WHERE id = ?2 AND shelved_at IS NULL",
+        params![now, id],
+    )?;
+    if affected == 0 {
+        return Err(AppError::Custom(format!("task {id} not found or already deleted")));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn mem_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE tasks (
+                id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT,
+                quadrant TEXT DEFAULT 'important_not_urgent',
+                status TEXT DEFAULT 'pending',
+                estimated_minutes INTEGER, due_date DATE, shelved_at DATETIME,
+                created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
+                completed_at DATETIME, sort_order INTEGER DEFAULT 0
+             );",
+        )
+        .unwrap();
+        conn
+    }
+
+    fn insert_task(conn: &Connection, id: &str, name: &str) {
+        conn.execute(
+            "INSERT INTO tasks (id, name, created_at, updated_at) VALUES (?1, ?2, datetime('now'), datetime('now'))",
+            params![id, name],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn update_partial_fields() {
+        let conn = mem_db();
+        insert_task(&conn, "t1", "original");
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE tasks SET name = ?1, quadrant = 'important_urgent', updated_at = ?2 WHERE id = 't1'",
+            params!["updated", now],
+        )
+        .unwrap();
+        let name: String = conn
+            .query_row("SELECT name FROM tasks WHERE id = 't1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(name, "updated");
+        let q: String = conn
+            .query_row("SELECT quadrant FROM tasks WHERE id = 't1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(q, "important_urgent");
+    }
+
+    #[test]
+    fn delete_sets_shelved_at() {
+        let conn = mem_db();
+        insert_task(&conn, "t1", "to delete");
+        let now = Utc::now().to_rfc3339();
+        let affected = conn
+            .execute(
+                "UPDATE tasks SET shelved_at = ?1, updated_at = ?1 WHERE id = 't1' AND shelved_at IS NULL",
+                params![now],
+            )
+            .unwrap();
+        assert_eq!(affected, 1);
+        let shelved: Option<String> = conn
+            .query_row("SELECT shelved_at FROM tasks WHERE id = 't1'", [], |r| r.get(0))
+            .unwrap();
+        assert!(shelved.is_some());
+    }
+
+    #[test]
+    fn delete_already_shelved_returns_zero() {
+        let conn = mem_db();
+        insert_task(&conn, "t1", "already gone");
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE tasks SET shelved_at = ?1 WHERE id = 't1'",
+            params![now],
+        )
+        .unwrap();
+        let affected = conn
+            .execute(
+                "UPDATE tasks SET shelved_at = ?1, updated_at = ?1 WHERE id = 't1' AND shelved_at IS NULL",
+                params![now],
+            )
+            .unwrap();
+        assert_eq!(affected, 0);
+    }
+
+    #[test]
+    fn list_excludes_shelved() {
+        let conn = mem_db();
+        insert_task(&conn, "t1", "active");
+        insert_task(&conn, "t2", "shelved");
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE tasks SET shelved_at = ?1 WHERE id = 't2'",
+            params![now],
+        )
+        .unwrap();
+        let mut stmt = conn
+            .prepare("SELECT id FROM tasks WHERE status IN ('pending','in_progress') AND shelved_at IS NULL")
+            .unwrap();
+        let ids: Vec<String> = stmt.query_map([], |r| r.get(0)).unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(ids.len(), 1);
+        assert_eq!(ids[0], "t1");
+    }
 }
