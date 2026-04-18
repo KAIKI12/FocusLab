@@ -78,6 +78,15 @@ async function onStartPomodoro(taskId: string) {
     console.error("[timer] start failed", e);
   }
 }
+
+/** 跨象限拖拽 — 更新任务的 quadrant */
+async function onChangeQuadrant(taskId: string, quadrant: string) {
+  try {
+    await tasks.update({ id: taskId, quadrant });
+  } catch (e) {
+    console.error("[task] changeQuadrant failed", e);
+  }
+}
 </script>
 
 <template>
@@ -152,6 +161,7 @@ async function onStartPomodoro(taskId: string) {
         :timer-idle="timer.isIdle"
         @edit="editingTask = $event"
         @start="onStartPomodoro($event)"
+        @change-quadrant="onChangeQuadrant"
       />
 
       <!-- 列表视图 -->
