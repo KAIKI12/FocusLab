@@ -15,14 +15,18 @@ import { Pause, Play, SkipForward, X } from "lucide-vue-next";
 import { computed } from "vue";
 
 import { useTimerStore } from "@/stores/useTimerStore";
+import { useUIStore } from "@/stores/useUIStore";
 
 const timer = useTimerStore();
+const ui = useUIStore();
 
 const status = computed(() => timer.snapshot?.status ?? "idle");
 
 async function onPause() {
   try {
     await timer.pause();
+    // 暂停成功后弹出中断原因选择(非阻塞,用户可跳过)
+    ui.showInterruptionDialog = true;
   } catch (e) {
     console.error("[timer] pause failed", e);
   }

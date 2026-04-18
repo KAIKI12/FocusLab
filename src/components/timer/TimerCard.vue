@@ -2,17 +2,19 @@
 /**
  * TimerCard · 当前进行中的番茄钟卡片。
  *
- * 组合:任务名 + PomodoroRing + TimerControls。
+ * 组合:任务名 + PomodoroRing + TimerControls + InterruptionDialog。
  * 由父层在 snapshot.status !== 'idle' 时渲染。
  *
- * 任务名从 useTaskStore 里根据 taskId 查;查不到(跨逻辑日 / 已完成场景)
- * 显示兜底文案,避免 UI 空白。
+ * 中断跟踪:暂停时 TimerControls 弹 InterruptionDialog,
+ * dialog 记录后把 interruptionId 存下;resume 时自动调 end_interruption。
  */
 
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 
+import InterruptionDialog from "@/components/timer/InterruptionDialog.vue";
 import PomodoroRing from "@/components/timer/PomodoroRing.vue";
 import TimerControls from "@/components/timer/TimerControls.vue";
+import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
 
@@ -24,6 +26,26 @@ const taskName = computed(() => {
   if (!id) return "(未绑定任务)";
   return tasks.tasks.find((t) => t.id === id)?.name ?? "(任务已归档)";
 });
+
+// 当前活跃中断 ID — resume 时自动 end
+const activeInterruptionId = ref<string | null>(null);
+
+function onInterruptionRecorded(id: string) {
+  activeInterruptionId.value = id;
+}
+
+// 监听 status 从 paused → running: 自动结束中断
+watch(
+  () => timer.snapshot?.status,
+  (newStatus, oldStatus) => {
+    if (oldStatus === "paused" && newStatus === "running" && activeInterruptionId.value) {
+      invokeCmd<void>("end_interruption", { id: activeInterruptionId.value }).catch((e) =>
+        console.error("[interruption] end failed", e),
+      );
+      activeInterruptionId.value = null;
+    }
+  },
+);
 </script>
 
 <template>
@@ -33,6 +55,10 @@ const taskName = computed(() => {
     </header>
     <PomodoroRing :snapshot="timer.snapshot" />
     <TimerControls />
+    <InterruptionDialog
+      :session-id="timer.snapshot?.sessionId ?? null"
+      @recorded="onInterruptionRecorded"
+    />
   </section>
 </template>
 

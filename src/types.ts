@@ -93,6 +93,22 @@ export interface TimerSnapshot {
   isBreak: boolean;
 }
 
+// ---------- Interruption (Week 2b) ----------
+
+export type InterruptionReason =
+  | "phone_message"
+  | "colleague"
+  | "rest"
+  | "distraction"
+  | "errand"
+  | "other";
+
+export interface CreateInterruptionInput {
+  sessionId: string;
+  reason?: InterruptionReason;
+  note?: string;
+}
+
 // ---------- Recovery ----------
 
 export type RecoveryAction = "AutoResume" | "AskUser" | "AutoEnd";

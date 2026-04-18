@@ -61,6 +61,9 @@ pub fn run() {
             commands::focus_commands::skip_break,
             commands::focus_commands::resume_from_crash,
             commands::focus_commands::abandon_from_crash,
+            // 中断记录 (Week 2b)
+            commands::interruption_commands::create_interruption,
+            commands::interruption_commands::end_interruption,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

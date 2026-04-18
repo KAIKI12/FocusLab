@@ -1,5 +1,5 @@
 /**
- * useUIStore · 全局 UI 状态 — 侧边栏折叠 / 当前活跃视图。
+ * useUIStore · 全局 UI 状态 — 侧边栏 / 中断弹窗 / 音效开关。
  */
 
 import { defineStore } from "pinia";
@@ -7,10 +7,16 @@ import { ref } from "vue";
 
 export const useUIStore = defineStore("ui", () => {
   const sidebarCollapsed = ref(false);
+  const showInterruptionDialog = ref(false);
+  const soundEnabled = ref(true);
 
   function toggleSidebar() {
     sidebarCollapsed.value = !sidebarCollapsed.value;
   }
 
-  return { sidebarCollapsed, toggleSidebar };
+  function toggleSound() {
+    soundEnabled.value = !soundEnabled.value;
+  }
+
+  return { sidebarCollapsed, toggleSidebar, showInterruptionDialog, soundEnabled, toggleSound };
 });
