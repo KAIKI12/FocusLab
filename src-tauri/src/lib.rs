@@ -33,6 +33,33 @@ pub fn run() {
             let timer_service = services::timer_service::TimerService::new(handle.clone());
             app.manage(timer_service);
 
+            // AI 服务:启动时尝试从 settings 读配置
+            let ai_service = ai::AIService::new();
+            {
+                let db_state = app.state::<db::Db>();
+                let conn = db_state.0.lock().unwrap();
+                let get = |key: &str| -> String {
+                    conn.query_row(
+                        "SELECT value FROM settings WHERE key = ?1",
+                        rusqlite::params![key],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or_default()
+                };
+                let provider = get("ai_provider");
+                let base_url = get("ai_base_url");
+                let api_key = get("ai_api_key");
+                let model = get("ai_model");
+                if !api_key.is_empty() || provider == "ollama" {
+                    let ai_ref = &ai_service;
+                    tauri::async_runtime::block_on(async {
+                        ai_ref.configure(&provider, &base_url, &api_key, &model).await;
+                    });
+                    tracing::info!("AI auto-configured from settings: provider={provider}");
+                }
+            }
+            app.manage(ai_service);
+
             tracing::info!("FocusLab started");
             Ok(())
         })
@@ -87,6 +114,11 @@ pub fn run() {
             commands::settlement_commands::settle_day,
             commands::settlement_commands::get_settlement,
             commands::settlement_commands::get_yesterday_summary,
+            // AI (Phase 2)
+            commands::ai_commands::configure_ai,
+            commands::ai_commands::test_ai_connection,
+            commands::ai_commands::ai_decompose_task,
+            commands::ai_commands::ai_settlement_narrative,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,5 +1,6 @@
 //! Tauri 命令注册总入口。
 
+pub mod ai_commands;
 pub mod assignment_commands;
 pub mod focus_commands;
 pub mod goal_commands;
