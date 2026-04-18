@@ -1,7 +1,8 @@
 /**
- * useBubble · 从主窗口控制悬浮球窗口的创建和销毁。
+ * useBubble · 悬浮球窗口的创建/销毁/状态管理。
  *
- * 使用 Tauri 2 的 WebviewWindow API 动态创建一个透明无边框 always-on-top 窗口。
+ * 从主窗口调用 open() 创建 72×72 透明无边框 always-on-top 圆形窗口。
+ * bubble 窗口内部可通过 getCurrentWindow().close() 自行关闭。
  */
 
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -10,20 +11,21 @@ let bubble: WebviewWindow | null = null;
 
 export function useBubble() {
   async function open() {
+    // 已存在则聚焦
     if (bubble) {
       try {
         await bubble.setFocus();
+        return;
       } catch {
         bubble = null;
       }
-      if (bubble) return;
     }
 
     bubble = new WebviewWindow("bubble", {
       url: "/bubble.html",
       title: "",
-      width: 200,
-      height: 52,
+      width: 72,
+      height: 72,
       decorations: false,
       alwaysOnTop: true,
       transparent: true,
@@ -42,7 +44,9 @@ export function useBubble() {
     if (bubble) {
       try {
         await bubble.close();
-      } catch { /* already closed */ }
+      } catch {
+        /* already closed */
+      }
       bubble = null;
     }
   }

@@ -12,13 +12,14 @@
  *   ・✕ 从计划移除(删 dta,不影响 task)
  */
 
-import { Calendar, Check, Grid2X2, List, Lock, Pencil, Play, Plus, Trash2, X } from "lucide-vue-next";
+import { Calendar, Check, Grid2X2, List, Lock, Minimize2, Pencil, Play, Plus, Trash2, X } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 
 import QuadrantGrid from "@/components/task/QuadrantGrid.vue";
 import TaskEditModal from "@/components/task/TaskEditModal.vue";
 import PresetSwitcher from "@/components/timer/PresetSwitcher.vue";
 import TimerCard from "@/components/timer/TimerCard.vue";
+import { useBubble } from "@/composables/useBubble";
 import { useAssignmentStore } from "@/stores/useAssignmentStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
@@ -27,6 +28,7 @@ import type { Task } from "@/types";
 const tasks = useTaskStore();
 const assignments = useAssignmentStore();
 const timer = useTimerStore();
+const { open: openBubble } = useBubble();
 
 const name = ref("");
 const viewMode = ref<"list" | "quadrant">("list");
@@ -78,10 +80,15 @@ async function onStartPomodoro(taskId: string) {
 <template>
   <section class="fl-today">
     <header class="fl-page-head">
-      <h1>今日</h1>
-      <p class="fl-page-sub">
-        Week 2b · 任务池 + 今日计划 + 番茄钟 + 四象限
-      </p>
+      <div>
+        <h1>今日</h1>
+        <p class="fl-page-sub">
+          任务池 + 今日计划 + 番茄钟 + 四象限
+        </p>
+      </div>
+      <button class="fl-bubble-entry" type="button" title="悬浮球" @click="openBubble">
+        <Minimize2 :size="14" /> 悬浮球
+      </button>
     </header>
 
     <!-- 当前计时卡(仅 non-idle 时渲染) -->
@@ -275,6 +282,12 @@ async function onStartPomodoro(taskId: string) {
   display: flex;
   flex-direction: column;
   gap: var(--sp-5);
+}
+
+.fl-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
 }
 
 .fl-page-head h1 {
@@ -503,6 +516,24 @@ async function onStartPomodoro(taskId: string) {
   font-size: 10px;
   color: var(--color-success);
   font-weight: var(--fw-medium);
+}
+
+.fl-bubble-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+.fl-bubble-entry:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .fl-empty {
