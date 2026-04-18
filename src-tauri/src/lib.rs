@@ -35,6 +35,14 @@ pub fn run() {
             commands::task_commands::list_tasks,
             commands::task_commands::create_task,
             commands::task_commands::complete_task,
+            commands::timer_commands::get_timer_state,
+            commands::timer_commands::update_timer_state,
+            commands::timer_commands::reset_timer_state,
+            commands::recovery_commands::check_crash_recovery,
+            commands::assignment_commands::list_assignments,
+            commands::assignment_commands::create_assignment,
+            commands::assignment_commands::update_assignment_status,
+            commands::assignment_commands::remove_assignment,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

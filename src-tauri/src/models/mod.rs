@@ -1,6 +1,9 @@
 //! 模型层。
 //!
-//! Week 1a 只落 `task`,其余(session / goal / settlement / timer_state /
-//! daily_task_assignment / ...)留到 Week 1b+ 按需引入。
+//! Week 1a: task
+//! Week 1b: settings / timer_state / daily_task_assignment
 
+pub mod daily_task_assignment;
+pub mod settings;
 pub mod task;
+pub mod timer_state;
