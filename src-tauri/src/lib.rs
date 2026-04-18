@@ -43,6 +43,7 @@ pub fn run() {
             commands::task_commands::complete_task,
             commands::task_commands::update_task,
             commands::task_commands::delete_task,
+            commands::task_commands::get_task_name,
             // timer_state 低层 CRUD (Week 1b)
             commands::timer_commands::get_timer_state,
             commands::timer_commands::update_timer_state,

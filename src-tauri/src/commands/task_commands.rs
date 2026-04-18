@@ -225,6 +225,20 @@ pub fn delete_task(id: String, db: State<'_, Db>) -> AppResult<()> {
     Ok(())
 }
 
+/// 根据 ID 获取任务名(轻量查询,供悬浮球窗口使用)。
+#[tauri::command]
+pub fn get_task_name(id: String, db: State<'_, Db>) -> AppResult<Option<String>> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let name = conn
+        .query_row(
+            "SELECT name FROM tasks WHERE id = ?1",
+            params![id],
+            |r| r.get::<_, String>(0),
+        )
+        .ok();
+    Ok(name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
