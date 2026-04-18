@@ -88,7 +88,8 @@ const progress = computed(() => {
 
 // SVG ring 常量:viewBox 0 0 72 72, r=30, circumference=188.5
 const RING_CIRCUM = 188.5;
-const ringOffset = computed(() => RING_CIRCUM * (1 - progress.value));
+/** 倒计时:开始(progress=0)满环→结束(progress=1)空环 */
+const ringOffset = computed(() => RING_CIRCUM * progress.value);
 
 const phaseLabel = computed(() => {
   if (showComplete.value) return "完成!";
@@ -285,9 +286,11 @@ onUnmounted(() => {
     <div
       v-if="!expanded"
       class="fl-orb"
-      data-tauri-drag-region
       @click="onOrbClick"
+      @dblclick.prevent
     >
+      <!-- 透明拖拽层(不阻止点击穿透) -->
+      <div class="fl-orb-drag" data-tauri-drag-region />
       <!-- SVG 进度环(仅 focusing 态) -->
       <svg
         v-if="visualState === 'focusing'"
@@ -363,7 +366,7 @@ onUnmounted(() => {
               stroke-width="6"
               stroke-linecap="round"
               :stroke-dasharray="351.9"
-              :stroke-dashoffset="351.9 * (1 - progress)"
+              :stroke-dashoffset="351.9 * progress"
             />
           </svg>
           <div class="fl-panel-ring-text">
@@ -447,6 +450,15 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+}
+
+/* 透明拖拽层,覆盖整个 orb */
+.fl-orb-drag {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  z-index: 10;
+  -webkit-app-region: drag;
 }
 
 /* -- 呼吸态(idle) -- */

@@ -33,8 +33,8 @@ const progress = computed(() => {
   return Math.min(1, Math.max(0, s.elapsedSeconds / s.plannedSeconds));
 });
 
-/** stroke-dashoffset: 0 = 满环,CIRCUM = 空环。elapsed 越多 offset 越小。 */
-const dashOffset = computed(() => CIRCUM * (1 - progress.value));
+/** stroke-dashoffset: CIRCUM = 空环,0 = 满环。倒计时:开始满→结束空。 */
+const dashOffset = computed(() => CIRCUM * progress.value);
 
 const remainingSec = computed(() => {
   const s = props.snapshot;
