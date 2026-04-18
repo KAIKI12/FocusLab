@@ -5,6 +5,7 @@ pub mod goal;
 pub mod interruption;
 pub mod milestone;
 pub mod session;
+pub mod settlement;
 pub mod settings;
 pub mod task;
 pub mod timer_state;

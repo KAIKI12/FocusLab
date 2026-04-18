@@ -83,6 +83,10 @@ pub fn run() {
             commands::goal_commands::create_milestone,
             commands::goal_commands::update_milestone,
             commands::goal_commands::complete_milestone,
+            // 日结算 (Phase 2)
+            commands::settlement_commands::settle_day,
+            commands::settlement_commands::get_settlement,
+            commands::settlement_commands::get_yesterday_summary,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
