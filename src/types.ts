@@ -36,6 +36,7 @@ export interface UpdateTaskInput {
   quadrant?: string;
   estimatedMinutes?: number;
   dueDate?: string;
+  milestoneId?: string;
 }
 
 // ---------- TimerState ----------
@@ -181,4 +182,42 @@ export interface CompletionStats {
   extraCount: number;
   extraCompleted: number;
   completionRate: number;
+}
+
+// ---------- Goal + Milestone (Phase 2) ----------
+
+export interface Goal {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  target_date: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+}
+
+export interface Milestone {
+  id: string;
+  goal_id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+}
+
+export interface CreateGoalInput {
+  name: string;
+  description?: string;
+  targetDate?: string;
+}
+
+export interface CreateMilestoneInput {
+  goalId: string;
+  name: string;
+  description?: string;
 }
