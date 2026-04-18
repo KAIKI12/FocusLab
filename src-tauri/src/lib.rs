@@ -61,6 +61,12 @@ pub fn run() {
             commands::focus_commands::skip_break,
             commands::focus_commands::resume_from_crash,
             commands::focus_commands::abandon_from_crash,
+            // 休息三选一 + 自由模式 (Week 2b)
+            commands::focus_commands::continue_after_break,
+            commands::focus_commands::switch_task_after_break,
+            commands::focus_commands::extend_break,
+            commands::focus_commands::start_free,
+            commands::focus_commands::complete_free,
             // 中断记录 (Week 2b)
             commands::interruption_commands::create_interruption,
             commands::interruption_commands::end_interruption,

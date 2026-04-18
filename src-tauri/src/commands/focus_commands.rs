@@ -48,3 +48,41 @@ pub async fn resume_from_crash(timer: State<'_, TimerService>) -> AppResult<Time
 pub async fn abandon_from_crash(timer: State<'_, TimerService>) -> AppResult<()> {
     timer.abandon_from_crash().await
 }
+
+// ---------- Week 2b: 休息三选一 ----------
+
+#[tauri::command]
+pub async fn continue_after_break(timer: State<'_, TimerService>) -> AppResult<TimerSnapshot> {
+    timer.continue_same_task().await
+}
+
+#[tauri::command]
+pub async fn switch_task_after_break(
+    task_id: String,
+    timer: State<'_, TimerService>,
+) -> AppResult<TimerSnapshot> {
+    timer.switch_task(task_id).await
+}
+
+#[tauri::command]
+pub async fn extend_break(
+    extra_seconds: i64,
+    timer: State<'_, TimerService>,
+) -> AppResult<TimerSnapshot> {
+    timer.extend_break(extra_seconds).await
+}
+
+// ---------- Week 2b: 自由模式 ----------
+
+#[tauri::command]
+pub async fn start_free(
+    task_id: String,
+    timer: State<'_, TimerService>,
+) -> AppResult<TimerSnapshot> {
+    timer.start_free(task_id).await
+}
+
+#[tauri::command]
+pub async fn complete_free(timer: State<'_, TimerService>) -> AppResult<()> {
+    timer.complete_free().await
+}

@@ -43,6 +43,22 @@ const remainingSec = computed(() => {
 });
 
 const timeText = computed(() => {
+  const s = props.snapshot;
+  if (!s) return "--:--";
+
+  // 自由模式显示正计时 HH:MM:SS
+  if (s.mode === "free") {
+    const total = s.elapsedSeconds;
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const r = total % 60;
+    if (h > 0) {
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
+    }
+    return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
+  }
+
+  // 番茄模式显示倒计时 MM:SS
   const sec = remainingSec.value;
   const m = Math.floor(sec / 60);
   const r = sec % 60;
@@ -61,8 +77,10 @@ const isFinal = computed(() => {
 const visualState = computed(() => {
   const s = props.snapshot;
   if (!s || s.status === "idle") return "idle";
+  if (s.mode === "free") return "free";
   if (s.status === "paused") return "paused";
   if (s.isBreak || s.status === "break") return "break";
+  if (s.status === "break_ended") return "break";
   if (isFinal.value) return "final";
   return "focus";
 });
@@ -77,6 +95,8 @@ const phaseLabel = computed(() => {
       return "最后冲刺";
     case "focus":
       return "专注中";
+    case "free":
+      return "自由计时";
     default:
       return "选择任务开始";
   }
@@ -237,6 +257,26 @@ const pomodoroDots = computed(() => {
   stroke: var(--color-border);
   filter: none;
   opacity: 0.4;
+}
+
+/* 自由模式 · violet */
+.fl-ring[data-state="free"] .fl-track {
+  stroke: rgba(139, 92, 246, 0.14);
+  stroke-dasharray: 4 8;
+}
+.fl-ring[data-state="free"] .fl-arc {
+  stroke: #8B5CF6;
+  filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.28));
+  stroke-dasharray: 848;
+  stroke-dashoffset: 0 !important;
+  animation: flFreeSweep 12s linear infinite;
+}
+@keyframes flFreeSweep {
+  0% { stroke-dashoffset: 848; }
+  100% { stroke-dashoffset: 0; }
+}
+.fl-ring[data-state="free"] .fl-time {
+  color: #8B5CF6;
 }
 
 .fl-ring-center {

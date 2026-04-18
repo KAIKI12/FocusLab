@@ -291,6 +291,200 @@ impl TimerService {
         Ok(())
     }
 
+    // ---------- Week 2b: 休息结束三选一 ----------
+
+    /// 休息结束后继续同一个任务 — 创建新 session,重置为 running
+    pub async fn continue_same_task(&self) -> AppResult<TimerSnapshot> {
+        let (task_id, preset, count) = {
+            let guard = self.state.lock().await;
+            let t = guard
+                .as_ref()
+                .ok_or_else(|| AppError::Custom("无计时状态".into()))?;
+            if t.status != "break_ended" {
+                return Err(AppError::Custom("当前不在休息结束状态".into()));
+            }
+            (t.task_id.clone(), t.preset.clone(), t.pomodoro_count)
+        };
+
+        // 清空旧状态
+        self.abort_tick().await;
+        *self.state.lock().await = None;
+
+        // 复用 start_pomodoro 的逻辑,但保留 pomodoro_count
+        let preset_str = preset.unwrap_or_else(|| "classic_25".into());
+        let planned = compute_planned_seconds(&preset_str);
+        let now = Utc::now();
+
+        let session_id = {
+            let db = self.app.state::<Db>();
+            let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+            session::create_session(&conn, &task_id, "pomodoro", Some(&preset_str), Some(planned / 60))?
+        };
+
+        let timer = RunningTimer {
+            task_id: task_id.clone(),
+            session_id: session_id.clone(),
+            mode: "pomodoro".into(),
+            preset: Some(preset_str),
+            status: "running".into(),
+            start_time: now,
+            planned_seconds: planned,
+            elapsed_seconds: 0,
+            pomodoro_count: count,
+            is_break: false,
+            break_planned_seconds: 0,
+            last_persisted_at: now,
+        };
+
+        persist_running_to_db(&self.app, &timer)?;
+        let snap = snapshot_of(&timer);
+        *self.state.lock().await = Some(timer);
+        self.spawn_tick().await;
+        let _ = self.app.emit("timer:state_changed", &snap);
+        Ok(snap)
+    }
+
+    /// 休息结束后切换到另一个任务
+    pub async fn switch_task(&self, new_task_id: String) -> AppResult<TimerSnapshot> {
+        {
+            let guard = self.state.lock().await;
+            let t = guard
+                .as_ref()
+                .ok_or_else(|| AppError::Custom("无计时状态".into()))?;
+            if t.status != "break_ended" {
+                return Err(AppError::Custom("当前不在休息结束状态".into()));
+            }
+        }
+
+        // 清空旧状态,用新 task_id 启动
+        self.abort_tick().await;
+        let count = self.state.lock().await.as_ref().map(|t| t.pomodoro_count).unwrap_or(0);
+        let preset_str = self.state.lock().await.as_ref().and_then(|t| t.preset.clone()).unwrap_or_else(|| "classic_25".into());
+        *self.state.lock().await = None;
+
+        let planned = compute_planned_seconds(&preset_str);
+        let now = Utc::now();
+
+        let session_id = {
+            let db = self.app.state::<Db>();
+            let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+            session::create_session(&conn, &new_task_id, "pomodoro", Some(&preset_str), Some(planned / 60))?
+        };
+
+        let timer = RunningTimer {
+            task_id: new_task_id,
+            session_id,
+            mode: "pomodoro".into(),
+            preset: Some(preset_str),
+            status: "running".into(),
+            start_time: now,
+            planned_seconds: planned,
+            elapsed_seconds: 0,
+            pomodoro_count: count,
+            is_break: false,
+            break_planned_seconds: 0,
+            last_persisted_at: now,
+        };
+
+        persist_running_to_db(&self.app, &timer)?;
+        let snap = snapshot_of(&timer);
+        *self.state.lock().await = Some(timer);
+        self.spawn_tick().await;
+        let _ = self.app.emit("timer:state_changed", &snap);
+        Ok(snap)
+    }
+
+    /// 延长休息(额外 extra_seconds 秒)
+    pub async fn extend_break(&self, extra_seconds: i64) -> AppResult<TimerSnapshot> {
+        let mut guard = self.state.lock().await;
+        let t = guard
+            .as_mut()
+            .ok_or_else(|| AppError::Custom("无计时状态".into()))?;
+        if t.status != "break_ended" {
+            return Err(AppError::Custom("当前不在休息结束状态".into()));
+        }
+        // 回到 break 态,增加额度
+        t.status = "break".into();
+        t.break_planned_seconds += extra_seconds;
+        t.last_persisted_at = Utc::now();
+        persist_running_to_db(&self.app, t)?;
+        let snap = snapshot_of(t);
+        drop(guard);
+        // 重新启动 tick
+        self.spawn_tick().await;
+        let _ = self.app.emit("timer:state_changed", &snap);
+        Ok(snap)
+    }
+
+    // ---------- Week 2b: 自由模式 ----------
+
+    /// 启动自由计时(正计时,无上限)
+    pub async fn start_free(&self, task_id: String) -> AppResult<TimerSnapshot> {
+        {
+            let guard = self.state.lock().await;
+            if guard.is_some() {
+                return Err(AppError::Custom("已有计时进行中".into()));
+            }
+        }
+
+        let now = Utc::now();
+        let session_id = {
+            let db = self.app.state::<Db>();
+            let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+            session::create_session(&conn, &task_id, "free", None, None)?
+        };
+
+        let timer = RunningTimer {
+            task_id: task_id.clone(),
+            session_id: session_id.clone(),
+            mode: "free".into(),
+            preset: None,
+            status: "running".into(),
+            start_time: now,
+            planned_seconds: 86400, // 24h 上限兜底
+            elapsed_seconds: 0,
+            pomodoro_count: 0,
+            is_break: false,
+            break_planned_seconds: 0,
+            last_persisted_at: now,
+        };
+
+        persist_running_to_db(&self.app, &timer)?;
+        let snap = snapshot_of(&timer);
+        *self.state.lock().await = Some(timer);
+        self.spawn_tick().await;
+        let _ = self.app.emit("timer:state_changed", &snap);
+        tracing::info!("free mode started: task={}", task_id);
+        Ok(snap)
+    }
+
+    /// 手动完成自由计时
+    pub async fn complete_free(&self) -> AppResult<()> {
+        let taken = {
+            let mut guard = self.state.lock().await;
+            guard.take()
+        };
+        self.abort_tick().await;
+
+        let Some(t) = taken else {
+            return Err(AppError::Custom("无计时".into()));
+        };
+        if t.mode != "free" {
+            return Err(AppError::Custom("当前不是自由模式".into()));
+        }
+
+        let actual_min = (t.elapsed_seconds / 60).max(1);
+        {
+            let db = self.app.state::<Db>();
+            let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+            session::complete_session(&conn, &t.session_id, actual_min)?;
+        }
+        reset_db_timer(&self.app)?;
+        let _ = self.app.emit("timer:state_changed", &idle_snapshot());
+        tracing::info!("free session completed: {}min", actual_min);
+        Ok(())
+    }
+
     /// 从崩溃恢复中接管 — 读 timer_state 回填内存 RunningTimer + spawn tick
     ///
     /// 前置条件:调用方(前端 useRecovery)已确认 AutoResume 分支。
@@ -433,18 +627,19 @@ impl TimerService {
                 }
 
                 // 自动迁移
-                if t.status == "running" && t.elapsed_seconds >= t.planned_seconds {
+                if t.status == "running" && t.mode != "free" && t.elapsed_seconds >= t.planned_seconds {
                     if let Err(e) = transition_focus_to_break(&app, t) {
                         tracing::error!("focus→break 迁移失败: {e}");
                     }
                     let _ = app.emit("timer:state_changed", &snapshot_of(t));
                 } else if t.status == "break" && t.elapsed_seconds >= t.break_planned_seconds {
-                    if let Err(e) = reset_db_timer(&app) {
-                        tracing::error!("reset_db_timer 失败: {e}");
+                    // break 结束 → 进入 break_ended(hold 等用户选择)
+                    t.status = "break_ended".into();
+                    if let Err(e) = persist_running_to_db(&app, t) {
+                        tracing::warn!("break_ended 落盘失败: {e}");
                     }
-                    *guard = None;
-                    let _ = app.emit("timer:state_changed", &idle_snapshot());
-                    return;
+                    let _ = app.emit("timer:state_changed", &snapshot_of(t));
+                    return; // 退出 tick 循环
                 }
             }
         });

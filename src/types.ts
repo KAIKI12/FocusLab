@@ -40,7 +40,7 @@ export interface UpdateTaskInput {
 
 // ---------- TimerState ----------
 
-export type TimerStatus = "idle" | "running" | "paused" | "break";
+export type TimerStatus = "idle" | "running" | "paused" | "break" | "break_ended";
 
 export interface TimerState {
   task_id: string | null;

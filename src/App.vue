@@ -11,6 +11,7 @@ import { onMounted } from "vue";
 
 import Sidebar from "@/components/common/Sidebar.vue";
 import RecoveryDialog from "@/components/recovery/RecoveryDialog.vue";
+import BreakEndDialog from "@/components/timer/BreakEndDialog.vue";
 import { useRecovery } from "@/composables/useRecovery";
 
 const { checkOnMount } = useRecovery();
@@ -29,6 +30,7 @@ onMounted(() => {
       <RouterView />
     </main>
     <RecoveryDialog />
+    <BreakEndDialog />
   </div>
 </template>
 

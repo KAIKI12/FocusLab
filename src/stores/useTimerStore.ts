@@ -56,6 +56,8 @@ export const useTimerStore = defineStore("timer", () => {
   const isRunning = computed(() => snapshot.value?.status === "running");
   const isPaused = computed(() => snapshot.value?.status === "paused");
   const isBreak = computed(() => snapshot.value?.status === "break");
+  const isBreakEnded = computed(() => snapshot.value?.status === "break_ended");
+  const isFreeMode = computed(() => snapshot.value?.mode === "free");
 
   /** 剩余秒数(倒计时数字用);自由模式下返回 elapsed(正计时) */
   const remainingSeconds = computed(() => {
@@ -75,6 +77,9 @@ export const useTimerStore = defineStore("timer", () => {
       snapshot.value.elapsedSeconds / snapshot.value.plannedSeconds,
     );
   });
+
+  /** 当前选中的 preset(idle 时由 PresetSwitcher 设置) */
+  const selectedPreset = ref<PomodoroPreset | "free">("classic_25");
 
   async function ensureListeners() {
     if (listenerGuard) return listenerGuard;
@@ -129,19 +134,51 @@ export const useTimerStore = defineStore("timer", () => {
     await invokeCmd<void>("skip_break");
   }
 
+  // ---------- Week 2b: 休息三选一 ----------
+
+  async function continueAfterBreak() {
+    snapshot.value = await invokeCmd<TimerSnapshot>("continue_after_break");
+  }
+
+  async function switchTaskAfterBreak(taskId: string) {
+    snapshot.value = await invokeCmd<TimerSnapshot>("switch_task_after_break", { taskId });
+  }
+
+  async function extendBreak(extraSeconds: number = 300) {
+    snapshot.value = await invokeCmd<TimerSnapshot>("extend_break", { extraSeconds });
+  }
+
+  // ---------- Week 2b: 自由模式 ----------
+
+  async function startFree(taskId: string) {
+    snapshot.value = await invokeCmd<TimerSnapshot>("start_free", { taskId });
+  }
+
+  async function completeFree() {
+    await invokeCmd<void>("complete_free");
+  }
+
   return {
     snapshot,
     isIdle,
     isRunning,
     isPaused,
     isBreak,
+    isBreakEnded,
+    isFreeMode,
     remainingSeconds,
     progress,
+    selectedPreset,
     init,
     startPomodoro,
     pause,
     resume,
     abandon,
     skipBreak,
+    continueAfterBreak,
+    switchTaskAfterBreak,
+    extendBreak,
+    startFree,
+    completeFree,
   };
 });

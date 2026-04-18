@@ -17,6 +17,7 @@ import { computed, onMounted, ref } from "vue";
 
 import QuadrantGrid from "@/components/task/QuadrantGrid.vue";
 import TaskEditModal from "@/components/task/TaskEditModal.vue";
+import PresetSwitcher from "@/components/timer/PresetSwitcher.vue";
 import TimerCard from "@/components/timer/TimerCard.vue";
 import { useAssignmentStore } from "@/stores/useAssignmentStore";
 import { useTaskStore } from "@/stores/useTaskStore";
@@ -56,16 +57,20 @@ async function addToPlan(taskId: string) {
   }
 }
 
-/** 启动番茄钟 — 仅在当前 idle 时允许 */
+/** 启动番茄钟 — 仅在当前 idle 时允许,根据 selectedPreset 选择模式 */
 async function onStartPomodoro(taskId: string) {
   if (!timer.isIdle) {
     console.warn("[timer] 已有计时进行中,忽略新启动请求");
     return;
   }
   try {
-    await timer.startPomodoro(taskId, "classic_25");
+    if (timer.selectedPreset === "free") {
+      await timer.startFree(taskId);
+    } else {
+      await timer.startPomodoro(taskId, timer.selectedPreset);
+    }
   } catch (e) {
-    console.error("[timer] startPomodoro failed", e);
+    console.error("[timer] start failed", e);
   }
 }
 </script>
@@ -81,6 +86,9 @@ async function onStartPomodoro(taskId: string) {
 
     <!-- 当前计时卡(仅 non-idle 时渲染) -->
     <TimerCard />
+
+    <!-- Preset 选择(仅 idle 时渲染) -->
+    <PresetSwitcher />
 
     <!-- 任务池 -->
     <div class="fl-section">

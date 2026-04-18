@@ -11,7 +11,7 @@
  * 放弃前用原生 confirm(Week 2a 足够,Week 2b 做中断原因弹窗)。
  */
 
-import { Pause, Play, SkipForward, X } from "lucide-vue-next";
+import { Check, Pause, Play, SkipForward, X } from "lucide-vue-next";
 import { computed } from "vue";
 
 import { useTimerStore } from "@/stores/useTimerStore";
@@ -21,6 +21,7 @@ const timer = useTimerStore();
 const ui = useUIStore();
 
 const status = computed(() => timer.snapshot?.status ?? "idle");
+const isFree = computed(() => timer.snapshot?.mode === "free");
 
 async function onPause() {
   try {
@@ -49,6 +50,14 @@ async function onAbandon() {
   }
 }
 
+async function onCompleteFree() {
+  try {
+    await timer.completeFree();
+  } catch (e) {
+    console.error("[timer] completeFree failed", e);
+  }
+}
+
 async function onSkipBreak() {
   try {
     await timer.skipBreak();
@@ -63,6 +72,9 @@ async function onSkipBreak() {
     <template v-if="status === 'running'">
       <button class="fl-btn fl-btn-main" type="button" aria-label="暂停" @click="onPause">
         <Pause :size="20" />
+      </button>
+      <button v-if="isFree" class="fl-btn fl-btn-complete" type="button" @click="onCompleteFree">
+        <Check :size="16" /> 完成
       </button>
       <button class="fl-btn fl-btn-ghost" type="button" @click="onAbandon">
         <X :size="16" /> 放弃
@@ -146,5 +158,15 @@ async function onSkipBreak() {
 .fl-btn-ghost:hover {
   border-color: var(--color-q1, var(--color-danger, #ef4444));
   color: var(--color-q1, var(--color-danger, #ef4444));
+}
+
+.fl-btn-complete {
+  background: var(--color-success);
+  color: var(--color-text-on-primary);
+  padding: var(--sp-2) var(--sp-4);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-success) 30%, transparent);
+}
+.fl-btn-complete:hover {
+  opacity: 0.9;
 }
 </style>
