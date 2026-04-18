@@ -16,6 +16,9 @@ export interface Task {
   description: string | null;
   quadrant: string;
   status: string;
+  estimated_minutes: number | null;
+  due_date: string | null;
+  shelved_at: string | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -24,6 +27,15 @@ export interface Task {
 export interface CreateTaskInput {
   name: string;
   quadrant?: string;
+}
+
+export interface UpdateTaskInput {
+  id: string;
+  name?: string;
+  description?: string;
+  quadrant?: string;
+  estimatedMinutes?: number;
+  dueDate?: string;
 }
 
 // ---------- TimerState ----------

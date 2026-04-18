@@ -12,19 +12,24 @@
  *   ・✕ 从计划移除(删 dta,不影响 task)
  */
 
-import { Calendar, Check, Play, Plus, X } from "lucide-vue-next";
+import { Calendar, Check, Grid2X2, List, Pencil, Play, Plus, Trash2, X } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 
+import QuadrantGrid from "@/components/task/QuadrantGrid.vue";
+import TaskEditModal from "@/components/task/TaskEditModal.vue";
 import TimerCard from "@/components/timer/TimerCard.vue";
 import { useAssignmentStore } from "@/stores/useAssignmentStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
+import type { Task } from "@/types";
 
 const tasks = useTaskStore();
 const assignments = useAssignmentStore();
 const timer = useTimerStore();
 
 const name = ref("");
+const viewMode = ref<"list" | "quadrant">("list");
+const editingTask = ref<Task | null>(null);
 
 onMounted(async () => {
   await Promise.all([tasks.load(), assignments.load()]);
@@ -70,7 +75,7 @@ async function onStartPomodoro(taskId: string) {
     <header class="fl-page-head">
       <h1>今日</h1>
       <p class="fl-page-sub">
-        Week 2a · 任务池 + 今日计划(DTA) + 番茄钟(后端 tokio tick)
+        Week 2b · 任务池 + 今日计划 + 番茄钟 + 四象限
       </p>
     </header>
 
@@ -81,7 +86,18 @@ async function onStartPomodoro(taskId: string) {
     <div class="fl-section">
       <div class="fl-section-head">
         <span class="fl-section-title">任务池</span>
-        <span class="fl-section-count">{{ tasks.tasks.length }}</span>
+        <div class="fl-section-right">
+          <span class="fl-section-count">{{ tasks.tasks.length }}</span>
+          <button
+            class="fl-view-toggle"
+            type="button"
+            :title="viewMode === 'list' ? '象限视图' : '列表视图'"
+            @click="viewMode = viewMode === 'list' ? 'quadrant' : 'list'"
+          >
+            <Grid2X2 v-if="viewMode === 'list'" :size="14" />
+            <List v-else :size="14" />
+          </button>
+        </div>
       </div>
 
       <form class="fl-task-form" @submit.prevent="onAdd">
@@ -98,8 +114,18 @@ async function onStartPomodoro(taskId: string) {
         </button>
       </form>
 
-      <div v-if="tasks.loading" class="fl-empty">载入中…</div>
-      <ul v-else-if="tasks.tasks.length" class="fl-list">
+      <!-- 象限视图 -->
+      <QuadrantGrid
+        v-if="viewMode === 'quadrant' && tasks.tasks.length"
+        :tasks-by-quadrant="tasks.tasksByQuadrant"
+        :timer-idle="timer.isIdle"
+        @edit="editingTask = $event"
+        @start="onStartPomodoro($event)"
+      />
+
+      <!-- 列表视图 -->
+      <div v-else-if="tasks.loading" class="fl-empty">载入中…</div>
+      <ul v-else-if="tasks.tasks.length && viewMode === 'list'" class="fl-list">
         <li v-for="t in tasks.tasks" :key="t.id" class="fl-item">
           <button
             class="fl-check"
@@ -110,6 +136,14 @@ async function onStartPomodoro(taskId: string) {
             <Check :size="14" />
           </button>
           <span class="fl-name">{{ t.name }}</span>
+          <button
+            class="fl-mini-btn fl-mini-edit"
+            type="button"
+            title="编辑"
+            @click="editingTask = t"
+          >
+            <Pencil :size="10" />
+          </button>
           <button
             class="fl-mini-btn fl-mini-play"
             type="button"
@@ -129,6 +163,14 @@ async function onStartPomodoro(taskId: string) {
           >
             <Calendar :size="12" />
             {{ assignedTaskIds.has(t.id) ? '已加入' : '今日' }}
+          </button>
+          <button
+            class="fl-mini-btn fl-mini-danger"
+            type="button"
+            title="删除"
+            @click="tasks.remove(t.id)"
+          >
+            <Trash2 :size="10" />
           </button>
         </li>
       </ul>
@@ -197,6 +239,9 @@ async function onStartPomodoro(taskId: string) {
       </ul>
       <div v-else class="fl-empty">今日还没排任何任务 · 从上方点「今日」加入</div>
     </div>
+
+    <!-- 编辑弹窗 -->
+    <TaskEditModal :task="editingTask" @close="editingTask = null" />
   </section>
 </template>
 
@@ -232,6 +277,12 @@ async function onStartPomodoro(taskId: string) {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+}
+
+.fl-section-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
 }
 
 .fl-section-title {
@@ -390,6 +441,27 @@ async function onStartPomodoro(taskId: string) {
 .fl-mini-play:hover:not(:disabled) {
   border-color: var(--color-success);
   color: var(--color-success);
+}
+
+.fl-mini-edit:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.fl-view-toggle {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  padding: 4px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+.fl-view-toggle:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .fl-empty {
