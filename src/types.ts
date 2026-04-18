@@ -65,6 +65,22 @@ export interface TimerStatePatch {
   updatedAt?: string;
 }
 
+// ---------- TimerSnapshot (Week 2a) ----------
+
+export type PomodoroPreset = "classic_25" | "deep_45" | "immersive_90";
+
+export interface TimerSnapshot {
+  status: TimerStatus;
+  taskId: string | null;
+  sessionId: string | null;
+  mode: "pomodoro" | "free" | null;
+  preset: PomodoroPreset | null;
+  elapsedSeconds: number;
+  plannedSeconds: number;
+  pomodoroCount: number;
+  isBreak: boolean;
+}
+
 // ---------- Recovery ----------
 
 export type RecoveryAction = "AutoResume" | "AskUser" | "AutoEnd";

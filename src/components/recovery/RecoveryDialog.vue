@@ -2,21 +2,19 @@
 /**
  * RecoveryDialog · 崩溃恢复 AskUser 档位的对话框。
  *
- * 三个动作:
- *   继续计时 — 保留 timer_state,关闭 Dialog(Week 2 才接真实恢复;
- *              本轮相当于"我知道了,先不动")
- *   结束会话 — reset_timer_state,关闭
- *   丢弃数据 — 语义同上,文案区分(Week 2 时会让 session 落到 abandoned)
+ * 三个动作(Week 2a 接真实后端命令):
+ *   继续计时 — invoke `resume_from_crash`,后端把内存 RunningTimer 拉起 + spawn tick
+ *   结束会话 — invoke `abandon_from_crash`,后端把 session 标为 abandoned + 清 timer_state
+ *   丢弃数据 — 语义同上(Week 2b 再细分为不落 session 或单独的垃圾桶)
  */
 
 import { AlarmClock, Check, Trash2, X } from "lucide-vue-next";
 import { computed } from "vue";
 
+import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useRecoveryStore } from "@/stores/useRecoveryStore";
-import { useTimerStateStore } from "@/stores/useTimerStateStore";
 
 const recoveryStore = useRecoveryStore();
-const timerStore = useTimerStateStore();
 
 const gapText = computed(() => {
   const sec = recoveryStore.info?.gapSeconds ?? 0;
@@ -37,19 +35,26 @@ const elapsedText = computed(() => {
 });
 
 async function onResume() {
-  // Week 2 接真实恢复。本轮只关闭 Dialog。
+  try {
+    await invokeCmd<unknown>("resume_from_crash");
+  } catch (e) {
+    console.error("[recovery] resume_from_crash 失败", e);
+  }
   recoveryStore.hide();
 }
 
 async function onEnd() {
-  await timerStore.reset();
+  try {
+    await invokeCmd<void>("abandon_from_crash");
+  } catch (e) {
+    console.error("[recovery] abandon_from_crash 失败", e);
+  }
   recoveryStore.hide();
 }
 
 async function onDiscard() {
-  // 语义等同 onEnd(Week 2 加 session.status=abandoned)
-  await timerStore.reset();
-  recoveryStore.hide();
+  // 语义等同 onEnd(Week 2b 再区分回收站/丢弃)
+  await onEnd();
 }
 </script>
 

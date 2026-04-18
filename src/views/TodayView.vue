@@ -12,14 +12,17 @@
  *   ・✕ 从计划移除(删 dta,不影响 task)
  */
 
-import { Calendar, Check, Plus, X } from "lucide-vue-next";
+import { Calendar, Check, Play, Plus, X } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 
+import TimerCard from "@/components/timer/TimerCard.vue";
 import { useAssignmentStore } from "@/stores/useAssignmentStore";
 import { useTaskStore } from "@/stores/useTaskStore";
+import { useTimerStore } from "@/stores/useTimerStore";
 
 const tasks = useTaskStore();
 const assignments = useAssignmentStore();
+const timer = useTimerStore();
 
 const name = ref("");
 
@@ -47,6 +50,19 @@ async function addToPlan(taskId: string) {
     console.error(e);
   }
 }
+
+/** 启动番茄钟 — 仅在当前 idle 时允许 */
+async function onStartPomodoro(taskId: string) {
+  if (!timer.isIdle) {
+    console.warn("[timer] 已有计时进行中,忽略新启动请求");
+    return;
+  }
+  try {
+    await timer.startPomodoro(taskId, "classic_25");
+  } catch (e) {
+    console.error("[timer] startPomodoro failed", e);
+  }
+}
 </script>
 
 <template>
@@ -54,9 +70,12 @@ async function addToPlan(taskId: string) {
     <header class="fl-page-head">
       <h1>今日</h1>
       <p class="fl-page-sub">
-        Week 1b 验证页 · 任务池 + 今日计划(DTA) + 当前逻辑日由后端解析
+        Week 2a · 任务池 + 今日计划(DTA) + 番茄钟(后端 tokio tick)
       </p>
     </header>
+
+    <!-- 当前计时卡(仅 non-idle 时渲染) -->
+    <TimerCard />
 
     <!-- 任务池 -->
     <div class="fl-section">
@@ -91,6 +110,16 @@ async function addToPlan(taskId: string) {
             <Check :size="14" />
           </button>
           <span class="fl-name">{{ t.name }}</span>
+          <button
+            class="fl-mini-btn fl-mini-play"
+            type="button"
+            :disabled="!timer.isIdle"
+            :title="timer.isIdle ? '开始番茄钟' : '已有计时进行中'"
+            :aria-label="`开始番茄钟「${t.name}」`"
+            @click="onStartPomodoro(t.id)"
+          >
+            <Play :size="12" />
+          </button>
           <button
             class="fl-mini-btn"
             type="button"
@@ -140,6 +169,22 @@ async function addToPlan(taskId: string) {
           </button>
           <span class="fl-name">{{ a.taskName }}</span>
           <span class="fl-badge">{{ a.source }}</span>
+          <button
+            class="fl-mini-btn fl-mini-play"
+            type="button"
+            :disabled="!timer.isIdle || a.dayStatus === 'completed'"
+            :title="
+              a.dayStatus === 'completed'
+                ? '今日已完成'
+                : timer.isIdle
+                  ? '开始番茄钟'
+                  : '已有计时进行中'
+            "
+            :aria-label="`开始番茄钟「${a.taskName}」`"
+            @click="onStartPomodoro(a.taskId)"
+          >
+            <Play :size="12" />
+          </button>
           <button
             class="fl-mini-btn fl-mini-danger"
             type="button"
@@ -340,6 +385,11 @@ async function addToPlan(taskId: string) {
 .fl-mini-danger:hover {
   border-color: var(--color-q1);
   color: var(--color-q1);
+}
+
+.fl-mini-play:hover:not(:disabled) {
+  border-color: var(--color-success);
+  color: var(--color-success);
 }
 
 .fl-empty {
