@@ -138,7 +138,7 @@
     flex-shrink: 0;
   }
   .lvl-pill.s { background: linear-gradient(135deg, var(--color-gold), var(--color-warning)); color: #fff; }
-  .lvl-pill.a { background: var(--color-gold-soft); color: #AD6800; }
+  .lvl-pill.a { background: var(--color-gold-soft); color: var(--color-gold-text); }
   .lvl-pill.b { background: var(--color-primary-soft); color: var(--color-primary-dark); }
   .lvl-pill.c { background: var(--color-bg-hover); color: var(--color-text-muted); }
 
@@ -160,8 +160,8 @@
   .event-pill.milestone { background: color-mix(in srgb, #B87FFF 15%, transparent); color: #7B52D6; border-left: 2px solid #B87FFF; padding-left: 4px; }
   .event-pill.fixed { background: var(--color-bg-hover); color: var(--color-text-secondary); }
   /* DDL / 任务到期日 (v1.2.2 任务到期日与日历待办) */
-  .event-pill.due { background: color-mix(in srgb, var(--color-gold) 14%, transparent); color: #AD6800; border-left: 2px solid var(--color-gold); padding-left: 4px; font-weight: var(--fw-medium); }
-  .event-pill.due.is-today { background: color-mix(in srgb, var(--color-warning) 20%, transparent); color: #C2410C; border-left-color: var(--color-warning); font-weight: var(--fw-semibold); }
+  .event-pill.due { background: color-mix(in srgb, var(--color-gold) 14%, transparent); color: var(--color-gold-text); border-left: 2px solid var(--color-gold); padding-left: 4px; font-weight: var(--fw-medium); }
+  .event-pill.due.is-today { background: color-mix(in srgb, var(--color-warning) 20%, transparent); color: var(--color-warning-text); border-left-color: var(--color-warning); font-weight: var(--fw-semibold); }
 
   /* Day cell footer (pomodoro + focus time) */
   .day-foot {
@@ -574,13 +574,13 @@
             </div>
           </div>
 
-          <div class="sub-section-label" style="font-size:var(--fs-12);color:#C2410C;text-transform:uppercase;letter-spacing:0.5px;font-weight:var(--fw-semibold);margin-bottom:var(--sp-2);display:flex;align-items:center;gap:6px">
+          <div class="sub-section-label" style="font-size:var(--fs-12);color:var(--color-warning-text);text-transform:uppercase;letter-spacing:0.5px;font-weight:var(--fw-semibold);margin-bottom:var(--sp-2);display:flex;align-items:center;gap:6px">
             <span>⏰ 今日到期 · 1</span>
           </div>
           <div class="day-event-list" style="margin-bottom:var(--sp-4)">
             <div class="day-event-item" style="background:color-mix(in srgb, var(--color-warning) 10%, transparent);border-left:3px solid var(--color-warning);padding-left:8px">
               <span class="type-dot" style="background:var(--color-warning)"></span>
-              <span class="time" style="color:#C2410C">今日到期</span>
+              <span class="time" style="color:var(--color-warning-text)">今日到期</span>
               <div class="body">
                 <div class="title">复现 baseline 代码</div>
                 <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px">🎯 论文 A · M3 · 进行中 · 已 1h20m</div>

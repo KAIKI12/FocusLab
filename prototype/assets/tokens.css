@@ -21,6 +21,13 @@
   --color-warning-soft: #FFEFD9;
   --color-neutral: #8C8C8C;         /* 搁置灰 · 非红色 */
 
+  /* ---------- 文本色 · 用于在 *-soft 底上的深色文字 (浅色主题:压暗 25%) ---------- */
+  --color-success-text: color-mix(in srgb, var(--color-success) 75%, #000 25%);
+  --color-gold-text:    color-mix(in srgb, var(--color-gold)    75%, #000 25%);
+  --color-warning-text: color-mix(in srgb, var(--color-warning) 75%, #000 25%);
+  --color-q1-text:      color-mix(in srgb, var(--color-q1)      75%, #000 25%);
+  --color-q3-text:      color-mix(in srgb, var(--color-q3)      75%, #000 25%);
+
   /* ---------- 象限标识色 (与紧急重要体系一一对应) ---------- */
   --color-q1: #F56C6C; /* 紧急重要 */
   --color-q1-soft: #FEECEC;
@@ -144,6 +151,13 @@
   --color-q3-soft: rgba(255, 169, 64, 0.14);
   --color-q4: #73D13D;
   --color-q4-soft: rgba(115, 209, 61, 0.14);
+
+  /* 深色模式 · 文本色 *-soft 底上的文字反过来提亮 20% */
+  --color-success-text: color-mix(in srgb, var(--color-success) 85%, #fff 15%);
+  --color-gold-text:    color-mix(in srgb, var(--color-gold)    85%, #fff 15%);
+  --color-warning-text: color-mix(in srgb, var(--color-warning) 85%, #fff 15%);
+  --color-q1-text:      color-mix(in srgb, var(--color-q1)      85%, #fff 15%);
+  --color-q3-text:      color-mix(in srgb, var(--color-q3)      85%, #fff 15%);
 
   --color-bg: #1A1A2E;
   --color-bg-elevated: #16213E;
