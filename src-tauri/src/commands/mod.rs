@@ -2,6 +2,7 @@
 
 pub mod assignment_commands;
 pub mod focus_commands;
+pub mod goal_commands;
 pub mod interruption_commands;
 pub mod recovery_commands;
 pub mod task_commands;

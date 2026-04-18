@@ -137,6 +137,7 @@ pub struct UpdateTaskInput {
     pub quadrant: Option<String>,
     pub estimated_minutes: Option<i64>,
     pub due_date: Option<String>,
+    pub milestone_id: Option<String>,
 }
 
 /// 部分更新任务字段。
@@ -168,6 +169,7 @@ pub fn update_task(input: UpdateTaskInput, db: State<'_, Db>) -> AppResult<Task>
     push_set!(input.quadrant, "quadrant");
     push_set!(input.estimated_minutes, "estimated_minutes");
     push_set!(input.due_date, "due_date");
+    push_set!(input.milestone_id, "milestone_id");
 
     let sql = format!(
         "UPDATE tasks SET {} WHERE id = ?{} AND shelved_at IS NULL",
@@ -190,6 +192,9 @@ pub fn update_task(input: UpdateTaskInput, db: State<'_, Db>) -> AppResult<Task>
         param_values.push(Box::new(v));
     }
     if let Some(ref v) = input.due_date {
+        param_values.push(Box::new(v.clone()));
+    }
+    if let Some(ref v) = input.milestone_id {
         param_values.push(Box::new(v.clone()));
     }
     param_values.push(Box::new(input.id.clone()));

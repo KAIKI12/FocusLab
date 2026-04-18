@@ -74,6 +74,15 @@ pub fn run() {
             // 中断记录 (Week 2b)
             commands::interruption_commands::create_interruption,
             commands::interruption_commands::end_interruption,
+            // 长线目标 + 里程碑 (Phase 2)
+            commands::goal_commands::list_goals,
+            commands::goal_commands::create_goal,
+            commands::goal_commands::update_goal,
+            commands::goal_commands::archive_goal,
+            commands::goal_commands::list_milestones,
+            commands::goal_commands::create_milestone,
+            commands::goal_commands::update_milestone,
+            commands::goal_commands::complete_milestone,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
