@@ -170,3 +170,15 @@ export interface CreateAssignmentInput {
   source?: AssignmentSource;
   isPlanned?: boolean;
 }
+
+// ---------- CompletionStats (Week 2b) ----------
+
+export interface CompletionStats {
+  planDate: string;
+  isLocked: boolean;
+  plannedCount: number;
+  completedCount: number;
+  extraCount: number;
+  extraCompleted: number;
+  completionRate: number;
+}

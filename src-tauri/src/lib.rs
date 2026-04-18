@@ -53,6 +53,9 @@ pub fn run() {
             commands::assignment_commands::create_assignment,
             commands::assignment_commands::update_assignment_status,
             commands::assignment_commands::remove_assignment,
+            // 计划锁定 + 完成率 (Week 2b)
+            commands::assignment_commands::lock_plan,
+            commands::assignment_commands::get_completion_stats,
             // 番茄钟控制 (Week 2a)
             commands::focus_commands::start_pomodoro,
             commands::focus_commands::pause_timer,

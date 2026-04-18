@@ -12,7 +12,7 @@
  *   ・✕ 从计划移除(删 dta,不影响 task)
  */
 
-import { Calendar, Check, Grid2X2, List, Pencil, Play, Plus, Trash2, X } from "lucide-vue-next";
+import { Calendar, Check, Grid2X2, List, Lock, Pencil, Play, Plus, Trash2, X } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 
 import QuadrantGrid from "@/components/task/QuadrantGrid.vue";
@@ -189,11 +189,26 @@ async function onStartPomodoro(taskId: string) {
     <div class="fl-section">
       <div class="fl-section-head">
         <span class="fl-section-title">今日计划</span>
-        <span class="fl-section-count">
-          {{ assignments.assignments.filter((a) => a.dayStatus === 'completed').length }}
-          /
-          {{ assignments.assignments.length }}
-        </span>
+        <div class="fl-section-right">
+          <span v-if="assignments.stats" class="fl-stats-badge">
+            {{ assignments.stats.completedCount }}/{{ assignments.stats.plannedCount }}
+            <template v-if="assignments.stats.extraCompleted > 0">
+              +{{ assignments.stats.extraCompleted }}
+            </template>
+          </span>
+          <button
+            v-if="!assignments.stats?.isLocked"
+            class="fl-view-toggle"
+            type="button"
+            title="锁定今日计划"
+            @click="assignments.lockPlan()"
+          >
+            <Lock :size="12" />
+          </button>
+          <span v-else class="fl-locked-badge" title="计划已锁定">
+            <Lock :size="10" /> 已锁定
+          </span>
+        </div>
       </div>
 
       <ul v-if="assignments.assignments.length" class="fl-list">
@@ -470,6 +485,24 @@ async function onStartPomodoro(taskId: string) {
 .fl-view-toggle:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+.fl-stats-badge {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  padding: 2px var(--sp-2);
+  background: var(--color-bg-subtle);
+  border-radius: var(--r-pill);
+  font-weight: var(--fw-medium);
+}
+
+.fl-locked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--color-success);
+  font-weight: var(--fw-medium);
 }
 
 .fl-empty {

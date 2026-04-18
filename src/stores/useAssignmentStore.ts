@@ -10,6 +10,7 @@ import { ref } from "vue";
 import { invokeCmd } from "@/composables/useTauriInvoke";
 import type {
   AssignmentWithTask,
+  CompletionStats,
   CreateAssignmentInput,
   DailyTaskAssignment,
   DayStatus,
@@ -18,6 +19,7 @@ import type {
 export const useAssignmentStore = defineStore("assignment", () => {
   const assignments = ref<AssignmentWithTask[]>([]);
   const loading = ref(false);
+  const stats = ref<CompletionStats | null>(null);
   /** null 表示"当前逻辑日",由后端解析 */
   const planDate = ref<string | null>(null);
 
@@ -32,6 +34,23 @@ export const useAssignmentStore = defineStore("assignment", () => {
     } finally {
       loading.value = false;
     }
+    // 同步刷新统计
+    await loadStats();
+  }
+
+  async function loadStats() {
+    try {
+      stats.value = await invokeCmd<CompletionStats>("get_completion_stats", {
+        planDate: planDate.value,
+      });
+    } catch (e) {
+      console.error("[assignment] loadStats failed", e);
+    }
+  }
+
+  async function lockPlan() {
+    await invokeCmd<void>("lock_plan", { planDate: planDate.value });
+    await loadStats();
   }
 
   async function create(input: CreateAssignmentInput) {
@@ -59,5 +78,5 @@ export const useAssignmentStore = defineStore("assignment", () => {
     assignments.value = assignments.value.filter((a) => a.id !== id);
   }
 
-  return { assignments, loading, planDate, load, create, setStatus, remove };
+  return { assignments, loading, planDate, stats, load, loadStats, lockPlan, create, setStatus, remove };
 });

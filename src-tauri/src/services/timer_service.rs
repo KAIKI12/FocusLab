@@ -171,13 +171,28 @@ impl TimerService {
         let session_id = {
             let db = self.app.state::<Db>();
             let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
-            session::create_session(
+            let sid = session::create_session(
                 &conn,
                 &task_id,
                 "pomodoro",
                 Some(&preset),
                 Some(planned / 60),
-            )?
+            )?;
+
+            // 自动锁定今日计划(首次启动番茄钟时)
+            let boundary = crate::models::settings::get_boundary_hour(&conn)?;
+            let logical_date = crate::utils::datetime::current_logical_date(boundary).to_string();
+            let lock_id = uuid::Uuid::new_v4().to_string();
+            let _ = conn.execute(
+                "INSERT INTO daily_plans (id, plan_date, plan_locked_at, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?3, ?3)
+                 ON CONFLICT(plan_date) DO UPDATE SET
+                   plan_locked_at = COALESCE(daily_plans.plan_locked_at, excluded.plan_locked_at),
+                   updated_at = excluded.updated_at",
+                params![lock_id, logical_date, now.to_rfc3339()],
+            );
+
+            sid
         };
 
         // 写入内存

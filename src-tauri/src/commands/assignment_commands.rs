@@ -93,7 +93,13 @@ pub fn create_assignment(
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     let source = input.source.unwrap_or_else(|| "manual".into());
-    let is_planned = input.is_planned.unwrap_or(true);
+
+    // 检查计划是否已锁定 — 锁定后新增的任务 is_planned=false
+    let is_planned = if is_plan_locked(&conn, &plan_date) {
+        false
+    } else {
+        input.is_planned.unwrap_or(true)
+    };
 
     let insert_result = conn.execute(
         "INSERT INTO daily_task_assignments
@@ -183,4 +189,97 @@ pub fn remove_assignment(id: String, db: State<'_, Db>) -> AppResult<()> {
         return Err(AppError::Custom(format!("assignment {id} not found")));
     }
     Ok(())
+}
+
+// ---------- Week 2b: 计划锁定 + 完成率 ----------
+
+fn is_plan_locked(conn: &rusqlite::Connection, plan_date: &str) -> bool {
+    conn.query_row(
+        "SELECT plan_locked_at FROM daily_plans WHERE plan_date = ?1",
+        params![plan_date],
+        |r| r.get::<_, Option<String>>(0),
+    )
+    .unwrap_or(None)
+    .is_some()
+}
+
+#[tauri::command]
+pub fn lock_plan(plan_date: Option<String>, db: State<'_, Db>) -> AppResult<()> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let target = match plan_date {
+        Some(d) => d,
+        None => {
+            let boundary = settings::get_boundary_hour(&conn)?;
+            current_logical_date(boundary).to_string()
+        }
+    };
+    let now = Utc::now().to_rfc3339();
+    let id = Uuid::new_v4().to_string();
+    conn.execute(
+        "INSERT INTO daily_plans (id, plan_date, plan_locked_at, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?3, ?3)
+         ON CONFLICT(plan_date) DO UPDATE SET
+           plan_locked_at = COALESCE(daily_plans.plan_locked_at, excluded.plan_locked_at),
+           updated_at = excluded.updated_at",
+        params![id, target, now],
+    )?;
+    Ok(())
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompletionStats {
+    pub plan_date: String,
+    pub is_locked: bool,
+    pub planned_count: i64,
+    pub completed_count: i64,
+    pub extra_count: i64,
+    pub extra_completed: i64,
+    pub completion_rate: f64,
+}
+
+#[tauri::command]
+pub fn get_completion_stats(
+    plan_date: Option<String>,
+    db: State<'_, Db>,
+) -> AppResult<CompletionStats> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let target = match plan_date {
+        Some(d) => d,
+        None => {
+            let boundary = settings::get_boundary_hour(&conn)?;
+            current_logical_date(boundary).to_string()
+        }
+    };
+
+    let locked = is_plan_locked(&conn, &target);
+
+    let (planned_count, completed_count, extra_count, extra_completed) = conn
+        .query_row(
+            "SELECT
+              COALESCE(SUM(CASE WHEN is_planned = 1 THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(CASE WHEN is_planned = 1 AND day_status = 'completed' THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(CASE WHEN is_planned = 0 THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(CASE WHEN is_planned = 0 AND day_status = 'completed' THEN 1 ELSE 0 END), 0)
+             FROM daily_task_assignments WHERE plan_date = ?1",
+            params![target],
+            |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?, r.get::<_, i64>(3)?)),
+        )
+        .unwrap_or((0, 0, 0, 0));
+
+    let rate = if planned_count > 0 {
+        completed_count as f64 / planned_count as f64
+    } else {
+        0.0
+    };
+
+    Ok(CompletionStats {
+        plan_date: target,
+        is_locked: locked,
+        planned_count,
+        completed_count,
+        extra_count,
+        extra_completed,
+        completion_rate: rate,
+    })
 }

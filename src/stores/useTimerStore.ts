@@ -13,6 +13,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 import { invokeCmd } from "@/composables/useTauriInvoke";
+import { useSound } from "@/composables/useSound";
 import type { PomodoroPreset, TimerSnapshot } from "@/types";
 
 /** 从后端 timer_state 行转成 TimerSnapshot — 启动时初始化用 */
@@ -84,8 +85,16 @@ export const useTimerStore = defineStore("timer", () => {
   async function ensureListeners() {
     if (listenerGuard) return listenerGuard;
     listenerGuard = (async () => {
+      const { playFocusComplete, playBreakComplete } = useSound();
       const handler = (ev: { payload: TimerSnapshot }) => {
+        const prev = snapshot.value?.status;
         snapshot.value = ev.payload;
+        // 音效:检测状态转场
+        if (prev === "running" && (ev.payload.status === "break" || ev.payload.status === "break_ended")) {
+          playFocusComplete();
+        } else if (prev === "break" && (ev.payload.status === "break_ended" || ev.payload.status === "idle")) {
+          playBreakComplete();
+        }
       };
       return Promise.all([
         listen<TimerSnapshot>("timer:tick", handler),
