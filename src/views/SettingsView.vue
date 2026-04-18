@@ -7,10 +7,12 @@
 
 import { ref } from "vue";
 
+import { useAIStore } from "@/stores/useAIStore";
 import { useTheme, type ThemeMode } from "@/composables/useTheme";
 import { useTimerStateStore } from "@/stores/useTimerStateStore";
 
 const { mode, accent, setMode, setAccent } = useTheme();
+const ai = useAIStore();
 
 const modes: ThemeMode[] = ["light", "dark", "auto"];
 
@@ -33,6 +35,32 @@ const accents: { id: string; label: string }[] = [
 
 function onAccentChange(e: Event) {
   setAccent((e.target as HTMLSelectElement).value);
+}
+
+// ---------- AI 配置 ----------
+
+const aiProvider = ref("compatible");
+const aiBaseUrl = ref("");
+const aiApiKey = ref("");
+const aiModel = ref("gpt-4o-mini");
+const aiTestResult = ref("");
+
+async function onSaveAI() {
+  try {
+    await ai.configure(aiProvider.value, aiBaseUrl.value, aiApiKey.value, aiModel.value);
+    aiTestResult.value = "✅ 已保存";
+  } catch (e) {
+    aiTestResult.value = `❌ 保存失败: ${e}`;
+  }
+}
+
+async function onTestAI() {
+  try {
+    const result = await ai.testConnection();
+    aiTestResult.value = `✅ ${result}`;
+  } catch (e) {
+    aiTestResult.value = `❌ 连接失败: ${e}`;
+  }
 }
 
 // ---------- Week 1b · DEV 调试面板 ----------
@@ -87,7 +115,7 @@ async function showCurrent() {
     <header class="fl-page-head">
       <h1>设置</h1>
       <p class="fl-page-sub">
-        Week 1a 占位 · 主题切换 + Week 1b 崩溃恢复调试
+        主题 · AI 配置 · 调试
       </p>
     </header>
 
@@ -125,6 +153,42 @@ async function showCurrent() {
         <span class="fl-swatch-dot fl-swatch-gold"></span>
         <span class="fl-swatch-dot fl-swatch-q1"></span>
         <span class="fl-swatch-label">当前色板预览</span>
+      </div>
+    </div>
+
+    <!-- AI 配置 -->
+    <div class="fl-setting-block">
+      <div class="fl-setting-label">AI 配置</div>
+      <div class="fl-ai-form">
+        <label class="fl-ai-field">
+          <span class="fl-ai-label">Provider</span>
+          <select v-model="aiProvider" class="fl-ai-input">
+            <option value="compatible">OpenAI 兼容(DeepSeek / Zhipu / 代理)</option>
+            <option value="ollama">Ollama(本地)</option>
+          </select>
+        </label>
+        <label class="fl-ai-field">
+          <span class="fl-ai-label">Base URL</span>
+          <input
+            v-model="aiBaseUrl"
+            class="fl-ai-input"
+            type="text"
+            :placeholder="aiProvider === 'ollama' ? 'http://localhost:11434' : 'https://api.openai.com'"
+          />
+        </label>
+        <label class="fl-ai-field">
+          <span class="fl-ai-label">API Key</span>
+          <input v-model="aiApiKey" class="fl-ai-input" type="password" placeholder="sk-..." />
+        </label>
+        <label class="fl-ai-field">
+          <span class="fl-ai-label">Model</span>
+          <input v-model="aiModel" class="fl-ai-input" type="text" placeholder="gpt-4o-mini" />
+        </label>
+        <div class="fl-ai-actions">
+          <button class="fl-btn" type="button" @click="onSaveAI">保存</button>
+          <button class="fl-btn fl-btn-ghost" type="button" @click="onTestAI">测试连接</button>
+        </div>
+        <div v-if="aiTestResult" class="fl-ai-result">{{ aiTestResult }}</div>
       </div>
     </div>
 
@@ -278,6 +342,48 @@ async function showCurrent() {
 }
 
 /* ---------- Dev 面板 ---------- */
+
+/* ---------- AI 配置 ---------- */
+.fl-ai-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.fl-ai-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.fl-ai-label {
+  font-size: var(--fs-12);
+  color: var(--color-text-muted);
+}
+.fl-ai-input {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+  font-size: var(--fs-13, var(--fs-14));
+  font-family: inherit;
+  outline: none;
+}
+.fl-ai-input:focus {
+  border-color: var(--color-primary);
+}
+.fl-ai-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+.fl-ai-result {
+  font-size: var(--fs-12);
+  color: var(--color-text-secondary);
+  padding: var(--sp-2);
+  background: var(--color-bg-subtle);
+  border-radius: var(--r-sm);
+}
+
+/* ---------- Dev 面板(原) ---------- */
 .fl-dev {
   border: 1px dashed var(--color-warning);
   background: var(--color-warning-soft);
