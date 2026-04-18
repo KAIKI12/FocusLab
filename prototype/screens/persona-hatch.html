@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · 科研人格孵化</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />
@@ -38,13 +41,13 @@
   .tl-node.current .tl-dot { background: var(--color-primary); animation: pulse 2s infinite; }
   .tl-node.future .tl-dot { background: var(--color-border-strong); color: var(--color-text-muted); }
 
-  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(79,140,255,0.4); } 50% { box-shadow: 0 0 0 8px rgba(79,140,255,0); } }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 40%, transparent); } 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-primary) 0%, transparent); } }
 
   .tl-day-label { position: absolute; left: -80px; top: 22px; width: 36px; text-align: right; font-size: var(--fs-12); font-weight: var(--fw-semibold); color: var(--color-text-secondary); white-space: nowrap; }
 
   /* 卡片 */
   .tl-card { background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--r-md); box-shadow: var(--shadow-card); padding: var(--sp-4) var(--sp-5); transition: transform var(--dur-slow) var(--ease-out), opacity var(--dur-slow) var(--ease-out); }
-  .tl-node.current .tl-card { border-color: var(--color-primary); box-shadow: var(--shadow-card), 0 0 0 2px rgba(79,140,255,0.12); }
+  .tl-node.current .tl-card { border-color: var(--color-primary); box-shadow: var(--shadow-card), 0 0 0 2px color-mix(in srgb, var(--color-primary) 12%, transparent); }
   .tl-emoji { font-size: var(--fs-20); margin-bottom: var(--sp-2); }
   .tl-title { font-size: var(--fs-16); font-weight: var(--fw-semibold); margin-bottom: var(--sp-2); }
   .tl-desc { font-size: var(--fs-14); color: var(--color-text-secondary); line-height: var(--lh-base); margin-bottom: var(--sp-3); }

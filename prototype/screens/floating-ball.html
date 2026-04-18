@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · 悬浮球 · 托盘</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />
@@ -53,7 +56,7 @@
     backdrop-filter: blur(10px);
     display: grid; place-items: center;
   }
-  .fake-icon.doc .ico-box { background: rgba(79, 140, 255, 0.8); }
+  .fake-icon.doc .ico-box { background: color-mix(in srgb, var(--color-primary) 80%, transparent); }
   .fake-icon.folder .ico-box { background: rgba(250, 173, 20, 0.8); }
   .fake-icon.code .ico-box { background: rgba(46, 204, 113, 0.8); }
 
@@ -86,7 +89,7 @@
   .orb-demos {
     position: absolute;
     display: flex;
-    gap: 80px;
+    gap: 56px;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -109,7 +112,7 @@
     background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
     display: grid; place-items: center;
     color: #fff;
-    box-shadow: 0 8px 20px rgba(79, 140, 255, 0.35);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--color-primary) 35%, transparent);
     position: relative;
     cursor: grab;
     transition: transform var(--dur-base) var(--ease-smooth);
@@ -121,8 +124,8 @@
     animation: breathe 4s ease-in-out infinite;
   }
   @keyframes breathe {
-    0%, 100% { opacity: 0.75; box-shadow: 0 6px 14px rgba(79,140,255,0.3); }
-    50% { opacity: 1; box-shadow: 0 10px 24px rgba(79,140,255,0.5); }
+    0%, 100% { opacity: 0.75; box-shadow: 0 6px 14px color-mix(in srgb, var(--color-primary) 30%, transparent); }
+    50% { opacity: 1; box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary) 50%, transparent); }
   }
 
   /* 专注中带环形进度 */
@@ -145,6 +148,31 @@
     font-size: 13px;
     font-weight: var(--fw-semibold);
     letter-spacing: -0.5px;
+  }
+
+  /* 🌀 自由计时中(v1.2.3 · 紫罗兰 · 虚线环慢速旋转) */
+  .orb.free-focusing {
+    background: linear-gradient(135deg, #8B5CF6, #A78BFA);
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+  }
+  .orb.free-focusing::before {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px dashed rgba(255,255,255,0.7);
+    animation: freeOrbSpin 12s linear infinite;
+  }
+  @keyframes freeOrbSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  .orb.free-focusing .orb-time {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: -0.5px;
+    color: #fff;
   }
 
   /* 完成绿闪 */
@@ -228,7 +256,7 @@
     background: var(--color-primary); color: #fff;
     display: grid; place-items: center;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(79, 140, 255, 0.3);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 30%, transparent);
   }
 
   .op-switch {
@@ -341,15 +369,23 @@
       </div>
 
       <div class="orb-demo">
-        <div class="orb-label">02 · 专注中</div>
+        <div class="orb-label">02 · 🍅 番茄中</div>
         <div class="orb focusing">
           <span class="orb-time">18:32</span>
         </div>
-        <div class="orb-caption">环形进度实时,点击展开控制面板</div>
+        <div class="orb-caption">蓝色环形进度实时递减,点击展开控制面板</div>
       </div>
 
       <div class="orb-demo">
-        <div class="orb-label">03 · 完成闪烁</div>
+        <div class="orb-label">03 · 🌀 自由中</div>
+        <div class="orb free-focusing">
+          <span class="orb-time">23:47</span>
+        </div>
+        <div class="orb-caption">紫罗兰虚线环慢速旋转 · 数字递增,仅视觉区分,不改变手势</div>
+      </div>
+
+      <div class="orb-demo">
+        <div class="orb-label">04 · 完成闪烁</div>
         <div class="orb complete">
           <span data-icon="check" data-size="24"></span>
         </div>
@@ -409,9 +445,28 @@
           </div>
         </div>
       </div>
-      <div class="op-foot">
-        <span>双击悬浮球 = 打开主窗口</span>
-        <span class="kbd">⌘⇧F</span>
+      <div class="op-foot" style="flex-direction:column;align-items:stretch;gap:8px;padding:10px 12px">
+        <div style="font-size:11px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:var(--fw-medium)">手势矩阵 · v1.2.3</div>
+        <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 12px;font-size:var(--fs-12);align-items:center">
+          <span style="color:var(--color-text-muted)">手势</span>
+          <span style="color:var(--color-text-muted)">🍅 专注 / 🌀 自由计时中</span>
+          <span style="color:var(--color-text-muted)">空闲 / 休息时</span>
+
+          <span class="kbd">单击</span>
+          <span>展开 mini 面板</span>
+          <span>展开 mini 面板</span>
+
+          <span class="kbd">双击</span>
+          <span style="color:var(--color-primary);font-weight:var(--fw-medium)">⏸ 暂停 / ▶ 继续</span>
+          <span>打开主窗口</span>
+
+          <span class="kbd">右键</span>
+          <span>托盘菜单</span>
+          <span>托盘菜单</span>
+        </div>
+        <div style="font-size:11px;color:var(--color-text-muted);line-height:1.5;border-top:1px dashed var(--color-divider);padding-top:6px;margin-top:2px">
+          💡 单击 mini 面板里也有"打开主窗口"按钮兜底,专注中仍可打开主窗
+        </div>
       </div>
     </div>
 
@@ -460,8 +515,12 @@
       <p>无任务或非专注时,透明度 70%-90% 正弦曲线呼吸,周期 4s。研究生长时间对着屏幕,几乎感知不到。</p>
     </div>
     <div class="card note-card">
-      <h4><span data-icon="clock" data-size="16"></span> 专注中</h4>
-      <p>显示微型环形进度 + 剩余时间。hover 放大 5%,click 展开 mini 面板。可以被拖拽,靠近屏幕边缘时弹性吸附。</p>
+      <h4><span data-icon="clock" data-size="16"></span> 🍅 番茄中</h4>
+      <p>显示微型环形进度 + 剩余时间。hover 放大 5%,单击展开 mini 面板,<strong style="color:var(--color-primary)">双击 = 暂停 / 继续</strong>(v1.2.3)。可被拖拽,靠近屏幕边缘弹性吸附。</p>
+    </div>
+    <div class="card note-card">
+      <h4><span data-icon="circle-dashed" data-size="16"></span> 🌀 自由中</h4>
+      <p>紫罗兰外圈 <strong style="color:#7B52D6">虚线慢速旋转</strong>(周期 12s),数字递增。与番茄态仅视觉区分,<strong>手势一致</strong>:单击面板 / 双击暂停 / 右键托盘。面板底部按钮改为"手动结束"。</p>
     </div>
     <div class="card note-card">
       <h4><span data-icon="check" data-size="16"></span> 完成闪烁</h4>

@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · 成就徽章墙</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />

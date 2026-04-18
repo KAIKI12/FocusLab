@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · FTUE · 首次启动引导</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />
@@ -44,7 +47,7 @@
     font-size: var(--fs-14);
     transition: all var(--dur-base);
   }
-  .step-dot.is-active .num { background: var(--color-primary); color: #fff; box-shadow: 0 4px 12px rgba(79, 140, 255, 0.3); }
+  .step-dot.is-active .num { background: var(--color-primary); color: #fff; box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 30%, transparent); }
   .step-dot.is-done .num { background: var(--color-success-soft); color: var(--color-success); }
   .step-dot .label { font-size: var(--fs-12); color: var(--color-text-secondary); white-space: nowrap; }
   .step-dot.is-active .label { color: var(--color-primary); font-weight: var(--fw-medium); }
@@ -105,7 +108,7 @@
     background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
     display: grid; place-items: center;
     color: #fff; font-size: 32px; font-weight: var(--fw-bold);
-    box-shadow: 0 12px 32px rgba(79, 140, 255, 0.35);
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--color-primary) 35%, transparent);
   }
   .welcome-title { font-size: 32px; font-weight: var(--fw-bold); letter-spacing: -0.8px; margin-bottom: var(--sp-2); }
   .welcome-sub { font-size: var(--fs-16); color: var(--color-text-secondary); }

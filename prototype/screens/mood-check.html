@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · 每日主观信号 · 早意图/晚情绪</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />
@@ -166,8 +169,8 @@
   /* ---------- 晚上 · 摘要 → 心情 → 评级 ---------- */
   .evening-card {
     background:
-      radial-gradient(circle at 80% 0%, rgba(79, 140, 255, 0.14), transparent 55%),
-      radial-gradient(circle at 10% 100%, rgba(79, 140, 255, 0.08), transparent 60%),
+      radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 55%),
+      radial-gradient(circle at 10% 100%, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 60%),
       var(--color-bg-elevated);
     border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
   }

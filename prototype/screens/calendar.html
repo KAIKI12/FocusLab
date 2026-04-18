@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · 日历视图</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />
@@ -152,7 +155,7 @@
     line-height: 1.4;
     display: block;
   }
-  .event-pill.lesson { background: rgba(79, 140, 255, 0.15); color: var(--color-primary-dark); border-left: 2px solid var(--color-primary); padding-left: 4px; }
+  .event-pill.lesson { background: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary-dark); border-left: 2px solid var(--color-primary); padding-left: 4px; }
   .event-pill.meeting { background: rgba(255, 140, 0, 0.15); color: #D2691E; border-left: 2px solid var(--color-warning); padding-left: 4px; }
   .event-pill.milestone { background: color-mix(in srgb, #B87FFF 15%, transparent); color: #7B52D6; border-left: 2px solid #B87FFF; padding-left: 4px; }
   .event-pill.fixed { background: var(--color-bg-hover); color: var(--color-text-secondary); }

@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · 全局模态弹窗</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />
@@ -45,8 +48,8 @@
   .stage.light { background: linear-gradient(135deg, #EAF1FF 0%, #F5F7FA 100%); }
   .stage.light::before {
     background-image:
-      linear-gradient(to right, rgba(79,140,255,0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(79,140,255,0.05) 1px, transparent 1px);
+      linear-gradient(to right, color-mix(in srgb, var(--color-primary) 5%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in srgb, var(--color-primary) 5%, transparent) 1px, transparent 1px);
   }
   .stage.light::after {
     background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.08) 80%);
@@ -421,7 +424,7 @@
             <span class="esc">esc</span>
           </div>
           <div class="cmd-body">
-            <div class="cmd-section-label">⌨️ 专注控制</div>
+            <div class="cmd-section-label">🎯 焦点 / 番茄钟 · 6</div>
             <div class="cmd-item is-active">
               <div class="ci-icon"><span data-icon="pause" data-size="14"></span></div>
               <span class="ci-label">暂停 / 继续专注</span>
@@ -437,8 +440,23 @@
               <span class="ci-label">结束当前番茄钟</span>
               <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">X</span></span>
             </div>
+            <div class="cmd-item">
+              <div class="ci-icon" style="color:#7B52D6"><span data-icon="circle-dashed" data-size="14"></span></div>
+              <span class="ci-label">切换计时模式 · 🍅 番茄 ↔ 🌀 自由</span>
+              <span class="ci-combo" style="color:var(--color-text-muted);font-size:10px">无绑定 · 计时中不可切</span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="plus" data-size="14"></span></div>
+              <span class="ci-label">延长休息 5 分钟</span>
+              <span class="ci-combo" style="color:var(--color-text-muted);font-size:10px">无绑定</span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="maximize" data-size="14"></span></div>
+              <span class="ci-label">进入沉浸视图 / 退回主窗口</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">F</span></span>
+            </div>
 
-            <div class="cmd-section-label">📋 任务 / 计划</div>
+            <div class="cmd-section-label">📋 任务 / 计划 · 5</div>
             <div class="cmd-item">
               <div class="ci-icon"><span data-icon="plus" data-size="14"></span></div>
               <span class="ci-label">快速添加任务</span>
@@ -446,37 +464,174 @@
             </div>
             <div class="cmd-item">
               <div class="ci-icon"><span data-icon="sparkles" data-size="14"></span></div>
-              <span class="ci-label">启动晨起引导思考</span>
+              <span class="ci-label">启动晨起引导</span>
               <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">G</span></span>
             </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="edit" data-size="14"></span></div>
+              <span class="ci-label">微复盘当前任务</span>
+              <span class="ci-combo" style="color:var(--color-text-muted);font-size:10px">无绑定</span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="calendar" data-size="14"></span></div>
+              <span class="ci-label">设置当前任务截止日期…</span>
+              <span class="ci-combo" style="color:var(--color-text-muted);font-size:10px">无绑定</span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="circle-pause" data-size="14"></span></div>
+              <span class="ci-label">搁置当前任务</span>
+              <span class="ci-combo" style="color:var(--color-text-muted);font-size:10px">无绑定</span>
+            </div>
 
-            <div class="cmd-section-label">🎨 视图 / 导航</div>
+            <div class="cmd-section-label">🎨 视图 / 导航 · 5</div>
             <div class="cmd-item">
               <div class="ci-icon"><span data-icon="home" data-size="14"></span></div>
               <span class="ci-label">今日计划</span>
               <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">1</span></span>
             </div>
             <div class="cmd-item">
-              <div class="ci-icon"><span data-icon="grid" data-size="14"></span></div>
-              <span class="ci-label">四象限视图</span>
-              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">Q</span></span>
-            </div>
-            <div class="cmd-item">
               <div class="ci-icon"><span data-icon="target" data-size="14"></span></div>
               <span class="ci-label">长线目标</span>
               <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">2</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="calendar" data-size="14"></span></div>
+              <span class="ci-label">日历视图</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">3</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="bar-chart" data-size="14"></span></div>
+              <span class="ci-label">数据分析 · 周报</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">4</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="box" data-size="14"></span></div>
+              <span class="ci-label">搁置区</span>
+              <span class="ci-combo" style="color:var(--color-text-muted);font-size:10px">无绑定</span>
+            </div>
+
+            <div class="cmd-section-label">⚙️ 设置 / 模式 · 4</div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="settings" data-size="14"></span></div>
+              <span class="ci-label">打开设置</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">,</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="layers" data-size="14"></span></div>
+              <span class="ci-label">切换极简 / 标准模式</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">M</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="moon" data-size="14"></span></div>
+              <span class="ci-label">切换深色 / 浅色主题</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">T</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="zap" data-size="14"></span></div>
+              <span class="ci-label">查看所有快捷键</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">/</span></span>
+            </div>
+
+            <div class="cmd-section-label">🌐 全局 · 1</div>
+            <div class="cmd-item">
+              <div class="ci-icon" style="color:var(--color-primary)"><span data-icon="zap" data-size="14"></span></div>
+              <span class="ci-label">全局唤起 FocusLab <span style="color:var(--color-text-muted);font-size:11px">· 任何应用下可用 · 再按一次收起</span></span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">L</span></span>
+            </div>
+
+            <div class="cmd-section-label">💤 日结算 / 收尾 · 2</div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="moon" data-size="14"></span></div>
+              <span class="ci-label">结束今天 · 进入日结算</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">E</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="chevron-right" data-size="14"></span></div>
+              <span class="ci-label">查看昨日复盘</span>
+              <span class="ci-combo" style="color:var(--color-text-muted);font-size:10px">无绑定</span>
+            </div>
+
+            <div class="cmd-section-label">🔍 搜索(输入即触发) · 3</div>
+            <div class="cmd-item" style="color:var(--color-text-muted)">
+              <div class="ci-icon"><span data-icon="search" data-size="14"></span></div>
+              <span class="ci-label">以 <span class="kbd" style="background:var(--color-bg-elevated)">#</span> 开头 · 搜索任务</span>
+            </div>
+            <div class="cmd-item" style="color:var(--color-text-muted)">
+              <div class="ci-icon"><span data-icon="target" data-size="14"></span></div>
+              <span class="ci-label">以 <span class="kbd" style="background:var(--color-bg-elevated)">@</span> 开头 · 跳转到目标</span>
+            </div>
+            <div class="cmd-item" style="color:var(--color-text-muted)">
+              <div class="ci-icon"><span data-icon="chevron-right" data-size="14"></span></div>
+              <span class="ci-label">以 <span class="kbd" style="background:var(--color-bg-elevated)">&gt;</span> 开头 · 过滤命令</span>
             </div>
           </div>
           <div class="cmd-foot">
             <span class="hint"><span class="kbd">↑</span><span class="kbd">↓</span> 移动</span>
             <span class="hint"><span class="kbd">↵</span> 执行</span>
             <span class="hint"><span class="kbd">esc</span> 关闭</span>
-            <span style="margin-left:auto;color:var(--color-text-muted)">全部 24 条 · 可在设置中重新绑定</span>
+            <span style="margin-left:auto;color:var(--color-text-muted)">全部 26 条 · 可在设置中重新绑定</span>
           </div>
         </div>
       </div>
       <div class="modal-caption">
         <strong>⌘ /</strong> 任意界面呼出 · 输入即搜索 · 键盘可达
+      </div>
+    </div>
+
+    <!-- ========== 1b. Command Palette · 搜索态 ========== -->
+    <div>
+      <div class="stage">
+        <div class="modal cmd-palette">
+          <div class="cmd-head">
+            <span class="icon" data-icon="search" data-size="16"></span>
+            <input type="text" value="论文" />
+            <span class="esc">esc</span>
+          </div>
+          <div class="cmd-body">
+            <div class="cmd-section-label">🎯 目标匹配 · 1</div>
+            <div class="cmd-item is-active">
+              <div class="ci-icon" style="color:var(--color-primary)"><span data-icon="target" data-size="14"></span></div>
+              <span class="ci-label"><span style="color:var(--color-text-muted)">@</span> <strong>论文</strong> A · 已进行 23 天 · 里程碑 3/7</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">2</span></span>
+            </div>
+
+            <div class="cmd-section-label">📋 任务匹配 · 2</div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="circle-dashed" data-size="14"></span></div>
+              <span class="ci-label"><span style="color:var(--color-text-muted)">#</span> 复现 baseline 代码 · <span style="color:var(--color-text-muted);font-size:11px">🎯 <strong>论文</strong>A · M3 · 进行中</span></span>
+              <span class="ci-combo"><span class="chip chip-due is-today" style="height:18px;padding:0 6px;font-size:11px">⏰ 今日到期</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="circle" data-size="14"></span></div>
+              <span class="ci-label"><span style="color:var(--color-text-muted)">#</span> 阅读<strong>论文</strong> 2 篇 · <span style="color:var(--color-text-muted);font-size:11px">🎯 <strong>论文</strong>A · 待启动</span></span>
+              <span class="ci-combo"><span class="chip chip-due" style="height:18px;padding:0 6px;font-size:11px">📅 4/25</span></span>
+            </div>
+
+            <div class="cmd-section-label">🏷 标签匹配 · 1</div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="tag" data-size="14"></span></div>
+              <span class="ci-label">#<strong>论文</strong>A · 9 个关联任务</span>
+              <span class="ci-combo" style="color:var(--color-text-muted);font-size:11px">筛选任务列表</span>
+            </div>
+
+            <div class="cmd-section-label">⚡ 命令匹配 · 1</div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="calendar" data-size="14"></span></div>
+              <span class="ci-label">设置当前任务截止日期… <span style="color:var(--color-text-muted);font-size:11px">(匹配"日期"相关命令)</span></span>
+              <span class="ci-combo" style="color:var(--color-text-muted);font-size:10px">无绑定</span>
+            </div>
+          </div>
+          <div class="cmd-foot">
+            <span class="hint"><span class="kbd">↑</span><span class="kbd">↓</span> 移动</span>
+            <span class="hint"><span class="kbd">↵</span> 跳转</span>
+            <span class="hint"><span class="kbd">esc</span> 清空</span>
+            <span style="margin-left:auto;color:var(--color-text-muted)">5 个结果 · 4 类来源</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-caption">
+        <strong>输入即搜索 · 四类来源混合排序</strong>
+        目标 <span class="kbd" style="background:var(--color-bg-subtle)">@</span> · 任务 <span class="kbd" style="background:var(--color-bg-subtle)">#</span> · 标签 <span class="kbd" style="background:var(--color-bg-subtle)">#tag</span> · 命令 <span class="kbd" style="background:var(--color-bg-subtle)">&gt;</span>
       </div>
     </div>
 

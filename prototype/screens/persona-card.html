@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · 科研人格图鉴</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />
@@ -171,7 +174,7 @@ const GATES = [
   },
   {
     id: 'zen', name: '佛系生物门', emoji: '🧘',
-    gradient: ['#0a1a2e', '#7AABFF'],
+    gradient: ['#0a1a2e', 'var(--color-primary-light)'],
     personas: [
       { id: 'STBL', name: '稳态水母', emoji: '🪼', quote: '洋流再乱,你自漂浮。连续14天完成率从未低于70%。', hidden: '你是实验室里最不焦虑的人,大家都想知道你的秘密', dims: [3,1,5,3,2] },
       { id: 'TRTL', name: '沉浸模式海龟', emoji: '🐢', quote: '慢慢来,但你一直在游。别人冲刺,你匀速到终点。', hidden: '你进入心流的速度很慢,但出来的时候已经完成了别人三倍的工作', dims: [3,1,5,4,1] },

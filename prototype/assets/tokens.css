@@ -166,3 +166,430 @@
   --shadow-modal: 0 12px 32px rgba(0, 0, 0, 0.45);
   --shadow-focus: 0 0 0 3px rgba(110, 160, 255, 0.4);
 }
+
+/* =========================================================
+   色调主题 (v1.2.4 · 主题色板全局接入)
+   -----
+   轴 1: [data-theme]            = light | dark     (明暗)
+   轴 2: [data-accent-theme]     = 11 个主题 id      (色调)
+   默认 (default) 不写属性,由 :root + [data-theme="dark"] 负责
+   参考: docs/superpowers/specs/2026-04-18-theme-palette-integration-design.md
+   ========================================================= */
+
+/* ========== ☁️ CLAUDE · 奶油陶土 ========== */
+[data-accent-theme="claude"] {
+  --color-primary: #C4714F; --color-primary-light: #DCA088; --color-primary-dark: #A25838;
+  --color-primary-soft: color-mix(in srgb, #C4714F 16%, transparent);
+  --color-success: #6B9E72; --color-success-soft: color-mix(in srgb, #6B9E72 14%, transparent);
+  --color-gold: #D4A24C;    --color-gold-soft:    color-mix(in srgb, #D4A24C 16%, transparent);
+  --color-warning: #C4714F; --color-warning-soft: color-mix(in srgb, #C4714F 14%, transparent);
+  --color-neutral: #A8A196;
+  --color-q1: #C85454; --color-q1-soft: color-mix(in srgb, #C85454 14%, transparent);
+  --color-q2: #D4A24C; --color-q2-soft: color-mix(in srgb, #D4A24C 14%, transparent);
+  --color-q3: #D88E44; --color-q3-soft: color-mix(in srgb, #D88E44 14%, transparent);
+  --color-q4: #6B9E72; --color-q4-soft: color-mix(in srgb, #6B9E72 14%, transparent);
+  --color-bg: #FAF9F6; --color-bg-elevated: #FFFFFF; --color-bg-subtle: #F0EBE3; --color-bg-hover: #EAE4D9;
+  --color-text-primary: #2D2A25; --color-text-secondary: #858076; --color-text-muted: #A8A196;
+  --color-border: #E5DFD4;
+  --color-border-strong: color-mix(in srgb, #E5DFD4 70%, #2D2A25 30%);
+  --color-divider:       color-mix(in srgb, #E5DFD4 60%, #FAF9F6 40%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #C4714F 30%, transparent);
+}
+[data-theme="dark"][data-accent-theme="claude"] {
+  --color-primary: #D4885E; --color-primary-light: #E0A880; --color-primary-dark: #B06840;
+  --color-primary-soft: color-mix(in srgb, #D4885E 18%, transparent);
+  --color-success: #7AAE82; --color-success-soft: color-mix(in srgb, #7AAE82 16%, transparent);
+  --color-gold: #DBAF5A;    --color-gold-soft:    color-mix(in srgb, #DBAF5A 18%, transparent);
+  --color-warning: #D4885E; --color-warning-soft: color-mix(in srgb, #D4885E 16%, transparent);
+  --color-neutral: #6A6460;
+  --color-q1: #D06868; --color-q1-soft: color-mix(in srgb, #D06868 16%, transparent);
+  --color-q2: #DBAF5A; --color-q2-soft: color-mix(in srgb, #DBAF5A 16%, transparent);
+  --color-q3: #E4A060; --color-q3-soft: color-mix(in srgb, #E4A060 16%, transparent);
+  --color-q4: #7AAE82; --color-q4-soft: color-mix(in srgb, #7AAE82 16%, transparent);
+  --color-bg: #1C1915; --color-bg-elevated: #2A2520; --color-bg-subtle: #231F1A; --color-bg-hover: #3A332C;
+  --color-text-primary: #EDE8E0; --color-text-secondary: #948D82; --color-text-muted: #6A6460;
+  --color-border: #3D362E;
+  --color-border-strong: color-mix(in srgb, #3D362E 60%, #EDE8E0 40%);
+  --color-divider:       color-mix(in srgb, #3D362E 70%, #1C1915 30%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #D4885E 40%, transparent);
+}
+
+/* ========== 🌿 GREEN · 现代护眼绿 ========== */
+[data-accent-theme="green"] {
+  --color-primary: #5D8A6A; --color-primary-light: #82AD8E; --color-primary-dark: #3E6A4C;
+  --color-primary-soft: color-mix(in srgb, #5D8A6A 16%, transparent);
+  --color-success: #5D8A6A; --color-success-soft: color-mix(in srgb, #5D8A6A 14%, transparent);
+  --color-gold: #C4A04A;    --color-gold-soft:    color-mix(in srgb, #C4A04A 16%, transparent);
+  --color-warning: #C08848; --color-warning-soft: color-mix(in srgb, #C08848 14%, transparent);
+  --color-neutral: #969E94;
+  --color-q1: #B85858; --color-q1-soft: color-mix(in srgb, #B85858 14%, transparent);
+  --color-q2: #C4A04A; --color-q2-soft: color-mix(in srgb, #C4A04A 14%, transparent);
+  --color-q3: #C08848; --color-q3-soft: color-mix(in srgb, #C08848 14%, transparent);
+  --color-q4: #5D8A6A; --color-q4-soft: color-mix(in srgb, #5D8A6A 14%, transparent);
+  --color-bg: #F2F5F0; --color-bg-elevated: #FAFCF8; --color-bg-subtle: #E6EBE2; --color-bg-hover: #D9E2D5;
+  --color-text-primary: #222B24; --color-text-secondary: #6E7A70; --color-text-muted: #969E94;
+  --color-border: #CDD6CA;
+  --color-border-strong: color-mix(in srgb, #CDD6CA 70%, #222B24 30%);
+  --color-divider:       color-mix(in srgb, #CDD6CA 60%, #F2F5F0 40%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #5D8A6A 30%, transparent);
+}
+[data-theme="dark"][data-accent-theme="green"] {
+  --color-primary: #72A882; --color-primary-light: #96C4A4; --color-primary-dark: #4E825C;
+  --color-primary-soft: color-mix(in srgb, #72A882 18%, transparent);
+  --color-success: #72A882; --color-success-soft: color-mix(in srgb, #72A882 16%, transparent);
+  --color-gold: #D4AA52;    --color-gold-soft:    color-mix(in srgb, #D4AA52 18%, transparent);
+  --color-warning: #C09050; --color-warning-soft: color-mix(in srgb, #C09050 16%, transparent);
+  --color-neutral: #556058;
+  --color-q1: #C87878; --color-q1-soft: color-mix(in srgb, #C87878 16%, transparent);
+  --color-q2: #D4AA52; --color-q2-soft: color-mix(in srgb, #D4AA52 16%, transparent);
+  --color-q3: #D4A060; --color-q3-soft: color-mix(in srgb, #D4A060 16%, transparent);
+  --color-q4: #72A882; --color-q4-soft: color-mix(in srgb, #72A882 16%, transparent);
+  --color-bg: #161C18; --color-bg-elevated: #232C25; --color-bg-subtle: #1C241E; --color-bg-hover: #2E3A30;
+  --color-text-primary: #DEE5E0; --color-text-secondary: #7E8A80; --color-text-muted: #556058;
+  --color-border: #323E34;
+  --color-border-strong: color-mix(in srgb, #323E34 60%, #DEE5E0 40%);
+  --color-divider:       color-mix(in srgb, #323E34 70%, #161C18 30%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #72A882 40%, transparent);
+}
+
+/* ========== 🪻 LAVENDER · 薰衣草紫 ========== */
+[data-accent-theme="lavender"] {
+  --color-primary: #7B68AE; --color-primary-light: #A090CC; --color-primary-dark: #5A4A88;
+  --color-primary-soft: color-mix(in srgb, #7B68AE 16%, transparent);
+  --color-success: #6A9E72; --color-success-soft: color-mix(in srgb, #6A9E72 14%, transparent);
+  --color-gold: #CCA048;    --color-gold-soft:    color-mix(in srgb, #CCA048 16%, transparent);
+  --color-warning: #C48850; --color-warning-soft: color-mix(in srgb, #C48850 14%, transparent);
+  --color-neutral: #9896A2;
+  --color-q1: #B65A7A; --color-q1-soft: color-mix(in srgb, #B65A7A 14%, transparent);
+  --color-q2: #CCA048; --color-q2-soft: color-mix(in srgb, #CCA048 14%, transparent);
+  --color-q3: #C48858; --color-q3-soft: color-mix(in srgb, #C48858 14%, transparent);
+  --color-q4: #6A9E72; --color-q4-soft: color-mix(in srgb, #6A9E72 14%, transparent);
+  --color-bg: #F8F6FB; --color-bg-elevated: #FFFFFF; --color-bg-subtle: #EEEAF5; --color-bg-hover: #E2DCF0;
+  --color-text-primary: #24222E; --color-text-secondary: #77748A; --color-text-muted: #9896A2;
+  --color-border: #DDD8EA;
+  --color-border-strong: color-mix(in srgb, #DDD8EA 70%, #24222E 30%);
+  --color-divider:       color-mix(in srgb, #DDD8EA 60%, #F8F6FB 40%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #7B68AE 30%, transparent);
+}
+[data-theme="dark"][data-accent-theme="lavender"] {
+  --color-primary: #9580C8; --color-primary-light: #B4A4DC; --color-primary-dark: #7060A8;
+  --color-primary-soft: color-mix(in srgb, #9580C8 18%, transparent);
+  --color-success: #78AE80; --color-success-soft: color-mix(in srgb, #78AE80 16%, transparent);
+  --color-gold: #D8AE54;    --color-gold-soft:    color-mix(in srgb, #D8AE54 18%, transparent);
+  --color-warning: #D09058; --color-warning-soft: color-mix(in srgb, #D09058 16%, transparent);
+  --color-neutral: #605C68;
+  --color-q1: #CC7090; --color-q1-soft: color-mix(in srgb, #CC7090 16%, transparent);
+  --color-q2: #D8AE54; --color-q2-soft: color-mix(in srgb, #D8AE54 16%, transparent);
+  --color-q3: #D8A060; --color-q3-soft: color-mix(in srgb, #D8A060 16%, transparent);
+  --color-q4: #78AE80; --color-q4-soft: color-mix(in srgb, #78AE80 16%, transparent);
+  --color-bg: #1A1820; --color-bg-elevated: #282632; --color-bg-subtle: #201E28; --color-bg-hover: #34303E;
+  --color-text-primary: #E8E6EE; --color-text-secondary: #8A8698; --color-text-muted: #605C68;
+  --color-border: #383448;
+  --color-border-strong: color-mix(in srgb, #383448 60%, #E8E6EE 40%);
+  --color-divider:       color-mix(in srgb, #383448 70%, #1A1820 30%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #9580C8 40%, transparent);
+}
+
+/* ========== 🌊 BLUE-CLASSIC · 静谧蓝 ========== */
+[data-accent-theme="blue-classic"] {
+  --color-primary: #5B7FBF; --color-primary-light: #8FAED4; --color-primary-dark: #3D5A8A;
+  --color-primary-soft: color-mix(in srgb, #5B7FBF 16%, transparent);
+  --color-success: #5EA97A; --color-success-soft: color-mix(in srgb, #5EA97A 14%, transparent);
+  --color-gold: #D4A44C;    --color-gold-soft:    color-mix(in srgb, #D4A44C 16%, transparent);
+  --color-warning: #D48B4C; --color-warning-soft: color-mix(in srgb, #D48B4C 14%, transparent);
+  --color-neutral: #A0A4AB;
+  --color-q1: #BF5B5B; --color-q1-soft: color-mix(in srgb, #BF5B5B 14%, transparent);
+  --color-q2: #D4A44C; --color-q2-soft: color-mix(in srgb, #D4A44C 14%, transparent);
+  --color-q3: #D48B4C; --color-q3-soft: color-mix(in srgb, #D48B4C 14%, transparent);
+  --color-q4: #5EA97A; --color-q4-soft: color-mix(in srgb, #5EA97A 14%, transparent);
+  --color-bg: #F7F8FA; --color-bg-elevated: #FFFFFF; --color-bg-subtle: #EEF1F5; --color-bg-hover: #E3E9F2;
+  --color-text-primary: #1E2433; --color-text-secondary: #6B7280; --color-text-muted: #A0A4AB;
+  --color-border: #DFE3EA;
+  --color-border-strong: color-mix(in srgb, #DFE3EA 70%, #1E2433 30%);
+  --color-divider:       color-mix(in srgb, #DFE3EA 60%, #F7F8FA 40%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #5B7FBF 30%, transparent);
+}
+[data-theme="dark"][data-accent-theme="blue-classic"] {
+  --color-primary: #7B9FD4; --color-primary-light: #A3BFE3; --color-primary-dark: #5878B0;
+  --color-primary-soft: color-mix(in srgb, #7B9FD4 18%, transparent);
+  --color-success: #6EAA82; --color-success-soft: color-mix(in srgb, #6EAA82 16%, transparent);
+  --color-gold: #D4AA5C;    --color-gold-soft:    color-mix(in srgb, #D4AA5C 18%, transparent);
+  --color-warning: #D49060; --color-warning-soft: color-mix(in srgb, #D49060 16%, transparent);
+  --color-neutral: #585C68;
+  --color-q1: #D47878; --color-q1-soft: color-mix(in srgb, #D47878 16%, transparent);
+  --color-q2: #D4AA5C; --color-q2-soft: color-mix(in srgb, #D4AA5C 16%, transparent);
+  --color-q3: #D49060; --color-q3-soft: color-mix(in srgb, #D49060 16%, transparent);
+  --color-q4: #6EAA82; --color-q4-soft: color-mix(in srgb, #6EAA82 16%, transparent);
+  --color-bg: #14161E; --color-bg-elevated: #222633; --color-bg-subtle: #1A1D28; --color-bg-hover: #2C3044;
+  --color-text-primary: #E0E2E8; --color-text-secondary: #7A7F8E; --color-text-muted: #585C68;
+  --color-border: #2E3240;
+  --color-border-strong: color-mix(in srgb, #2E3240 60%, #E0E2E8 40%);
+  --color-divider:       color-mix(in srgb, #2E3240 70%, #14161E 30%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #7B9FD4 40%, transparent);
+}
+
+/* ========== 🧊 GRAPHITE · 极简石墨 ========== */
+[data-accent-theme="graphite"] {
+  --color-primary: #404040; --color-primary-light: #666666; --color-primary-dark: #1A1A1A;
+  --color-primary-soft: color-mix(in srgb, #404040 12%, transparent);
+  --color-success: #5A9E68; --color-success-soft: color-mix(in srgb, #5A9E68 14%, transparent);
+  --color-gold: #CCA040;    --color-gold-soft:    color-mix(in srgb, #CCA040 16%, transparent);
+  --color-warning: #CC8844; --color-warning-soft: color-mix(in srgb, #CC8844 14%, transparent);
+  --color-neutral: #A0A0A0;
+  --color-q1: #B85A5A; --color-q1-soft: color-mix(in srgb, #B85A5A 14%, transparent);
+  --color-q2: #CCA040; --color-q2-soft: color-mix(in srgb, #CCA040 14%, transparent);
+  --color-q3: #CC8844; --color-q3-soft: color-mix(in srgb, #CC8844 14%, transparent);
+  --color-q4: #5A9E68; --color-q4-soft: color-mix(in srgb, #5A9E68 14%, transparent);
+  --color-bg: #F6F6F6; --color-bg-elevated: #FFFFFF; --color-bg-subtle: #ECECEC; --color-bg-hover: #E2E2E2;
+  --color-text-primary: #1A1A1A; --color-text-secondary: #888888; --color-text-muted: #A0A0A0;
+  --color-border: #DCDCDC;
+  --color-border-strong: color-mix(in srgb, #DCDCDC 70%, #1A1A1A 30%);
+  --color-divider:       color-mix(in srgb, #DCDCDC 60%, #F6F6F6 40%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #404040 30%, transparent);
+}
+[data-theme="dark"][data-accent-theme="graphite"] {
+  --color-primary: #B0B0B0; --color-primary-light: #CCCCCC; --color-primary-dark: #8A8A8A;
+  --color-primary-soft: color-mix(in srgb, #B0B0B0 14%, transparent);
+  --color-success: #6EAE78; --color-success-soft: color-mix(in srgb, #6EAE78 16%, transparent);
+  --color-gold: #D4AA4C;    --color-gold-soft:    color-mix(in srgb, #D4AA4C 18%, transparent);
+  --color-warning: #D49050; --color-warning-soft: color-mix(in srgb, #D49050 16%, transparent);
+  --color-neutral: #585858;
+  --color-q1: #C87878; --color-q1-soft: color-mix(in srgb, #C87878 16%, transparent);
+  --color-q2: #D4AA4C; --color-q2-soft: color-mix(in srgb, #D4AA4C 16%, transparent);
+  --color-q3: #D49050; --color-q3-soft: color-mix(in srgb, #D49050 16%, transparent);
+  --color-q4: #6EAE78; --color-q4-soft: color-mix(in srgb, #6EAE78 16%, transparent);
+  --color-bg: #141414; --color-bg-elevated: #242424; --color-bg-subtle: #1C1C1C; --color-bg-hover: #303030;
+  --color-text-primary: #E4E4E4; --color-text-secondary: #808080; --color-text-muted: #585858;
+  --color-border: #343434;
+  --color-border-strong: color-mix(in srgb, #343434 60%, #E4E4E4 40%);
+  --color-divider:       color-mix(in srgb, #343434 70%, #141414 30%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #B0B0B0 35%, transparent);
+}
+
+/* ========== 🌸 SAKURA · 樱花粉 ========== */
+[data-accent-theme="sakura"] {
+  --color-primary: #D4717A; --color-primary-light: #E8A0A6; --color-primary-dark: #B44E5A;
+  --color-primary-soft: color-mix(in srgb, #D4717A 16%, transparent);
+  --color-success: #6AAE7C; --color-success-soft: color-mix(in srgb, #6AAE7C 14%, transparent);
+  --color-gold: #D0A84C;    --color-gold-soft:    color-mix(in srgb, #D0A84C 16%, transparent);
+  --color-warning: #CC8854; --color-warning-soft: color-mix(in srgb, #CC8854 14%, transparent);
+  --color-neutral: #A8A0A2;
+  --color-q1: #C8505A; --color-q1-soft: color-mix(in srgb, #C8505A 14%, transparent);
+  --color-q2: #D0A84C; --color-q2-soft: color-mix(in srgb, #D0A84C 14%, transparent);
+  --color-q3: #D0884C; --color-q3-soft: color-mix(in srgb, #D0884C 14%, transparent);
+  --color-q4: #6AAE7C; --color-q4-soft: color-mix(in srgb, #6AAE7C 14%, transparent);
+  --color-bg: #FDF7F8; --color-bg-elevated: #FFFFFF; --color-bg-subtle: #F5ECED; --color-bg-hover: #F2E2E5;
+  --color-text-primary: #2C2428; --color-text-secondary: #847A7E; --color-text-muted: #A8A0A2;
+  --color-border: #EADCDF;
+  --color-border-strong: color-mix(in srgb, #EADCDF 70%, #2C2428 30%);
+  --color-divider:       color-mix(in srgb, #EADCDF 60%, #FDF7F8 40%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #D4717A 30%, transparent);
+}
+[data-theme="dark"][data-accent-theme="sakura"] {
+  --color-primary: #E08890; --color-primary-light: #ECA8AE; --color-primary-dark: #C06068;
+  --color-primary-soft: color-mix(in srgb, #E08890 18%, transparent);
+  --color-success: #72B886; --color-success-soft: color-mix(in srgb, #72B886 16%, transparent);
+  --color-gold: #DBAF58;    --color-gold-soft:    color-mix(in srgb, #DBAF58 18%, transparent);
+  --color-warning: #D49060; --color-warning-soft: color-mix(in srgb, #D49060 16%, transparent);
+  --color-neutral: #685E62;
+  --color-q1: #D86870; --color-q1-soft: color-mix(in srgb, #D86870 16%, transparent);
+  --color-q2: #DBAF58; --color-q2-soft: color-mix(in srgb, #DBAF58 16%, transparent);
+  --color-q3: #D49060; --color-q3-soft: color-mix(in srgb, #D49060 16%, transparent);
+  --color-q4: #72B886; --color-q4-soft: color-mix(in srgb, #72B886 16%, transparent);
+  --color-bg: #1C1618; --color-bg-elevated: #2C2226; --color-bg-subtle: #241C20; --color-bg-hover: #3A2C32;
+  --color-text-primary: #EDE4E6; --color-text-secondary: #958A8E; --color-text-muted: #685E62;
+  --color-border: #3E3236;
+  --color-border-strong: color-mix(in srgb, #3E3236 60%, #EDE4E6 40%);
+  --color-divider:       color-mix(in srgb, #3E3236 70%, #1C1618 30%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #E08890 40%, transparent);
+}
+
+/* ========== 🎀 CANDY · 糖果粉紫 ========== */
+[data-accent-theme="candy"] {
+  --color-primary: #A86CC1; --color-primary-light: #C498D8; --color-primary-dark: #7E48A0;
+  --color-primary-soft: color-mix(in srgb, #A86CC1 16%, transparent);
+  --color-success: #60A878; --color-success-soft: color-mix(in srgb, #60A878 14%, transparent);
+  --color-gold: #CCA44C;    --color-gold-soft:    color-mix(in srgb, #CCA44C 16%, transparent);
+  --color-warning: #CC8A52; --color-warning-soft: color-mix(in srgb, #CC8A52 14%, transparent);
+  --color-neutral: #9E98A4;
+  --color-q1: #BE5880; --color-q1-soft: color-mix(in srgb, #BE5880 14%, transparent);
+  --color-q2: #CCA44C; --color-q2-soft: color-mix(in srgb, #CCA44C 14%, transparent);
+  --color-q3: #CC8A56; --color-q3-soft: color-mix(in srgb, #CC8A56 14%, transparent);
+  --color-q4: #60A878; --color-q4-soft: color-mix(in srgb, #60A878 14%, transparent);
+  --color-bg: #FBF7FD; --color-bg-elevated: #FFFFFF; --color-bg-subtle: #F3ECF8; --color-bg-hover: #EBDFF4;
+  --color-text-primary: #24202C; --color-text-secondary: #7C7688; --color-text-muted: #9E98A4;
+  --color-border: #E2D8EC;
+  --color-border-strong: color-mix(in srgb, #E2D8EC 70%, #24202C 30%);
+  --color-divider:       color-mix(in srgb, #E2D8EC 60%, #FBF7FD 40%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #A86CC1 30%, transparent);
+}
+[data-theme="dark"][data-accent-theme="candy"] {
+  --color-primary: #BE88D6; --color-primary-light: #D4A8E6; --color-primary-dark: #9468B8;
+  --color-primary-soft: color-mix(in srgb, #BE88D6 18%, transparent);
+  --color-success: #70B880; --color-success-soft: color-mix(in srgb, #70B880 16%, transparent);
+  --color-gold: #D8AE56;    --color-gold-soft:    color-mix(in srgb, #D8AE56 18%, transparent);
+  --color-warning: #D49260; --color-warning-soft: color-mix(in srgb, #D49260 16%, transparent);
+  --color-neutral: #5E5864;
+  --color-q1: #D46CA0; --color-q1-soft: color-mix(in srgb, #D46CA0 16%, transparent);
+  --color-q2: #D8AE56; --color-q2-soft: color-mix(in srgb, #D8AE56 16%, transparent);
+  --color-q3: #D49260; --color-q3-soft: color-mix(in srgb, #D49260 16%, transparent);
+  --color-q4: #70B880; --color-q4-soft: color-mix(in srgb, #70B880 16%, transparent);
+  --color-bg: #1A161E; --color-bg-elevated: #2A2432; --color-bg-subtle: #221C28; --color-bg-hover: #38303E;
+  --color-text-primary: #EAE6EE; --color-text-secondary: #8C8696; --color-text-muted: #5E5864;
+  --color-border: #3A3244;
+  --color-border-strong: color-mix(in srgb, #3A3244 60%, #EAE6EE 40%);
+  --color-divider:       color-mix(in srgb, #3A3244 70%, #1A161E 30%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #BE88D6 40%, transparent);
+}
+
+/* ========== 🧋 MILKTEA · 奶茶棕粉 ========== */
+[data-accent-theme="milktea"] {
+  --color-primary: #C47E7E; --color-primary-light: #D8A2A2; --color-primary-dark: #A06060;
+  --color-primary-soft: color-mix(in srgb, #C47E7E 16%, transparent);
+  --color-success: #72A07A; --color-success-soft: color-mix(in srgb, #72A07A 14%, transparent);
+  --color-gold: #C8A048;    --color-gold-soft:    color-mix(in srgb, #C8A048 16%, transparent);
+  --color-warning: #C48850; --color-warning-soft: color-mix(in srgb, #C48850 14%, transparent);
+  --color-neutral: #A49E94;
+  --color-q1: #BE6060; --color-q1-soft: color-mix(in srgb, #BE6060 14%, transparent);
+  --color-q2: #C8A048; --color-q2-soft: color-mix(in srgb, #C8A048 14%, transparent);
+  --color-q3: #C48850; --color-q3-soft: color-mix(in srgb, #C48850 14%, transparent);
+  --color-q4: #72A07A; --color-q4-soft: color-mix(in srgb, #72A07A 14%, transparent);
+  --color-bg: #FAF7F3; --color-bg-elevated: #FFFDFB; --color-bg-subtle: #F2ECE4; --color-bg-hover: #EDE2D6;
+  --color-text-primary: #2A2622; --color-text-secondary: #847C74; --color-text-muted: #A49E94;
+  --color-border: #E6DDD2;
+  --color-border-strong: color-mix(in srgb, #E6DDD2 70%, #2A2622 30%);
+  --color-divider:       color-mix(in srgb, #E6DDD2 60%, #FAF7F3 40%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #C47E7E 30%, transparent);
+}
+[data-theme="dark"][data-accent-theme="milktea"] {
+  --color-primary: #D49898; --color-primary-light: #E4B4B4; --color-primary-dark: #B87070;
+  --color-primary-soft: color-mix(in srgb, #D49898 18%, transparent);
+  --color-success: #80B088; --color-success-soft: color-mix(in srgb, #80B088 16%, transparent);
+  --color-gold: #D4AE54;    --color-gold-soft:    color-mix(in srgb, #D4AE54 18%, transparent);
+  --color-warning: #D49458; --color-warning-soft: color-mix(in srgb, #D49458 16%, transparent);
+  --color-neutral: #686058;
+  --color-q1: #C07878; --color-q1-soft: color-mix(in srgb, #C07878 16%, transparent);
+  --color-q2: #D4AE54; --color-q2-soft: color-mix(in srgb, #D4AE54 16%, transparent);
+  --color-q3: #D49458; --color-q3-soft: color-mix(in srgb, #D49458 16%, transparent);
+  --color-q4: #80B088; --color-q4-soft: color-mix(in srgb, #80B088 16%, transparent);
+  --color-bg: #1C1916; --color-bg-elevated: #2C2720; --color-bg-subtle: #24201A; --color-bg-hover: #3A332A;
+  --color-text-primary: #EDE8E0; --color-text-secondary: #968E84; --color-text-muted: #686058;
+  --color-border: #3E362C;
+  --color-border-strong: color-mix(in srgb, #3E362C 60%, #EDE8E0 40%);
+  --color-divider:       color-mix(in srgb, #3E362C 70%, #1C1916 30%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #D49898 40%, transparent);
+}
+
+/* ========== 🍊 AMBER · 琥珀橙 ========== */
+[data-accent-theme="amber"] {
+  --color-primary: #D48A3C; --color-primary-light: #E8B478; --color-primary-dark: #A86A20;
+  --color-primary-soft: color-mix(in srgb, #D48A3C 16%, transparent);
+  --color-success: #5EA876; --color-success-soft: color-mix(in srgb, #5EA876 14%, transparent);
+  --color-gold: #D48A3C;    --color-gold-soft:    color-mix(in srgb, #D48A3C 16%, transparent);
+  --color-warning: #D48A3C; --color-warning-soft: color-mix(in srgb, #D48A3C 14%, transparent);
+  --color-neutral: #A09888;
+  --color-q1: #C85848; --color-q1-soft: color-mix(in srgb, #C85848 14%, transparent);
+  --color-q2: #D48A3C; --color-q2-soft: color-mix(in srgb, #D48A3C 14%, transparent);
+  --color-q3: #D48A3C; --color-q3-soft: color-mix(in srgb, #D48A3C 14%, transparent);
+  --color-q4: #5EA876; --color-q4-soft: color-mix(in srgb, #5EA876 14%, transparent);
+  --color-bg: #FDFAF6; --color-bg-elevated: #FFFFFF; --color-bg-subtle: #F5EEE4; --color-bg-hover: #F0E4D4;
+  --color-text-primary: #2A2520; --color-text-secondary: #847A6E; --color-text-muted: #A09888;
+  --color-border: #E8DFD0;
+  --color-border-strong: color-mix(in srgb, #E8DFD0 70%, #2A2520 30%);
+  --color-divider:       color-mix(in srgb, #E8DFD0 60%, #FDFAF6 40%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #D48A3C 30%, transparent);
+}
+[data-theme="dark"][data-accent-theme="amber"] {
+  --color-primary: #E4A050; --color-primary-light: #F0C080; --color-primary-dark: #C48030;
+  --color-primary-soft: color-mix(in srgb, #E4A050 18%, transparent);
+  --color-success: #72B080; --color-success-soft: color-mix(in srgb, #72B080 16%, transparent);
+  --color-gold: #E4A050;    --color-gold-soft:    color-mix(in srgb, #E4A050 18%, transparent);
+  --color-warning: #E4A050; --color-warning-soft: color-mix(in srgb, #E4A050 16%, transparent);
+  --color-neutral: #605840;
+  --color-q1: #D07060; --color-q1-soft: color-mix(in srgb, #D07060 16%, transparent);
+  --color-q2: #E4A050; --color-q2-soft: color-mix(in srgb, #E4A050 16%, transparent);
+  --color-q3: #E4A050; --color-q3-soft: color-mix(in srgb, #E4A050 16%, transparent);
+  --color-q4: #72B080; --color-q4-soft: color-mix(in srgb, #72B080 16%, transparent);
+  --color-bg: #1C1914; --color-bg-elevated: #2C2620; --color-bg-subtle: #241F18; --color-bg-hover: #3C3428;
+  --color-text-primary: #EDE6DA; --color-text-secondary: #968E7E; --color-text-muted: #605840;
+  --color-border: #3E3628;
+  --color-border-strong: color-mix(in srgb, #3E3628 60%, #EDE6DA 40%);
+  --color-divider:       color-mix(in srgb, #3E3628 70%, #1C1914 30%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #E4A050 40%, transparent);
+}
+
+/* ========== 🦆 TEAL · 水鸭青 ========== */
+[data-accent-theme="teal"] {
+  --color-primary: #2A8A8A; --color-primary-light: #5CB8B0; --color-primary-dark: #1A6868;
+  --color-primary-soft: color-mix(in srgb, #2A8A8A 16%, transparent);
+  --color-success: #2A8A8A; --color-success-soft: color-mix(in srgb, #2A8A8A 14%, transparent);
+  --color-gold: #CCA44C;    --color-gold-soft:    color-mix(in srgb, #CCA44C 16%, transparent);
+  --color-warning: #CC8844; --color-warning-soft: color-mix(in srgb, #CC8844 14%, transparent);
+  --color-neutral: #90A0A0;
+  --color-q1: #B85858; --color-q1-soft: color-mix(in srgb, #B85858 14%, transparent);
+  --color-q2: #CCA44C; --color-q2-soft: color-mix(in srgb, #CCA44C 14%, transparent);
+  --color-q3: #CC8844; --color-q3-soft: color-mix(in srgb, #CC8844 14%, transparent);
+  --color-q4: #2A8A8A; --color-q4-soft: color-mix(in srgb, #2A8A8A 14%, transparent);
+  --color-bg: #F5FAFA; --color-bg-elevated: #FFFFFF; --color-bg-subtle: #E6F0F0; --color-bg-hover: #D4E6E6;
+  --color-text-primary: #1E2828; --color-text-secondary: #607070; --color-text-muted: #90A0A0;
+  --color-border: #C8D8D8;
+  --color-border-strong: color-mix(in srgb, #C8D8D8 70%, #1E2828 30%);
+  --color-divider:       color-mix(in srgb, #C8D8D8 60%, #F5FAFA 40%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #2A8A8A 30%, transparent);
+}
+[data-theme="dark"][data-accent-theme="teal"] {
+  --color-primary: #48B8AE; --color-primary-light: #78D4CA; --color-primary-dark: #2A9088;
+  --color-primary-soft: color-mix(in srgb, #48B8AE 18%, transparent);
+  --color-success: #48B8AE; --color-success-soft: color-mix(in srgb, #48B8AE 16%, transparent);
+  --color-gold: #D8AE54;    --color-gold-soft:    color-mix(in srgb, #D8AE54 18%, transparent);
+  --color-warning: #CC9050; --color-warning-soft: color-mix(in srgb, #CC9050 16%, transparent);
+  --color-neutral: #4E5E5C;
+  --color-q1: #C08080; --color-q1-soft: color-mix(in srgb, #C08080 16%, transparent);
+  --color-q2: #D8AE54; --color-q2-soft: color-mix(in srgb, #D8AE54 16%, transparent);
+  --color-q3: #CC9050; --color-q3-soft: color-mix(in srgb, #CC9050 16%, transparent);
+  --color-q4: #48B8AE; --color-q4-soft: color-mix(in srgb, #48B8AE 16%, transparent);
+  --color-bg: #141C1C; --color-bg-elevated: #222E2E; --color-bg-subtle: #1A2424; --color-bg-hover: #2C3C3C;
+  --color-text-primary: #DEE8E6; --color-text-secondary: #7E9090; --color-text-muted: #4E5E5C;
+  --color-border: #304040;
+  --color-border-strong: color-mix(in srgb, #304040 60%, #DEE8E6 40%);
+  --color-divider:       color-mix(in srgb, #304040 70%, #141C1C 30%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #48B8AE 40%, transparent);
+}
+
+/* ========== 🪨 SLATE · 石板蓝灰 ========== */
+[data-accent-theme="slate"] {
+  --color-primary: #475569; --color-primary-light: #7888A0; --color-primary-dark: #2D3A4A;
+  --color-primary-soft: color-mix(in srgb, #475569 14%, transparent);
+  --color-success: #5A9E6A; --color-success-soft: color-mix(in srgb, #5A9E6A 14%, transparent);
+  --color-gold: #CCA248;    --color-gold-soft:    color-mix(in srgb, #CCA248 16%, transparent);
+  --color-warning: #CC8640; --color-warning-soft: color-mix(in srgb, #CC8640 14%, transparent);
+  --color-neutral: #94A0B0;
+  --color-q1: #B65A5A; --color-q1-soft: color-mix(in srgb, #B65A5A 14%, transparent);
+  --color-q2: #CCA248; --color-q2-soft: color-mix(in srgb, #CCA248 14%, transparent);
+  --color-q3: #CC8640; --color-q3-soft: color-mix(in srgb, #CC8640 14%, transparent);
+  --color-q4: #5A9E6A; --color-q4-soft: color-mix(in srgb, #5A9E6A 14%, transparent);
+  --color-bg: #F8F9FB; --color-bg-elevated: #FFFFFF; --color-bg-subtle: #EFF1F5; --color-bg-hover: #E2E5EC;
+  --color-text-primary: #0F172A; --color-text-secondary: #64748B; --color-text-muted: #94A0B0;
+  --color-border: #D8DEE8;
+  --color-border-strong: color-mix(in srgb, #D8DEE8 70%, #0F172A 30%);
+  --color-divider:       color-mix(in srgb, #D8DEE8 60%, #F8F9FB 40%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #475569 30%, transparent);
+}
+[data-theme="dark"][data-accent-theme="slate"] {
+  --color-primary: #94A3B8; --color-primary-light: #B8C4D4; --color-primary-dark: #6E7E94;
+  --color-primary-soft: color-mix(in srgb, #94A3B8 14%, transparent);
+  --color-success: #68B07A; --color-success-soft: color-mix(in srgb, #68B07A 16%, transparent);
+  --color-gold: #D4AA50;    --color-gold-soft:    color-mix(in srgb, #D4AA50 18%, transparent);
+  --color-warning: #CC9050; --color-warning-soft: color-mix(in srgb, #CC9050 16%, transparent);
+  --color-neutral: #4A5468;
+  --color-q1: #C47878; --color-q1-soft: color-mix(in srgb, #C47878 16%, transparent);
+  --color-q2: #D4AA50; --color-q2-soft: color-mix(in srgb, #D4AA50 16%, transparent);
+  --color-q3: #CC9050; --color-q3-soft: color-mix(in srgb, #CC9050 16%, transparent);
+  --color-q4: #68B07A; --color-q4-soft: color-mix(in srgb, #68B07A 16%, transparent);
+  --color-bg: #0F1218; --color-bg-elevated: #1E222C; --color-bg-subtle: #161A22; --color-bg-hover: #282E3A;
+  --color-text-primary: #E2E8F0; --color-text-secondary: #7888A0; --color-text-muted: #4A5468;
+  --color-border: #2A3040;
+  --color-border-strong: color-mix(in srgb, #2A3040 60%, #E2E8F0 40%);
+  --color-divider:       color-mix(in srgb, #2A3040 70%, #0F1218 30%);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, #94A3B8 40%, transparent);
+}

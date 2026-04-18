@@ -1,0 +1,739 @@
+<!-- theme-preview.html —— 直接用浏览器打开 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FocusLab 主题预览</title>
+<style>
+/* ============================================
+   所有主题定义（11套 × 亮暗 = 22套）
+   ============================================ */
+
+/* ── A: Claude风（奶油陶土）── */
+[data-theme="claude-light"] {
+  --bg-primary: #FAF9F6; --bg-sidebar: #F0EBE3; --bg-card: #FFFFFF; --bg-hover: #EAE4D9;
+  --accent: #C4714F; --accent-light: #DCA088; --accent-dark: #A25838;
+  --success: #6B9E72; --gold: #D4A24C; --warning: #C4714F; --muted: #A8A196;
+  --text-primary: #2D2A25; --text-secondary: #858076; --border: #E5DFD4;
+  --ring-focus: #C4714F; --ring-break: #6B9E72;
+}
+[data-theme="claude-dark"] {
+  --bg-primary: #1C1915; --bg-sidebar: #231F1A; --bg-card: #2A2520; --bg-hover: #3A332C;
+  --accent: #D4885E; --accent-light: #E0A880; --accent-dark: #B06840;
+  --success: #7AAE82; --gold: #DBAF5A; --warning: #D4885E; --muted: #6A6460;
+  --text-primary: #EDE8E0; --text-secondary: #948D82; --border: #3D362E;
+  --ring-focus: #D4885E; --ring-break: #7AAE82;
+}
+
+/* ── B2: 现代护眼绿 ── */
+[data-theme="green-light"] {
+  --bg-primary: #F2F5F0; --bg-sidebar: #E6EBE2; --bg-card: #FAFCF8; --bg-hover: #D9E2D5;
+  --accent: #5D8A6A; --accent-light: #82AD8E; --accent-dark: #3E6A4C;
+  --success: #5D8A6A; --gold: #C4A04A; --warning: #C08848; --muted: #969E94;
+  --text-primary: #222B24; --text-secondary: #6E7A70; --border: #CDD6CA;
+  --ring-focus: #5D8A6A; --ring-break: #82AD8E;
+}
+[data-theme="green-dark"] {
+  --bg-primary: #161C18; --bg-sidebar: #1C241E; --bg-card: #232C25; --bg-hover: #2E3A30;
+  --accent: #72A882; --accent-light: #96C4A4; --accent-dark: #4E825C;
+  --success: #72A882; --gold: #D4AA52; --warning: #C09050; --muted: #556058;
+  --text-primary: #DEE5E0; --text-secondary: #7E8A80; --border: #323E34;
+  --ring-focus: #72A882; --ring-break: #96C4A4;
+}
+
+/* ── C: 薰衣草紫 ── */
+[data-theme="lavender-light"] {
+  --bg-primary: #F8F6FB; --bg-sidebar: #EEEAF5; --bg-card: #FFFFFF; --bg-hover: #E2DCF0;
+  --accent: #7B68AE; --accent-light: #A090CC; --accent-dark: #5A4A88;
+  --success: #6A9E72; --gold: #CCA048; --warning: #C48850; --muted: #9896A2;
+  --text-primary: #24222E; --text-secondary: #77748A; --border: #DDD8EA;
+  --ring-focus: #7B68AE; --ring-break: #6A9E72;
+}
+[data-theme="lavender-dark"] {
+  --bg-primary: #1A1820; --bg-sidebar: #201E28; --bg-card: #282632; --bg-hover: #34303E;
+  --accent: #9580C8; --accent-light: #B4A4DC; --accent-dark: #7060A8;
+  --success: #78AE80; --gold: #D8AE54; --warning: #D09058; --muted: #605C68;
+  --text-primary: #E8E6EE; --text-secondary: #8A8698; --border: #383448;
+  --ring-focus: #9580C8; --ring-break: #78AE80;
+}
+
+/* ── D: 静谧蓝 ── */
+[data-theme="blue-light"] {
+  --bg-primary: #F7F8FA; --bg-sidebar: #EEF1F5; --bg-card: #FFFFFF; --bg-hover: #E3E9F2;
+  --accent: #5B7FBF; --accent-light: #8FAED4; --accent-dark: #3D5A8A;
+  --success: #5EA97A; --gold: #D4A44C; --warning: #D48B4C; --muted: #A0A4AB;
+  --text-primary: #1E2433; --text-secondary: #6B7280; --border: #DFE3EA;
+  --ring-focus: #5B7FBF; --ring-break: #5EA97A;
+}
+[data-theme="blue-dark"] {
+  --bg-primary: #14161E; --bg-sidebar: #1A1D28; --bg-card: #222633; --bg-hover: #2C3044;
+  --accent: #7B9FD4; --accent-light: #A3BFE3; --accent-dark: #5878B0;
+  --success: #6EAA82; --gold: #D4AA5C; --warning: #D49060; --muted: #585C68;
+  --text-primary: #E0E2E8; --text-secondary: #7A7F8E; --border: #2E3240;
+  --ring-focus: #7B9FD4; --ring-break: #6EAA82;
+}
+
+/* ── F: 极简石墨 ── */
+[data-theme="graphite-light"] {
+  --bg-primary: #F6F6F6; --bg-sidebar: #ECECEC; --bg-card: #FFFFFF; --bg-hover: #E2E2E2;
+  --accent: #404040; --accent-light: #666666; --accent-dark: #1A1A1A;
+  --success: #5A9E68; --gold: #CCA040; --warning: #CC8844; --muted: #A0A0A0;
+  --text-primary: #1A1A1A; --text-secondary: #888888; --border: #DCDCDC;
+  --ring-focus: #404040; --ring-break: #5A9E68;
+}
+[data-theme="graphite-dark"] {
+  --bg-primary: #141414; --bg-sidebar: #1C1C1C; --bg-card: #242424; --bg-hover: #303030;
+  --accent: #B0B0B0; --accent-light: #CCCCCC; --accent-dark: #8A8A8A;
+  --success: #6EAE78; --gold: #D4AA4C; --warning: #D49050; --muted: #585858;
+  --text-primary: #E4E4E4; --text-secondary: #808080; --border: #343434;
+  --ring-focus: #B0B0B0; --ring-break: #6EAE78;
+}
+
+/* ── G: 樱花粉 ── */
+[data-theme="sakura-light"] {
+  --bg-primary: #FDF7F8; --bg-sidebar: #F5ECED; --bg-card: #FFFFFF; --bg-hover: #F2E2E5;
+  --accent: #D4717A; --accent-light: #E8A0A6; --accent-dark: #B44E5A;
+  --success: #6AAE7C; --gold: #D0A84C; --warning: #CC8854; --muted: #A8A0A2;
+  --text-primary: #2C2428; --text-secondary: #847A7E; --border: #EADCDF;
+  --ring-focus: #D4717A; --ring-break: #6AAE7C;
+}
+[data-theme="sakura-dark"] {
+  --bg-primary: #1C1618; --bg-sidebar: #241C20; --bg-card: #2C2226; --bg-hover: #3A2C32;
+  --accent: #E08890; --accent-light: #ECA8AE; --accent-dark: #C06068;
+  --success: #72B886; --gold: #DBAF58; --warning: #D49060; --muted: #685E62;
+  --text-primary: #EDE4E6; --text-secondary: #958A8E; --border: #3E3236;
+  --ring-focus: #E08890; --ring-break: #72B886;
+}
+
+/* ── J: 糖果粉紫 ── */
+[data-theme="candy-light"] {
+  --bg-primary: #FBF7FD; --bg-sidebar: #F3ECF8; --bg-card: #FFFFFF; --bg-hover: #EBDFF4;
+  --accent: #A86CC1; --accent-light: #C498D8; --accent-dark: #7E48A0;
+  --success: #60A878; --gold: #CCA44C; --warning: #CC8A52; --muted: #9E98A4;
+  --text-primary: #24202C; --text-secondary: #7C7688; --border: #E2D8EC;
+  --ring-focus: #A86CC1; --ring-break: #60A878;
+}
+[data-theme="candy-dark"] {
+  --bg-primary: #1A161E; --bg-sidebar: #221C28; --bg-card: #2A2432; --bg-hover: #38303E;
+  --accent: #BE88D6; --accent-light: #D4A8E6; --accent-dark: #9468B8;
+  --success: #70B880; --gold: #D8AE56; --warning: #D49260; --muted: #5E5864;
+  --text-primary: #EAE6EE; --text-secondary: #8C8696; --border: #3A3244;
+  --ring-focus: #BE88D6; --ring-break: #70B880;
+}
+
+/* ── K: 奶茶棕粉 ── */
+[data-theme="milktea-light"] {
+  --bg-primary: #FAF7F3; --bg-sidebar: #F2ECE4; --bg-card: #FFFDFB; --bg-hover: #EDE2D6;
+  --accent: #C47E7E; --accent-light: #D8A2A2; --accent-dark: #A06060;
+  --success: #72A07A; --gold: #C8A048; --warning: #C48850; --muted: #A49E94;
+  --text-primary: #2A2622; --text-secondary: #847C74; --border: #E6DDD2;
+  --ring-focus: #C47E7E; --ring-break: #72A07A;
+}
+[data-theme="milktea-dark"] {
+  --bg-primary: #1C1916; --bg-sidebar: #24201A; --bg-card: #2C2720; --bg-hover: #3A332A;
+  --accent: #D49898; --accent-light: #E4B4B4; --accent-dark: #B87070;
+  --success: #80B088; --gold: #D4AE54; --warning: #D49458; --muted: #686058;
+  --text-primary: #EDE8E0; --text-secondary: #968E84; --border: #3E362C;
+  --ring-focus: #D49898; --ring-break: #80B088;
+}
+
+/* ── M: 琥珀橙 ── */
+[data-theme="amber-light"] {
+  --bg-primary: #FDFAF6; --bg-sidebar: #F5EEE4; --bg-card: #FFFFFF; --bg-hover: #F0E4D4;
+  --accent: #D48A3C; --accent-light: #E8B478; --accent-dark: #A86A20;
+  --success: #5EA876; --gold: #D48A3C; --warning: #D48A3C; --muted: #A09888;
+  --text-primary: #2A2520; --text-secondary: #847A6E; --border: #E8DFD0;
+  --ring-focus: #D48A3C; --ring-break: #5EA876;
+}
+[data-theme="amber-dark"] {
+  --bg-primary: #1C1914; --bg-sidebar: #241F18; --bg-card: #2C2620; --bg-hover: #3C3428;
+  --accent: #E4A050; --accent-light: #F0C080; --accent-dark: #C48030;
+  --success: #72B080; --gold: #E4A050; --warning: #E4A050; --muted: #605840;
+  --text-primary: #EDE6DA; --text-secondary: #968E7E; --border: #3E3628;
+  --ring-focus: #E4A050; --ring-break: #72B080;
+}
+
+/* ── N: 水鸭青 ── */
+[data-theme="teal-light"] {
+  --bg-primary: #F5FAFA; --bg-sidebar: #E6F0F0; --bg-card: #FFFFFF; --bg-hover: #D4E6E6;
+  --accent: #2A8A8A; --accent-light: #5CB8B0; --accent-dark: #1A6868;
+  --success: #2A8A8A; --gold: #CCA44C; --warning: #CC8844; --muted: #90A0A0;
+  --text-primary: #1E2828; --text-secondary: #607070; --border: #C8D8D8;
+  --ring-focus: #2A8A8A; --ring-break: #5CB8B0;
+}
+[data-theme="teal-dark"] {
+  --bg-primary: #141C1C; --bg-sidebar: #1A2424; --bg-card: #222E2E; --bg-hover: #2C3C3C;
+  --accent: #48B8AE; --accent-light: #78D4CA; --accent-dark: #2A9088;
+  --success: #48B8AE; --gold: #D8AE54; --warning: #CC9050; --muted: #4E5E5C;
+  --text-primary: #DEE8E6; --text-secondary: #7E9090; --border: #304040;
+  --ring-focus: #48B8AE; --ring-break: #78D4CA;
+}
+
+/* ── O: 石板蓝灰 ── */
+[data-theme="slate-light"] {
+  --bg-primary: #F8F9FB; --bg-sidebar: #EFF1F5; --bg-card: #FFFFFF; --bg-hover: #E2E5EC;
+  --accent: #475569; --accent-light: #7888A0; --accent-dark: #2D3A4A;
+  --success: #5A9E6A; --gold: #CCA248; --warning: #CC8640; --muted: #94A0B0;
+  --text-primary: #0F172A; --text-secondary: #64748B; --border: #D8DEE8;
+  --ring-focus: #475569; --ring-break: #5A9E6A;
+}
+[data-theme="slate-dark"] {
+  --bg-primary: #0F1218; --bg-sidebar: #161A22; --bg-card: #1E222C; --bg-hover: #282E3A;
+  --accent: #94A3B8; --accent-light: #B8C4D4; --accent-dark: #6E7E94;
+  --success: #68B07A; --gold: #D4AA50; --warning: #CC9050; --muted: #4A5468;
+  --text-primary: #E2E8F0; --text-secondary: #7888A0; --border: #2A3040;
+  --ring-focus: #94A3B8; --ring-break: #68B07A;
+}
+
+/* ============================================
+   预览页面样式
+   ============================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: #f0f0f0;
+  padding: 24px;
+}
+
+h1 {
+  text-align: center;
+  font-size: 28px;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  text-align: center;
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 16px;
+}
+
+/* 筛选按钮 */
+.filter-bar {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.filter-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid #ccc;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.filter-btn:hover {
+  border-color: #999;
+  background: #f5f5f5;
+}
+
+.filter-btn.active {
+  background: #333;
+  color: #fff;
+  border-color: #333;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+  gap: 24px;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+/* ── 每个主题预览卡片 ── */
+.theme-card {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.theme-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.theme-label {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #fff;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-label .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+
+.theme-label .desc {
+  font-weight: 400;
+  font-size: 11px;
+  color: #999;
+  margin-left: auto;
+}
+
+/* ── 模拟 FocusLab 界面 ── */
+.mock-app {
+  display: flex;
+  height: 320px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.mock-sidebar {
+  width: 170px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.mock-sidebar .app-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 12px;
+  padding: 0 6px;
+}
+
+.mock-sidebar .nav-item {
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: default;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.mock-sidebar .nav-item.active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.mock-main {
+  flex: 1;
+  padding: 18px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mock-main .page-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* 番茄钟卡片 */
+.mock-timer-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.timer-ring {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 4px solid var(--border);
+  border-top-color: var(--ring-focus);
+  border-right-color: var(--ring-focus);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.timer-info { flex: 1; }
+
+.timer-info .task-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  font-size: 13px;
+}
+
+.timer-info .task-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.timer-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: default;
+}
+
+/* 任务列表 */
+.mock-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mock-task {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.mock-task .checkbox {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.mock-task .checkbox.done {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.mock-task .checkbox.done::after {
+  content: '✓';
+  color: #fff;
+  font-size: 10px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+}
+
+.mock-task .task-text {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.mock-task .task-text.done-text {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.mock-task .task-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.mock-task .task-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  font-weight: 500;
+}
+
+/* 底部进度条 */
+.mock-progress-bar {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 60%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.grade-badges {
+  display: flex;
+  gap: 4px;
+}
+
+.grade-badge {
+  width: 22px;
+  height: 16px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* 色板 */
+.swatch-row {
+  display: flex;
+  gap: 3px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.swatch-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.swatch {
+  width: 26px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid rgba(128,128,128,0.2);
+}
+
+.swatch-label {
+  font-size: 8px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 1px;
+  white-space: nowrap;
+}
+
+/* 响应式 */
+@media (max-width: 500px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .mock-sidebar {
+    width: 130px;
+  }
+}
+</style>
+</head>
+<body>
+
+<h1>🎯 FocusLab 主题预览</h1>
+<p class="subtitle">11 套配色 × 亮/暗 = 22 套主题</p>
+
+<div class="filter-bar">
+  <button class="filter-btn active" onclick="filterThemes('all')">全部</button>
+  <button class="filter-btn" onclick="filterThemes('light')">☀️ 仅亮色</button>
+  <button class="filter-btn" onclick="filterThemes('dark')">🌙 仅深色</button>
+  <button class="filter-btn" onclick="filterThemes('warm')">🔥 暖色系</button>
+  <button class="filter-btn" onclick="filterThemes('cool')">❄️ 冷色系</button>
+  <button class="filter-btn" onclick="filterThemes('neutral')">⚪ 中性色</button>
+  <button class="filter-btn" onclick="filterThemes('pink')">🩷 粉色系</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const themeDefs = [
+  { id: 'claude-light',    label: '☁️ 奶油陶土（Claude风）', mode: 'light', temp: 'warm',    accent: '#C4714F', desc: '咖啡厅暖阳' },
+  { id: 'claude-dark',     label: '☁️ 奶油陶土（Claude风）', mode: 'dark',  temp: 'warm',    accent: '#D4885E', desc: '咖啡厅暖阳' },
+  { id: 'green-light',     label: '🌿 现代护眼绿',           mode: 'light', temp: 'cool',    accent: '#5D8A6A', desc: '清晨植物园' },
+  { id: 'green-dark',      label: '🌿 现代护眼绿',           mode: 'dark',  temp: 'cool',    accent: '#72A882', desc: '清晨植物园' },
+  { id: 'lavender-light',  label: '🪻 薰衣草紫',             mode: 'light', temp: 'cool',    accent: '#7B68AE', desc: '灵感工作室' },
+  { id: 'lavender-dark',   label: '🪻 薰衣草紫',             mode: 'dark',  temp: 'cool',    accent: '#9580C8', desc: '灵感工作室' },
+  { id: 'blue-light',      label: '🌊 静谧蓝',               mode: 'light', temp: 'cool',    accent: '#5B7FBF', desc: '图书馆蓝天' },
+  { id: 'blue-dark',       label: '🌊 静谧蓝',               mode: 'dark',  temp: 'cool',    accent: '#7B9FD4', desc: '图书馆蓝天' },
+  { id: 'graphite-light',  label: '🧊 极简石墨',             mode: 'light', temp: 'neutral', accent: '#404040', desc: '无印良品' },
+  { id: 'graphite-dark',   label: '🧊 极简石墨',             mode: 'dark',  temp: 'neutral', accent: '#B0B0B0', desc: '无印良品' },
+  { id: 'sakura-light',    label: '🌸 樱花粉',               mode: 'light', temp: 'pink',    accent: '#D4717A', desc: '樱花树下' },
+  { id: 'sakura-dark',     label: '🌸 樱花粉',               mode: 'dark',  temp: 'pink',    accent: '#E08890', desc: '樱花树下' },
+  { id: 'candy-light',     label: '🎀 糖果粉紫',             mode: 'light', temp: 'pink',    accent: '#A86CC1', desc: '现代粉紫' },
+  { id: 'candy-dark',      label: '🎀 糖果粉紫',             mode: 'dark',  temp: 'pink',    accent: '#BE88D6', desc: '现代粉紫' },
+  { id: 'milktea-light',   label: '🧋 奶茶棕粉',             mode: 'light', temp: 'warm',    accent: '#C47E7E', desc: '奶茶店角落' },
+  { id: 'milktea-dark',    label: '🧋 奶茶棕粉',             mode: 'dark',  temp: 'warm',    accent: '#D49898', desc: '奶茶店角落' },
+  { id: 'amber-light',     label: '🍊 琥珀橙',               mode: 'light', temp: 'warm',    accent: '#D48A3C', desc: '秋日暖阳' },
+  { id: 'amber-dark',      label: '🍊 琥珀橙',               mode: 'dark',  temp: 'warm',    accent: '#E4A050', desc: '秋日暖阳' },
+  { id: 'teal-light',      label: '🦆 水鸭青',               mode: 'light', temp: 'cool',    accent: '#2A8A8A', desc: '清澈湖水' },
+  { id: 'teal-dark',       label: '🦆 水鸭青',               mode: 'dark',  temp: 'cool',    accent: '#48B8AE', desc: '清澈湖水' },
+  { id: 'slate-light',     label: '🪨 石板蓝灰',             mode: 'light', temp: 'neutral', accent: '#475569', desc: 'VS Code气质' },
+  { id: 'slate-dark',      label: '🪨 石板蓝灰',             mode: 'dark',  temp: 'neutral', accent: '#94A3B8', desc: 'VS Code气质' },
+];
+
+const grid = document.getElementById('grid');
+
+function createCard(t) {
+  const modeLabel = t.mode === 'light' ? '亮色' : '深色';
+  const modeIcon = t.mode === 'light' ? '☀️' : '🌙';
+
+  const card = document.createElement('div');
+  card.className = 'theme-card';
+  card.dataset.mode = t.mode;
+  card.dataset.temp = t.temp;
+  card.innerHTML = `
+    <div class="theme-label">
+      <span class="dot" style="background:${t.accent}"></span>
+      ${t.label} · ${modeIcon} ${modeLabel}
+      <span class="desc">${t.desc}</span>
+    </div>
+    <div class="mock-app" data-theme="${t.id}">
+      <div class="mock-sidebar">
+        <div class="app-name">FocusLab</div>
+        <div class="nav-item active">📋 今日计划</div>
+        <div class="nav-item">🎯 长线目标</div>
+        <div class="nav-item">📊 数据分析</div>
+        <div class="nav-item">📅 日历</div>
+        <div style="margin-top:auto">
+          <div class="nav-item">⚙️ 设置</div>
+        </div>
+      </div>
+      <div class="mock-main">
+        <div class="page-title">🌅 今日计划</div>
+
+        <div class="mock-timer-card">
+          <div class="timer-ring">18:32</div>
+          <div class="timer-info">
+            <div class="task-name">复现 baseline 代码</div>
+            <div class="task-sub">🍅 第 3 个番茄钟 · 关联：论文A</div>
+          </div>
+          <div class="timer-btn">暂停</div>
+        </div>
+
+        <div class="mock-tasks">
+          <div class="mock-task">
+            <div class="checkbox done"></div>
+            <span class="task-text done-text">回复导师邮件</span>
+            <span class="task-time">30m</span>
+            <span class="task-tag">事务性</span>
+          </div>
+          <div class="mock-task">
+            <div class="checkbox"></div>
+            <span class="task-text">阅读文献 2 篇</span>
+            <span class="task-time">1.5h</span>
+            <span class="task-tag">科研核心</span>
+          </div>
+          <div class="mock-task">
+            <div class="checkbox"></div>
+            <span class="task-text">设计改进方案</span>
+            <span class="task-time">2h</span>
+            <span class="task-tag">科研核心</span>
+          </div>
+        </div>
+
+        <div class="mock-progress-bar">
+          <span>今日进度</span>
+          <div class="progress-track"><div class="progress-fill"></div></div>
+          <span>3/5</span>
+          <div class="grade-badges">
+            <div class="grade-badge" style="background:var(--gold)">S</div>
+            <div class="grade-badge" style="background:var(--success)">A</div>
+            <div class="grade-badge" style="background:var(--accent)">B</div>
+            <div class="grade-badge" style="background:var(--muted)">C</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="swatch-row" data-theme="${t.id}">
+      <div class="swatch-group"><div class="swatch" style="background:var(--bg-primary)"></div><div class="swatch-label">背景</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--bg-sidebar)"></div><div class="swatch-label">侧栏</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--bg-card)"></div><div class="swatch-label">卡片</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--bg-hover)"></div><div class="swatch-label">悬停</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--accent)"></div><div class="swatch-label">强调</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--accent-light)"></div><div class="swatch-label">浅强调</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--accent-dark)"></div><div class="swatch-label">深强调</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--success)"></div><div class="swatch-label">成功</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--gold)"></div><div class="swatch-label">金色</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--warning)"></div><div class="swatch-label">警告</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--muted)"></div><div class="swatch-label">搁置</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--text-primary)"></div><div class="swatch-label">主文字</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--text-secondary)"></div><div class="swatch-label">次文字</div></div>
+      <div class="swatch-group"><div class="swatch" style="background:var(--border)"></div><div class="swatch-label">边框</div></div>
+    </div>
+  `;
+  return card;
+}
+
+// 初始渲染
+themeDefs.forEach(t => {
+  grid.appendChild(createCard(t));
+});
+
+// 筛选功能
+function filterThemes(filter) {
+  // 更新按钮状态
+  document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const cards = document.querySelectorAll('.theme-card');
+  cards.forEach(card => {
+    const mode = card.dataset.mode;
+    const temp = card.dataset.temp;
+    let show = true;
+
+    switch (filter) {
+      case 'light':
+        show = mode === 'light';
+        break;
+      case 'dark':
+        show = mode === 'dark';
+        break;
+      case 'warm':
+        show = temp === 'warm';
+        break;
+      case 'cool':
+        show = temp === 'cool';
+        break;
+      case 'neutral':
+        show = temp === 'neutral';
+        break;
+      case 'pink':
+        show = temp === 'pink';
+        break;
+      case 'all':
+      default:
+        show = true;
+    }
+
+    card.style.display = show ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>

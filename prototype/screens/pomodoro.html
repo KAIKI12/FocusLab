@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · 番茄钟沉浸视图</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />
@@ -94,8 +97,8 @@
   .ring-huge .track { fill: none; stroke-width: 10; }
   .ring-huge .arc { fill: none; stroke-width: 10; stroke-linecap: round; stroke-dasharray: 848; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset var(--dur-slow) var(--ease-out); }
 
-  .state-focus .ring-huge .track { stroke: rgba(79, 140, 255, 0.12); }
-  .state-focus .ring-huge .arc { stroke: url(#gFocus); filter: drop-shadow(0 0 12px rgba(79, 140, 255, 0.25)); }
+  .state-focus .ring-huge .track { stroke: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+  .state-focus .ring-huge .arc { stroke: url(#gFocus); filter: drop-shadow(0 0 12px color-mix(in srgb, var(--color-primary) 25%, transparent)); }
 
   .state-final .ring-huge .track { stroke: rgba(255, 140, 0, 0.14); }
   .state-final .ring-huge .arc {
@@ -113,6 +116,26 @@
 
   .state-done .ring-huge .track { stroke: rgba(250, 173, 20, 0.14); }
   .state-done .ring-huge .arc { stroke: url(#gDone); filter: drop-shadow(0 0 18px rgba(250, 173, 20, 0.4)); }
+
+  /* STATE 5 · 自由计时(v1.2.3 新增)· 紫罗兰 · 递增秒表语义,非倒计时 */
+  .p-frame.state-free { background: linear-gradient(180deg, #F7F3FF 0%, #EDE5FF 100%); }
+  [data-theme="dark"] .p-frame.state-free { background: linear-gradient(180deg, #1F1A32 0%, #2F2550 100%); }
+  .state-free .phase-label { color: #7B52D6; }
+  .state-free .ring-huge .track { stroke: rgba(139, 92, 246, 0.14); stroke-dasharray: 4 8; }
+  .state-free .ring-huge .arc {
+    stroke: url(#gFree);
+    filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.25));
+    stroke-dasharray: 848;
+    stroke-dashoffset: 0;
+    animation: freeSweep 12s linear infinite;
+  }
+  @keyframes freeSweep {
+    0%   { stroke-dashoffset: 848; }
+    100% { stroke-dashoffset: 0; }
+  }
+  .state-free .ring-time { color: #7B52D6; }
+  .state-free .btn-main { background: #8B5CF6; }
+  .state-free .btn-main:hover { background: #7B52D6; }
 
   .ring-center {
     position: absolute; top: 50%; left: 50%;
@@ -161,7 +184,7 @@
     display: grid; place-items: center;
     cursor: pointer;
     transition: all var(--dur-base) var(--ease-smooth);
-    box-shadow: 0 8px 20px rgba(79, 140, 255, 0.35);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--color-primary) 35%, transparent);
   }
   .state-focus .btn-main { background: var(--color-primary); }
   .state-focus .btn-main:hover { background: var(--color-primary-dark); }
@@ -259,7 +282,7 @@
           <div class="ring-huge">
             <svg viewBox="0 0 300 300">
               <defs>
-                <linearGradient id="gFocus" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4F8CFF"/><stop offset="100%" stop-color="#7AABFF"/></linearGradient>
+                <linearGradient id="gFocus" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="var(--color-primary)"/><stop offset="100%" stop-color="var(--color-primary-light)"/></linearGradient>
               </defs>
               <circle class="track" cx="150" cy="150" r="135" />
               <circle class="arc" cx="150" cy="150" r="135" stroke-dashoffset="210" />
@@ -426,6 +449,91 @@
       <div class="state-caption">04 · 完成 · 金色 · 休息结束三选一 (docs/02 §5 温和提醒)</div>
     </div>
 
+  </div>
+
+  <!-- STATE 5 · 自由计时(v1.2.3 新增 · 非倒计时 · 独立模式) -->
+  <div style="margin-top:var(--sp-6)">
+    <div style="display:flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-3);padding:0 var(--sp-2)">
+      <div style="width:3px;height:20px;background:#8B5CF6;border-radius:2px"></div>
+      <h2 style="font-size:var(--fs-16);font-weight:var(--fw-semibold);color:#7B52D6">🌀 自由计时模式 · Open Timer</h2>
+      <span style="font-size:var(--fs-12);color:var(--color-text-secondary)">
+        没有固定时长,递增秒表 · 适合写作 / 读论文 / 深度思考等不按 25 分钟分块的场景
+      </span>
+    </div>
+
+    <div class="p-frame state-free" style="aspect-ratio:auto;min-height:420px">
+      <div class="p-top">
+        <span class="chip" style="background:color-mix(in srgb, #8B5CF6 15%, transparent);color:#7B52D6"><span data-icon="target" data-size="12"></span> 论文A · 里程碑 3</span>
+        <span class="phase-label"><span class="phase-dot" style="background:#8B5CF6"></span>自由计时中</span>
+      </div>
+      <div class="p-body">
+        <div class="task-title">撰写论文引言</div>
+        <div class="task-sub">
+          <span class="chip chip-q2">计划执行</span>
+          <span>·</span>
+          <span>已启动 23 分钟前</span>
+        </div>
+        <div class="ring-huge">
+          <svg viewBox="0 0 300 300">
+            <defs>
+              <linearGradient id="gFree" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#8B5CF6"/>
+                <stop offset="100%" stop-color="#A78BFA"/>
+              </linearGradient>
+            </defs>
+            <circle class="track" cx="150" cy="150" r="135" />
+            <circle class="arc" cx="150" cy="150" r="135" />
+          </svg>
+          <div class="ring-center">
+            <div class="ring-time">23:47</div>
+            <div class="ring-phase-text">已专注 · 手动结束</div>
+          </div>
+        </div>
+        <div class="p-ctrl">
+          <button class="btn-circle" aria-label="手动结束" title="手动结束并记录时段"><span data-icon="square" data-size="18"></span></button>
+          <button class="btn-main" aria-label="暂停"><span data-icon="pause" data-size="24"></span></button>
+          <button class="btn-circle" aria-label="切换任务"><span data-icon="skip-forward" data-size="18"></span></button>
+        </div>
+      </div>
+      <div class="p-bottom">
+        <span style="color:#7B52D6">🌀 自由模式 · 不计入番茄钟数,计入专注时长</span>
+        <span>累计今日 1h 32m</span>
+        <span class="kbd">Space</span>
+      </div>
+    </div>
+    <div class="state-caption" style="margin-top:var(--sp-2);color:var(--color-text-secondary);font-size:var(--fs-13, 13px)">
+      05 · 自由计时 · 紫罗兰 · 环以虚线慢速旋转示意"计时在跑" · 数字递增 · 底部按钮改"手动结束"(替代"结束番茄钟")
+    </div>
+
+    <!-- 自由模式 vs 番茄模式 对比说明 -->
+    <div class="card" style="margin-top:var(--sp-5);padding:var(--sp-4)">
+      <h3 style="font-size:var(--fs-14);font-weight:var(--fw-semibold);margin-bottom:var(--sp-3);color:var(--color-text-secondary)">🌀 自由模式 vs 🍅 番茄模式</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4);font-size:var(--fs-13, 13px);line-height:1.6">
+        <div>
+          <strong style="color:#7B52D6">🌀 自由模式</strong>
+          <ul style="margin-top:6px;padding-left:18px;color:var(--color-text-secondary)">
+            <li>时长不固定 · 递增显示</li>
+            <li>手动结束 · 不自动进入休息</li>
+            <li>不计入"番茄钟数" · 只计入专注时长</li>
+            <li>中断仍然记录(暂停/切换任务会打断)</li>
+            <li>适合:写作、读论文、深度思考</li>
+          </ul>
+        </div>
+        <div>
+          <strong style="color:var(--color-primary)">🍅 番茄模式</strong>
+          <ul style="margin-top:6px;padding-left:18px;color:var(--color-text-secondary)">
+            <li>固定时长(25 / 45 / 90 可选)· 递减显示</li>
+            <li>自动结束 · 进入休息</li>
+            <li>计入"番茄钟数"</li>
+            <li>休息结束三选一(继续/延长/结束)</li>
+            <li>适合:coding、做题、事务性任务</li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top:var(--sp-3);padding-top:var(--sp-3);border-top:1px dashed var(--color-divider);font-size:11px;color:var(--color-text-muted);line-height:1.6">
+        💡 切换方式:启动专注前在焦点卡点"🌀 自由"/"🍅 番茄"chip · 或命令面板输入"切换计时模式" · 正在计时中不可切换(先结束当前会话)
+      </div>
+    </div>
   </div>
 
   <!-- 设计注解 -->

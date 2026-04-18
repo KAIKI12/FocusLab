@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · 设置</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />
@@ -180,7 +183,7 @@
     width: 16px; height: 16px;
     border-radius: 50%;
     background: var(--color-primary);
-    box-shadow: 0 2px 6px rgba(79,140,255,0.35);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--color-primary) 35%, transparent);
     cursor: pointer;
     border: 2px solid #fff;
   }
@@ -323,7 +326,29 @@
   }
   .sc-row:last-child { border-bottom: none; }
   .sc-row .sc-name { font-size: var(--fs-13, 13px); }
-  .sc-combo { display: flex; gap: 4px; }
+  .sc-combo { display: flex; gap: 4px; align-items: center; }
+  .sc-group-label {
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: var(--sp-4);
+    margin-bottom: 2px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .sc-group-label:first-of-type { margin-top: var(--sp-3); }
+  .sc-unbound {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    padding: 3px 8px;
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    transition: all var(--dur-base);
+  }
+  .sc-unbound:hover { color: var(--color-primary); border-color: var(--color-primary); border-style: solid; }
 
   /* Mode cards */
   .mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); margin-top: var(--sp-4); }
@@ -345,6 +370,70 @@
   .mode-card ul li svg { width: 12px; height: 12px; }
   .mode-card ul li.yes { color: var(--color-success); }
   .mode-card ul li.no { color: var(--color-text-muted); }
+
+  /* 🎨 Accent theme grid (v1.2.4) */
+  .accent-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-3);
+    margin-top: var(--sp-4);
+  }
+  .accent-card {
+    position: relative;
+    padding: var(--sp-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    background: var(--color-bg-elevated);
+    cursor: pointer;
+    transition: all var(--dur-base) var(--ease-smooth);
+  }
+  .accent-card:hover {
+    border-color: var(--color-primary-light);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-card);
+  }
+  .accent-card.is-selected {
+    border-color: var(--color-primary);
+    border-width: 2px;
+    padding: calc(var(--sp-4) - 1px);
+    box-shadow: 0 0 0 3px var(--color-primary-soft);
+  }
+  .accent-card.is-selected::after {
+    content: "✓";
+    position: absolute;
+    top: 8px; right: 10px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+    display: grid; place-items: center;
+  }
+  .accent-swatches {
+    display: flex;
+    gap: 4px;
+    margin-bottom: var(--sp-3);
+  }
+  .accent-swatches .sw {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.08);
+    flex-shrink: 0;
+  }
+  .accent-name {
+    font-size: var(--fs-14);
+    font-weight: var(--fw-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+  }
+  .accent-desc {
+    font-size: var(--fs-12);
+    color: var(--color-text-muted);
+  }
+  @media (max-width: 720px) {
+    .accent-grid { grid-template-columns: repeat(2, 1fr); }
+  }
 
   /* Data action card */
   .data-action-card {
@@ -381,7 +470,7 @@
     background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
     display: grid; place-items: center;
     color: #fff; font-size: 32px; font-weight: var(--fw-bold);
-    box-shadow: 0 8px 24px rgba(79, 140, 255, 0.3);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary) 30%, transparent);
   }
   .about-hero h2 { font-size: var(--fs-24); font-weight: var(--fw-semibold); }
   .about-hero .v { color: var(--color-text-muted); font-family: var(--font-mono); font-size: var(--fs-12); margin-top: 4px; }
@@ -551,10 +640,128 @@
               <div class="set-desc">研究生经常熬夜 · 深色模式会自动降低饱和度</div>
             </div>
             <div class="set-control">
-              <div class="radio-pill-group">
-                <span class="radio-pill is-active">浅色</span>
-                <span class="radio-pill">深色</span>
-                <span class="radio-pill">跟随系统</span>
+              <div class="radio-pill-group" id="theme-mode-group">
+                <span class="radio-pill is-active" data-mode="light">浅色</span>
+                <span class="radio-pill" data-mode="dark">深色</span>
+                <span class="radio-pill" data-mode="auto">跟随系统</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 🎨 主题色调(v1.2.4)· 12 张卡片全局切换 -->
+          <div class="set-row">
+            <div class="set-row-main" style="flex:1 1 100%">
+              <div class="set-title">主题色调</div>
+              <div class="set-desc">选一种整体氛围 · 明暗模式由上方「主题」独立控制 · 切换后全局生效</div>
+              <div class="accent-grid" id="accent-grid">
+                <div class="accent-card" data-accent="default">
+                  <div class="accent-swatches">
+                    <span class="sw" style="background:#4F8CFF"></span>
+                    <span class="sw" style="background:#F5F7FA"></span>
+                    <span class="sw" style="background:#1F2430"></span>
+                  </div>
+                  <div class="accent-name">🌊 默认蓝</div>
+                  <div class="accent-desc">FocusLab 原版</div>
+                </div>
+                <div class="accent-card" data-accent="claude">
+                  <div class="accent-swatches">
+                    <span class="sw" style="background:#C4714F"></span>
+                    <span class="sw" style="background:#FAF9F6"></span>
+                    <span class="sw" style="background:#2D2A25"></span>
+                  </div>
+                  <div class="accent-name">☁️ 奶油陶土</div>
+                  <div class="accent-desc">咖啡厅暖阳</div>
+                </div>
+                <div class="accent-card" data-accent="green">
+                  <div class="accent-swatches">
+                    <span class="sw" style="background:#5D8A6A"></span>
+                    <span class="sw" style="background:#F2F5F0"></span>
+                    <span class="sw" style="background:#222B24"></span>
+                  </div>
+                  <div class="accent-name">🌿 现代护眼绿</div>
+                  <div class="accent-desc">清晨植物园</div>
+                </div>
+                <div class="accent-card" data-accent="lavender">
+                  <div class="accent-swatches">
+                    <span class="sw" style="background:#7B68AE"></span>
+                    <span class="sw" style="background:#F8F6FB"></span>
+                    <span class="sw" style="background:#24222E"></span>
+                  </div>
+                  <div class="accent-name">🪻 薰衣草紫</div>
+                  <div class="accent-desc">灵感工作室</div>
+                </div>
+                <div class="accent-card" data-accent="blue-classic">
+                  <div class="accent-swatches">
+                    <span class="sw" style="background:#5B7FBF"></span>
+                    <span class="sw" style="background:#F7F8FA"></span>
+                    <span class="sw" style="background:#1E2433"></span>
+                  </div>
+                  <div class="accent-name">🌊 静谧蓝</div>
+                  <div class="accent-desc">图书馆蓝天</div>
+                </div>
+                <div class="accent-card" data-accent="graphite">
+                  <div class="accent-swatches">
+                    <span class="sw" style="background:#404040"></span>
+                    <span class="sw" style="background:#F6F6F6"></span>
+                    <span class="sw" style="background:#1A1A1A"></span>
+                  </div>
+                  <div class="accent-name">🧊 极简石墨</div>
+                  <div class="accent-desc">无印良品</div>
+                </div>
+                <div class="accent-card" data-accent="sakura">
+                  <div class="accent-swatches">
+                    <span class="sw" style="background:#D4717A"></span>
+                    <span class="sw" style="background:#FDF7F8"></span>
+                    <span class="sw" style="background:#2C2428"></span>
+                  </div>
+                  <div class="accent-name">🌸 樱花粉</div>
+                  <div class="accent-desc">樱花树下</div>
+                </div>
+                <div class="accent-card" data-accent="candy">
+                  <div class="accent-swatches">
+                    <span class="sw" style="background:#A86CC1"></span>
+                    <span class="sw" style="background:#FBF7FD"></span>
+                    <span class="sw" style="background:#24202C"></span>
+                  </div>
+                  <div class="accent-name">🎀 糖果粉紫</div>
+                  <div class="accent-desc">现代粉紫</div>
+                </div>
+                <div class="accent-card" data-accent="milktea">
+                  <div class="accent-swatches">
+                    <span class="sw" style="background:#C47E7E"></span>
+                    <span class="sw" style="background:#FAF7F3"></span>
+                    <span class="sw" style="background:#2A2622"></span>
+                  </div>
+                  <div class="accent-name">🧋 奶茶棕粉</div>
+                  <div class="accent-desc">奶茶店角落</div>
+                </div>
+                <div class="accent-card" data-accent="amber">
+                  <div class="accent-swatches">
+                    <span class="sw" style="background:#D48A3C"></span>
+                    <span class="sw" style="background:#FDFAF6"></span>
+                    <span class="sw" style="background:#2A2520"></span>
+                  </div>
+                  <div class="accent-name">🍊 琥珀橙</div>
+                  <div class="accent-desc">秋日暖阳</div>
+                </div>
+                <div class="accent-card" data-accent="teal">
+                  <div class="accent-swatches">
+                    <span class="sw" style="background:#2A8A8A"></span>
+                    <span class="sw" style="background:#F5FAFA"></span>
+                    <span class="sw" style="background:#1E2828"></span>
+                  </div>
+                  <div class="accent-name">🦆 水鸭青</div>
+                  <div class="accent-desc">清澈湖水</div>
+                </div>
+                <div class="accent-card" data-accent="slate">
+                  <div class="accent-swatches">
+                    <span class="sw" style="background:#475569"></span>
+                    <span class="sw" style="background:#F8F9FB"></span>
+                    <span class="sw" style="background:#0F172A"></span>
+                  </div>
+                  <div class="accent-name">🪨 石板蓝灰</div>
+                  <div class="accent-desc">VS Code 气质</div>
+                </div>
               </div>
             </div>
           </div>
@@ -580,22 +787,6 @@
             </div>
             <div class="set-control">
               <div class="toggle-sw" role="switch"></div>
-            </div>
-          </div>
-
-          <div class="set-row">
-            <div class="set-row-main">
-              <div class="set-title">主色</div>
-              <div class="set-desc">品牌主色调 · 影响按钮、圆环、进度条等</div>
-            </div>
-            <div class="set-control">
-              <div style="display:flex;gap:8px">
-                <span style="width:28px;height:28px;border-radius:50%;background:#4F8CFF;border:3px solid #fff;box-shadow:0 0 0 2px #4F8CFF;cursor:pointer"></span>
-                <span style="width:28px;height:28px;border-radius:50%;background:#52C41A;cursor:pointer"></span>
-                <span style="width:28px;height:28px;border-radius:50%;background:#B87FFF;cursor:pointer"></span>
-                <span style="width:28px;height:28px;border-radius:50%;background:#FAAD14;cursor:pointer"></span>
-                <span style="width:28px;height:28px;border-radius:50%;background:#F56C6C;cursor:pointer"></span>
-              </div>
             </div>
           </div>
         </section>
@@ -686,6 +877,76 @@
                   <option>自然白噪</option>
                 </select>
               </div>
+            </div>
+          </div>
+
+          <!-- 🌀 自由模式偏好(v1.2.3 · 对应焦点卡 🍅↔🌀 切换) -->
+          <div class="sc-group-label" style="margin-top:var(--sp-5)">🌀 自由计时模式 · Open Timer</div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">默认计时模式</div>
+              <div class="set-desc">启动专注时默认使用哪种模式 · 也可在焦点卡点 🍅 / 🌀 chip 临时切换</div>
+            </div>
+            <div class="set-control">
+              <div class="radio-pill-group">
+                <span class="radio-pill is-active">🍅 番茄</span>
+                <span class="radio-pill">🌀 自由</span>
+                <span class="radio-pill">上次使用</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">最小记录时长</div>
+              <div class="set-desc">自由模式下,短于此时长的会话不计入专注时长 · 避免误触污染数据</div>
+            </div>
+            <div class="set-control">
+              <div class="slider-wrap">
+                <div class="slider-row">
+                  <input type="range" min="1" max="15" value="3" class="fl-slider" />
+                  <span class="slider-value">3m</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">超时柔提醒</div>
+              <div class="set-desc">自由模式连续专注超过此时长时,轻微呼吸提示可以休息 · 不强制打断</div>
+            </div>
+            <div class="set-control">
+              <div style="display:flex;align-items:center;gap:var(--sp-2)">
+                <div class="slider-wrap" style="width:140px">
+                  <div class="slider-row">
+                    <input type="range" min="30" max="180" value="90" class="fl-slider" />
+                    <span class="slider-value">90m</span>
+                  </div>
+                </div>
+                <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">暂停计为中断</div>
+              <div class="set-desc">开启后,自由模式中按暂停会结束当前会话并记录 · 关闭则仅暂停计时,可恢复</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw" role="switch" aria-checked="false"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">切换任务自动结束当前会话</div>
+              <div class="set-desc">自由模式中切换任务时,先结束当前会话再开启新会话 · 保证每段专注归属清晰</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
             </div>
           </div>
         </section>
@@ -779,23 +1040,53 @@
         <section class="set-group" data-group="shortcuts">
           <div class="set-group-head">
             <h1>快捷键</h1>
-            <p>所有快捷键均可重新绑定</p>
+            <p>与命令面板 <span class="kbd">⌘</span><span class="kbd">/</span> 完全对应 · 所有快捷键均可重新绑定</p>
           </div>
 
           <div class="callout info">
             <span data-icon="sparkles" data-size="16"></span>
-            <span>macOS 下的 ⌘ 对应 Windows / Linux 下的 Ctrl · 按下对应按键录制新组合</span>
+            <span>macOS 下的 ⌘ 对应 Windows / Linux 下的 Ctrl · 点击组合键即可录制新绑定</span>
           </div>
 
-          <div class="sc-row"><span class="sc-name">暂停/继续专注</span><span class="sc-combo"><span class="kbd">Space</span></span></div>
-          <div class="sc-row"><span class="sc-name">快速添加任务</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">N</span></span></div>
-          <div class="sc-row"><span class="sc-name">切换悬浮球 / 主窗口</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">F</span></span></div>
-          <div class="sc-row"><span class="sc-name">打开设置</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">,</span></span></div>
-          <div class="sc-row"><span class="sc-name">结束今天 · 日结算</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">E</span></span></div>
+          <div class="sc-group-label">🎯 焦点 / 番茄钟</div>
+          <div class="sc-row"><span class="sc-name">暂停 / 继续专注</span><span class="sc-combo"><span class="kbd">Space</span></span></div>
           <div class="sc-row"><span class="sc-name">切换任务</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">T</span></span></div>
-          <div class="sc-row"><span class="sc-name">打开四象限视图</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">Q</span></span></div>
-          <div class="sc-row"><span class="sc-name">查看所有快捷键</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">/</span></span></div>
-          <div class="sc-row"><span class="sc-name">全局唤起 FocusLab</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">L</span></span></div>
+          <div class="sc-row"><span class="sc-name">结束当前番茄钟</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">X</span></span></div>
+          <div class="sc-row"><span class="sc-name">切换计时模式 · 🍅 番茄 ↔ 🌀 自由</span><span class="sc-combo"><span class="sc-unbound">+ 录制</span></span></div>
+          <div class="sc-row"><span class="sc-name">延长休息 5 分钟</span><span class="sc-combo"><span class="sc-unbound">+ 录制</span></span></div>
+          <div class="sc-row"><span class="sc-name">沉浸视图 / 切换悬浮球</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">F</span></span></div>
+
+          <div class="sc-group-label">📋 任务 / 计划</div>
+          <div class="sc-row"><span class="sc-name">快速添加任务</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">N</span></span></div>
+          <div class="sc-row"><span class="sc-name">启动晨起引导</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">G</span></span></div>
+          <div class="sc-row"><span class="sc-name">微复盘当前任务</span><span class="sc-combo"><span class="sc-unbound">+ 录制</span></span></div>
+          <div class="sc-row"><span class="sc-name">设置当前任务截止日期</span><span class="sc-combo"><span class="sc-unbound">+ 录制</span></span></div>
+          <div class="sc-row"><span class="sc-name">搁置当前任务</span><span class="sc-combo"><span class="sc-unbound">+ 录制</span></span></div>
+
+          <div class="sc-group-label">🎨 视图 / 导航</div>
+          <div class="sc-row"><span class="sc-name">今日计划</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">1</span></span></div>
+          <div class="sc-row"><span class="sc-name">长线目标</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">2</span></span></div>
+          <div class="sc-row"><span class="sc-name">日历视图</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">3</span></span></div>
+          <div class="sc-row"><span class="sc-name">数据分析 · 周报</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">4</span></span></div>
+          <div class="sc-row"><span class="sc-name">搁置区</span><span class="sc-combo"><span class="sc-unbound">+ 录制</span></span></div>
+
+          <div class="sc-group-label">⚙️ 设置 / 模式</div>
+          <div class="sc-row"><span class="sc-name">打开设置</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">,</span></span></div>
+          <div class="sc-row"><span class="sc-name">切换极简 / 标准模式</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">M</span></span></div>
+          <div class="sc-row"><span class="sc-name">切换深色 / 浅色主题</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">T</span></span></div>
+          <div class="sc-row"><span class="sc-name">查看所有快捷键 · 命令面板</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">/</span></span></div>
+
+          <div class="sc-group-label">💤 日结算 / 收尾</div>
+          <div class="sc-row"><span class="sc-name">结束今天 · 进入日结算</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">E</span></span></div>
+          <div class="sc-row"><span class="sc-name">查看昨日复盘</span><span class="sc-combo"><span class="sc-unbound">+ 录制</span></span></div>
+
+          <div class="sc-group-label">🌐 全局(系统级)</div>
+          <div class="sc-row"><span class="sc-name">全局唤起 FocusLab · 任何应用下可用</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">L</span></span></div>
+
+          <div class="sc-group-label">🔍 搜索语义(面板输入)</div>
+          <div class="sc-row" style="opacity:0.85"><span class="sc-name">搜索任务 · 面板里输入</span><span class="sc-combo"><span class="kbd">#</span><span style="color:var(--color-text-muted);font-size:11px;margin-left:6px">关键词</span></span></div>
+          <div class="sc-row" style="opacity:0.85"><span class="sc-name">跳转到目标 · 面板里输入</span><span class="sc-combo"><span class="kbd">@</span><span style="color:var(--color-text-muted);font-size:11px;margin-left:6px">目标名</span></span></div>
+          <div class="sc-row" style="opacity:0.85"><span class="sc-name">过滤命令 · 面板里输入</span><span class="sc-combo"><span class="kbd">&gt;</span><span style="color:var(--color-text-muted);font-size:11px;margin-left:6px">命令词</span></span></div>
         </section>
 
         <!-- ============ AI ============ -->
@@ -1127,7 +1418,80 @@
   try {
     const saved = localStorage.getItem('fl-theme');
     if (saved) document.documentElement.dataset.theme = saved;
+    const savedAccent = localStorage.getItem('fl-accent');
+    if (savedAccent && savedAccent !== 'default') document.documentElement.dataset.accentTheme = savedAccent;
   } catch (e) {}
+
+  // =========================================================
+  // 主题色调 / 明暗模式切换 (v1.2.4)
+  // =========================================================
+  (function initThemeControls() {
+    // —— 色调卡片
+    const grid = document.getElementById('accent-grid');
+    const current = (localStorage.getItem('fl-accent') || 'default');
+    function markAccent(key) {
+      if (!grid) return;
+      grid.querySelectorAll('.accent-card').forEach(c => {
+        c.classList.toggle('is-selected', c.dataset.accent === key);
+      });
+    }
+    function applyAccent(key) {
+      if (key && key !== 'default') {
+        document.documentElement.dataset.accentTheme = key;
+      } else {
+        delete document.documentElement.dataset.accentTheme;
+      }
+      markAccent(key || 'default');
+    }
+    markAccent(current);
+    if (grid) {
+      grid.addEventListener('click', (e) => {
+        const card = e.target.closest('.accent-card');
+        if (!card) return;
+        const key = card.dataset.accent;
+        try { localStorage.setItem('fl-accent', key); } catch (err) {}
+        applyAccent(key);
+      });
+    }
+
+    // —— 明暗模式 radio
+    const modeGroup = document.getElementById('theme-mode-group');
+    const curMode = (localStorage.getItem('fl-theme') || 'light');
+    function markMode(m) {
+      if (!modeGroup) return;
+      modeGroup.querySelectorAll('.radio-pill').forEach(p => {
+        p.classList.toggle('is-active', p.dataset.mode === m);
+      });
+    }
+    function applyMode(m) {
+      if (m === 'dark') {
+        document.documentElement.dataset.theme = 'dark';
+      } else if (m === 'light') {
+        document.documentElement.dataset.theme = 'light';
+      } else {
+        // auto: 跟随系统
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
+      }
+      markMode(m);
+    }
+    markMode(curMode === 'dark' ? 'dark' : (curMode === 'auto' ? 'auto' : 'light'));
+    if (modeGroup) {
+      modeGroup.addEventListener('click', (e) => {
+        const pill = e.target.closest('.radio-pill[data-mode]');
+        if (!pill) return;
+        const m = pill.dataset.mode;
+        try { localStorage.setItem('fl-theme', m); } catch (err) {}
+        applyMode(m);
+      });
+    }
+
+    // —— 跨 tab 同步
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'fl-accent') applyAccent(e.newValue || 'default');
+      if (e.key === 'fl-theme')  applyMode(e.newValue || 'light');
+    });
+  })();
 
   // Group switching
   const items = document.querySelectorAll('.settings-nav .s-item[data-group]');

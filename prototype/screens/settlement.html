@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · 日结算 · S/A/B/C 四级</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />
@@ -58,7 +61,7 @@
   .a-hero::before {
     background: radial-gradient(circle at 70% 30%, rgba(255,255,255,0.4), transparent 50%);
   }
-  .b-hero { background: linear-gradient(135deg, #4F8CFF, #7AABFF); }
+  .b-hero { background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)); }
   .b-hero::before {
     background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.25), transparent 50%);
   }
@@ -127,7 +130,7 @@
   }
   .s-hero .hero-progress .bar {
     width: 120%;
-    background: linear-gradient(90deg, #FFB347, #FFD700, #FF7A7A, #B87FFF, #4F8CFF);
+    background: linear-gradient(90deg, #FFB347, #FFD700, #FF7A7A, #B87FFF, var(--color-primary));
     background-size: 200% 100%;
     animation: shimmer 3s linear infinite;
     box-shadow: 0 0 16px rgba(255, 221, 102, 0.7);

@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · UI 原型导航</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="assets/tokens.css" />
 <link rel="stylesheet" href="assets/base.css" />
 <link rel="stylesheet" href="assets/components.css" />
@@ -24,7 +27,7 @@
     background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
     display: grid; place-items: center;
     color: #fff; font-size: 22px; font-weight: var(--fw-bold);
-    box-shadow: 0 6px 16px rgba(79, 140, 255, 0.32);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--color-primary) 32%, transparent);
   }
   .hero h1 { font-size: 32px; font-weight: var(--fw-bold); letter-spacing: -0.5px; }
   .hero-tag { font-size: var(--fs-14); color: var(--color-text-secondary); margin-top: 4px; }
@@ -257,7 +260,7 @@
 
     <a class="screen-card" href="screens/floating-ball.html">
       <div class="thumb">
-        <div style="position:absolute;bottom:24px;right:24px;width:56px;height:56px;border-radius:999px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));box-shadow:0 6px 16px rgba(79,140,255,.35);z-index:2;"></div>
+        <div style="position:absolute;bottom:24px;right:24px;width:56px;height:56px;border-radius:999px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));box-shadow:0 6px 16px color-mix(in srgb, var(--color-primary) 35%, transparent);z-index:2;"></div>
         <span class="thumb-label">floating orb</span>
       </div>
       <div class="screen-info">
@@ -272,7 +275,7 @@
         <div style="position:absolute;z-index:1;display:flex;gap:6px;">
           <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,#FAAD14,#FF8C00);"></div>
           <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,#FAAD14,#FFD666);"></div>
-          <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,#4F8CFF,#7AABFF);"></div>
+          <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));"></div>
           <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,#8C8C8C,#B2B6C2);"></div>
         </div>
         <span class="thumb-label" style="margin-top:64px">S · A · B · C</span>
@@ -301,7 +304,7 @@
       <div class="thumb">
         <div style="position:absolute;z-index:1;display:flex;gap:4px;">
           <div style="width:22px;height:22px;border-radius:50%;background:var(--color-success);display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700">✓</div>
-          <div style="width:22px;height:22px;border-radius:50%;background:var(--color-primary);display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700;box-shadow:0 0 0 3px rgba(79,140,255,0.25)">2</div>
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--color-primary);display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700;box-shadow:0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent)">2</div>
           <div style="width:22px;height:22px;border-radius:50%;background:var(--color-bg-hover);display:grid;place-items:center;color:var(--color-text-muted);font-size:11px;font-weight:700">3</div>
           <div style="width:22px;height:22px;border-radius:50%;background:var(--color-bg-hover);display:grid;place-items:center;color:var(--color-text-muted);font-size:11px;font-weight:700">4</div>
           <div style="width:22px;height:22px;border-radius:50%;background:var(--color-bg-hover);display:grid;place-items:center;color:var(--color-text-muted);font-size:11px;font-weight:700">5</div>
@@ -322,7 +325,7 @@
           <line x1="15" y1="30" x2="70" y2="30" stroke="var(--color-success)" stroke-width="2"/>
           <circle cx="15" cy="30" r="8" fill="var(--color-success)"/>
           <circle cx="42" cy="30" r="8" fill="var(--color-success)"/>
-          <circle cx="70" cy="30" r="10" fill="var(--color-primary)" stroke="rgba(79,140,255,0.3)" stroke-width="4"/>
+          <circle cx="70" cy="30" r="10" fill="var(--color-primary)" stroke="color-mix(in srgb, var(--color-primary) 30%, transparent)" stroke-width="4"/>
           <circle cx="98" cy="30" r="7" fill="var(--color-bg-elevated)" stroke="var(--color-border-strong)" stroke-width="2"/>
           <circle cx="126" cy="30" r="7" fill="var(--color-bg-elevated)" stroke="var(--color-border-strong)" stroke-width="2"/>
           <circle cx="154" cy="30" r="7" fill="var(--color-bg-elevated)" stroke="var(--color-border-strong)" stroke-width="2"/>
@@ -525,7 +528,7 @@
   <div class="screen-grid">
 
     <a class="screen-card" href="screens/mood-check.html">
-      <div class="thumb" style="background:radial-gradient(circle at 30% 30%, rgba(255,214,102,0.22), transparent 55%), radial-gradient(circle at 80% 70%, rgba(79,140,255,0.18), transparent 60%), var(--color-bg-subtle);">
+      <div class="thumb" style="background:radial-gradient(circle at 30% 30%, rgba(255,214,102,0.22), transparent 55%), radial-gradient(circle at 80% 70%, color-mix(in srgb, var(--color-primary) 18%, transparent), transparent 60%), var(--color-bg-subtle);">
         <div style="position:absolute;z-index:1;display:flex;gap:8px;font-size:28px;line-height:1">
           <span style="filter:grayscale(1);opacity:0.5">😔</span>
           <span style="filter:grayscale(0.5);opacity:0.7">😕</span>
@@ -603,9 +606,9 @@
   <div class="spec-grid">
     <div class="card spec-card">
       <h4>主色</h4>
-      <div class="color-row"><span class="color-swatch" style="background:#4F8CFF"></span><span>Primary · #4F8CFF</span></div>
-      <div class="color-row"><span class="color-swatch" style="background:#7AABFF"></span><span>Light · #7AABFF</span></div>
-      <div class="color-row"><span class="color-swatch" style="background:#3366CC"></span><span>Dark · #3366CC</span></div>
+      <div class="color-row"><span class="color-swatch" style="background:var(--color-primary)"></span><span>Primary · var(--color-primary)</span></div>
+      <div class="color-row"><span class="color-swatch" style="background:var(--color-primary-light)"></span><span>Light · var(--color-primary-light)</span></div>
+      <div class="color-row"><span class="color-swatch" style="background:var(--color-primary-dark)"></span><span>Dark · var(--color-primary-dark)</span></div>
       <div class="color-row"><span class="color-swatch" style="background:#52C41A"></span><span>Success · #52C41A</span></div>
       <div class="color-row"><span class="color-swatch" style="background:#FAAD14"></span><span>Gold · #FAAD14</span></div>
       <div class="color-row"><span class="color-swatch" style="background:#8C8C8C"></span><span>Neutral · #8C8C8C</span></div>

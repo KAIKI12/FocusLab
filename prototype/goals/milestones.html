@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · 长线目标 · 里程碑</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />
@@ -152,12 +155,12 @@
     background: var(--color-primary);
     border-color: var(--color-primary);
     color: #fff;
-    box-shadow: 0 6px 16px rgba(79, 140, 255, 0.35);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--color-primary) 35%, transparent);
     animation: ring-pulse 2.5s ease-in-out infinite;
   }
   @keyframes ring-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(79,140,255,0.5), 0 6px 16px rgba(79,140,255,0.35); }
-    70% { box-shadow: 0 0 0 10px rgba(79,140,255,0), 0 6px 16px rgba(79,140,255,0.35); }
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 50%, transparent), 0 6px 16px color-mix(in srgb, var(--color-primary) 35%, transparent); }
+    70% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--color-primary) 0%, transparent), 0 6px 16px color-mix(in srgb, var(--color-primary) 35%, transparent); }
   }
   .mile-node.is-upcoming .mile-circle {
     background: var(--color-bg-elevated);
@@ -468,8 +471,8 @@
               <svg viewBox="0 0 80 80">
                 <defs>
                   <linearGradient id="cmGrad" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stop-color="#4F8CFF"/>
-                    <stop offset="100%" stop-color="#7AABFF"/>
+                    <stop offset="0%" stop-color="var(--color-primary)"/>
+                    <stop offset="100%" stop-color="var(--color-primary-light)"/>
                   </linearGradient>
                 </defs>
                 <circle class="track" cx="40" cy="40" r="35" />

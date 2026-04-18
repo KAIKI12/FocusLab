@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FocusLab · 主窗口 · 今日计划</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
 <link rel="stylesheet" href="../assets/tokens.css" />
 <link rel="stylesheet" href="../assets/base.css" />
 <link rel="stylesheet" href="../assets/components.css" />
@@ -79,6 +82,12 @@
   }
   .focus-task-meta { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-5); position: relative; }
 
+  /* 计时模式切换 chip(v1.2.3 自由计时) */
+  .chip.timer-mode { cursor: pointer; transition: all var(--dur-base) var(--ease-smooth); border: 1px solid transparent; }
+  .chip.timer-mode.is-pomodoro { background: var(--color-primary-soft); color: var(--color-primary-dark); border-color: color-mix(in srgb, var(--color-primary) 25%, transparent); }
+  .chip.timer-mode.is-free { background: color-mix(in srgb, #8B5CF6 14%, transparent); color: #7B52D6; border-color: color-mix(in srgb, #8B5CF6 30%, transparent); }
+  .chip.timer-mode:hover { transform: translateY(-1px); }
+
   .ring-wrap {
     display: flex; flex-direction: column; align-items: center; gap: var(--sp-4);
   }
@@ -92,12 +101,28 @@
     position: absolute;
     inset: 0;
     width: 180px; height: 180px;
-    filter: drop-shadow(0 4px 16px rgba(79, 140, 255, 0.18));
+    filter: drop-shadow(0 4px 16px color-mix(in srgb, var(--color-primary) 18%, transparent));
   }
   .ring circle { fill: none; stroke-linecap: round; }
   .ring .track { stroke: rgba(255, 255, 255, 0.8); stroke-width: 10; }
   [data-theme="dark"] .ring .track { stroke: rgba(255, 255, 255, 0.08); }
   .ring .progress-arc { stroke: url(#ringGrad); stroke-width: 10; stroke-dasharray: 722; stroke-dashoffset: 180; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset var(--dur-slow) var(--ease-out); }
+
+  /* 自由计时态(v1.2.3)· 紫罗兰 · 虚线轨道 + 慢速旋转弧 */
+  .ring-holder[data-mode="free"] .ring .track { stroke: rgba(139, 92, 246, 0.18); stroke-dasharray: 4 8; }
+  .ring-holder[data-mode="free"] .ring .progress-arc {
+    stroke: url(#ringGradFree);
+    stroke-dashoffset: 0;
+    animation: focusRingFreeSweep 12s linear infinite;
+    filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.25));
+  }
+  @keyframes focusRingFreeSweep {
+    0%   { stroke-dashoffset: 722; }
+    100% { stroke-dashoffset: 0; }
+  }
+  .ring-holder[data-mode="free"] + * .ring-time,
+  .ring-holder[data-mode="free"] .ring-time { color: #7B52D6; }
+  .ring-holder[data-mode="free"] .ring-phase { color: #7B52D6; }
 
   .ring-center { position: relative; text-align: center; line-height: 1; }
   .ring-time { font-family: var(--font-mono); font-size: 40px; font-weight: var(--fw-semibold); color: var(--color-text-primary); letter-spacing: -1px; line-height: 1; }
@@ -122,7 +147,7 @@
     color: #fff;
     border: none;
     display: grid; place-items: center;
-    box-shadow: 0 8px 20px rgba(79, 140, 255, 0.32);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--color-primary) 32%, transparent);
     transition: all var(--dur-base) var(--ease-smooth);
     cursor: pointer;
   }
@@ -145,7 +170,7 @@
   }
   .pomodoro-count .dot.is-done { background: #FF7A5C; border-color: #FF7A5C; box-shadow: 0 0 0 2px rgba(255, 122, 92, 0.15); }
   .pomodoro-count .dot.is-current { background: var(--color-primary); border-color: var(--color-primary); animation: pulse-soft 2s ease-in-out infinite; }
-  @keyframes pulse-soft { 0%,100% { box-shadow: 0 0 0 0 rgba(79,140,255,0.4); } 50% { box-shadow: 0 0 0 4px rgba(79,140,255,0); } }
+  @keyframes pulse-soft { 0%,100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 40%, transparent); } 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 0%, transparent); } }
   .pomodoro-count .count-label { font-size: var(--fs-12); color: var(--color-text-secondary); }
 
   /* ============ Tasks section ============ */
@@ -505,15 +530,20 @@
             <span class="chip chip-q1"><span class="q-dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--color-q1)"></span>紧急重要</span>
             <span class="chip chip-brand">🎯 论文A · 里程碑 3</span>
             <span class="chip chip-neutral">预估 2h</span>
+            <span class="chip timer-mode is-pomodoro" role="button" title="切换计时模式 · 番茄 / 自由">🍅 番茄</span>
           </div>
 
           <div class="ring-wrap">
-            <div class="ring-holder">
+            <div class="ring-holder" data-mode="pomodoro">
               <svg class="ring" viewBox="0 0 240 240" aria-label="番茄钟倒计时">
                 <defs>
                   <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stop-color="#4F8CFF" />
-                    <stop offset="100%" stop-color="#7AABFF" />
+                    <stop offset="0%" stop-color="var(--color-primary)" />
+                    <stop offset="100%" stop-color="var(--color-primary-light)" />
+                  </linearGradient>
+                  <linearGradient id="ringGradFree" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#8B5CF6" />
+                    <stop offset="100%" stop-color="#A78BFA" />
                   </linearGradient>
                 </defs>
                 <circle class="track" cx="120" cy="120" r="115" />
@@ -689,7 +719,7 @@
             <div style="flex:1;min-width:0">
               <div style="font-weight:var(--fw-medium);margin-bottom:2px">今日小建议</div>
               <div style="font-size:var(--fs-13, 13px);color:var(--color-text-secondary);line-height:1.6">
-                你上午注意力最好,紧急重要的"复现 baseline"还剩 40 分钟,可以一鼓作气推完,再去处理报销。
+                你上午注意力最好,紧急重要的"复现 baseline"再 40 分钟左右就能推完,可以一鼓作气拿下,再去处理报销。
               </div>
             </div>
           </div>
@@ -746,6 +776,7 @@
           <div class="progress" style="margin:var(--sp-3) 0"><div class="progress-bar" style="width:33%"></div></div>
           <div class="progress-meta-row">
             <span>🍅 番茄 3 · 中断 1</span>
+            <span style="color:#7B52D6">🌀 自由 1h 32m</span>
             <span>目标 5.5h</span>
           </div>
           <button class="btn btn-primary btn-lg" style="width:100%;margin-top:var(--sp-4);justify-content:center">
@@ -764,6 +795,46 @@
     const saved = localStorage.getItem('fl-theme');
     if (saved) document.documentElement.dataset.theme = saved;
   } catch (e) {}
+
+  // =========================================================
+  // 计时模式切换 · 焦点卡 chip ↔ ring 联动 (v1.2.3)
+  // 演示:点 chip 在 🍅 番茄(倒计时) ↔ 🌀 自由(递增)间切换
+  // =========================================================
+  (function initTimerModeToggle() {
+    const chip = document.querySelector('.chip.timer-mode');
+    const holder = document.querySelector('.ring-holder');
+    if (!chip || !holder) return;
+    const timeEl = holder.querySelector('.ring-time');
+    const phaseEl = holder.querySelector('.ring-phase');
+    const svg = holder.querySelector('.ring');
+
+    const states = {
+      pomodoro: { text: '🍅 番茄', cls: 'is-pomodoro', mode: 'pomodoro', time: '18:32', phase: '专注中',  label: '番茄钟倒计时', count: '今日第 4 个番茄钟 · 目标 8 个 · 中断 1 次' },
+      free:     { text: '🌀 自由', cls: 'is-free',     mode: 'free',     time: '23:47', phase: '已专注 · 手动结束', label: '自由计时(递增)', count: '自由模式 · 累计 1h 32m · 本段起于 23 分钟前' },
+    };
+
+    let cur = chip.classList.contains('is-free') ? 'free' : 'pomodoro';
+    const countEl = document.querySelector('.count-label');
+    const dotsEl = document.querySelector('.pomodoro-count .dots');
+
+    function apply(modeKey) {
+      const s = states[modeKey];
+      chip.textContent = s.text;
+      chip.classList.remove('is-pomodoro', 'is-free');
+      chip.classList.add(s.cls);
+      holder.dataset.mode = s.mode;
+      if (timeEl) timeEl.textContent = s.time;
+      if (phaseEl) phaseEl.textContent = s.phase;
+      if (svg) svg.setAttribute('aria-label', s.label);
+      if (countEl) countEl.textContent = s.count;
+      if (dotsEl) dotsEl.style.display = (modeKey === 'free') ? 'none' : '';
+    }
+
+    chip.addEventListener('click', () => {
+      cur = (cur === 'pomodoro') ? 'free' : 'pomodoro';
+      apply(cur);
+    });
+  })();
 
   // =========================================================
   // 晨间意图 Banner · 实验功能 (ADR-009)
