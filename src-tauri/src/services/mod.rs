@@ -1,1 +1,5 @@
-//! 业务服务层 — 占位模块(timer_service / settlement_service / stats_service,Week 2-3 落地)。
+//! 业务服务层。
+//!
+//! Week 2a: timer_service(番茄钟 tokio tick + 事件总线)
+
+pub mod timer_service;

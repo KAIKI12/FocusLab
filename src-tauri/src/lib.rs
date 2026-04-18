@@ -28,21 +28,37 @@ pub fn run() {
             let handle = app.handle();
             let db = db::init(handle)?;
             app.manage(db);
+
+            // 番茄钟服务:持有 AppHandle 以便 emit 事件 + 访问 Db State
+            let timer_service = services::timer_service::TimerService::new(handle.clone());
+            app.manage(timer_service);
+
             tracing::info!("FocusLab started");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // task CRUD (Week 1a)
             commands::task_commands::list_tasks,
             commands::task_commands::create_task,
             commands::task_commands::complete_task,
+            // timer_state 低层 CRUD (Week 1b)
             commands::timer_commands::get_timer_state,
             commands::timer_commands::update_timer_state,
             commands::timer_commands::reset_timer_state,
             commands::recovery_commands::check_crash_recovery,
+            // DTA CRUD (Week 1b)
             commands::assignment_commands::list_assignments,
             commands::assignment_commands::create_assignment,
             commands::assignment_commands::update_assignment_status,
             commands::assignment_commands::remove_assignment,
+            // 番茄钟控制 (Week 2a)
+            commands::focus_commands::start_pomodoro,
+            commands::focus_commands::pause_timer,
+            commands::focus_commands::resume_timer,
+            commands::focus_commands::abandon_timer,
+            commands::focus_commands::skip_break,
+            commands::focus_commands::resume_from_crash,
+            commands::focus_commands::abandon_from_crash,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
