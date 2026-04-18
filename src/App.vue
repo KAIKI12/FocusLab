@@ -3,10 +3,23 @@
  * App · 主窗口布局。
  * - 左:Sidebar
  * - 右:路由视图(RouterView)
- * - 主题切换快捷键留给设置页;Week 1a 仅保证结构 + 主题生效
+ * - 最外层挂 RecoveryDialog,受 useRecoveryStore 控制
+ * - onMounted 触发崩溃恢复检查(Week 1b 起)
  */
 
+import { onMounted } from "vue";
+
 import Sidebar from "@/components/common/Sidebar.vue";
+import RecoveryDialog from "@/components/recovery/RecoveryDialog.vue";
+import { useRecovery } from "@/composables/useRecovery";
+
+const { checkOnMount } = useRecovery();
+
+onMounted(() => {
+  checkOnMount().catch((err) => {
+    console.error("[recovery] checkOnMount failed", err);
+  });
+});
 </script>
 
 <template>
@@ -15,6 +28,7 @@ import Sidebar from "@/components/common/Sidebar.vue";
     <main class="fl-main">
       <RouterView />
     </main>
+    <RecoveryDialog />
   </div>
 </template>
 
