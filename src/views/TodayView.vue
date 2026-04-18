@@ -177,6 +177,7 @@ async function onChangeQuadrant(taskId: string, quadrant: string) {
             <Check :size="14" />
           </button>
           <span class="fl-name">{{ t.name }}</span>
+          <span v-if="t.is_background" class="fl-badge fl-badge-bg" title="后台任务">后台</span>
           <button
             class="fl-mini-btn fl-mini-edit"
             type="button"
@@ -474,6 +475,13 @@ async function onChangeQuadrant(taskId: string, quadrant: string) {
   background: var(--color-bg-subtle);
   text-transform: uppercase;
   letter-spacing: 0.3px;
+}
+
+.fl-badge-bg {
+  color: var(--color-q4);
+  background: color-mix(in srgb, var(--color-q4) 12%, transparent);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .fl-mini-btn {

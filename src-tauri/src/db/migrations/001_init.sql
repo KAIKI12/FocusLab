@@ -56,6 +56,7 @@ CREATE TABLE tasks (
     is_recurring            BOOLEAN NOT NULL DEFAULT 0,
     recurrence_rule         TEXT,
     source                  TEXT NOT NULL DEFAULT 'manual',
+    is_background           BOOLEAN NOT NULL DEFAULT 0,
     shelved_at              DATETIME,
     shelve_reason           TEXT,
     carry_over_count        INTEGER DEFAULT 0,

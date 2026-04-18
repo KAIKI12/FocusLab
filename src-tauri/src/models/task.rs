@@ -13,6 +13,7 @@ pub struct Task {
     pub status: String,
     pub estimated_minutes: Option<i64>,
     pub due_date: Option<String>,
+    pub is_background: bool,
     pub shelved_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,

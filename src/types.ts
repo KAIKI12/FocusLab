@@ -18,6 +18,7 @@ export interface Task {
   status: string;
   estimated_minutes: number | null;
   due_date: string | null;
+  is_background: boolean;
   shelved_at: string | null;
   created_at: string;
   updated_at: string;
@@ -36,6 +37,7 @@ export interface UpdateTaskInput {
   quadrant?: string;
   estimatedMinutes?: number;
   dueDate?: string;
+  isBackground?: boolean;
   milestoneId?: string;
 }
 

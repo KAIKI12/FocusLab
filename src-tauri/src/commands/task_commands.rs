@@ -22,6 +22,7 @@ fn row_to_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
         status: row.get("status")?,
         estimated_minutes: row.get("estimated_minutes")?,
         due_date: row.get("due_date")?,
+        is_background: row.get("is_background")?,
         shelved_at: row.get("shelved_at")?,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
@@ -30,7 +31,7 @@ fn row_to_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
 }
 
 const SELECT_COLS: &str =
-    "id, name, description, quadrant, status, estimated_minutes, due_date, shelved_at, created_at, updated_at, completed_at";
+    "id, name, description, quadrant, status, estimated_minutes, due_date, is_background, shelved_at, created_at, updated_at, completed_at";
 
 /// 列出任务。status_filter=None 时返回所有非 completed、非 shelved 的任务。
 #[tauri::command]
@@ -98,6 +99,7 @@ pub fn create_task(input: CreateTaskInput, db: State<'_, Db>) -> AppResult<Task>
         status: "pending".into(),
         estimated_minutes: None,
         due_date: None,
+        is_background: false,
         shelved_at: None,
         created_at: now.clone(),
         updated_at: now,
@@ -137,6 +139,7 @@ pub struct UpdateTaskInput {
     pub quadrant: Option<String>,
     pub estimated_minutes: Option<i64>,
     pub due_date: Option<String>,
+    pub is_background: Option<bool>,
     pub milestone_id: Option<String>,
 }
 
@@ -169,6 +172,7 @@ pub fn update_task(input: UpdateTaskInput, db: State<'_, Db>) -> AppResult<Task>
     push_set!(input.quadrant, "quadrant");
     push_set!(input.estimated_minutes, "estimated_minutes");
     push_set!(input.due_date, "due_date");
+    push_set!(input.is_background, "is_background");
     push_set!(input.milestone_id, "milestone_id");
 
     let sql = format!(
@@ -193,6 +197,9 @@ pub fn update_task(input: UpdateTaskInput, db: State<'_, Db>) -> AppResult<Task>
     }
     if let Some(ref v) = input.due_date {
         param_values.push(Box::new(v.clone()));
+    }
+    if let Some(v) = input.is_background {
+        param_values.push(Box::new(v));
     }
     if let Some(ref v) = input.milestone_id {
         param_values.push(Box::new(v.clone()));
@@ -256,7 +263,8 @@ mod tests {
                 id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT,
                 quadrant TEXT DEFAULT 'important_not_urgent',
                 status TEXT DEFAULT 'pending',
-                estimated_minutes INTEGER, due_date DATE, shelved_at DATETIME,
+                estimated_minutes INTEGER, due_date DATE,
+                is_background BOOLEAN DEFAULT 0, shelved_at DATETIME,
                 created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
                 completed_at DATETIME, sort_order INTEGER DEFAULT 0
              );",
