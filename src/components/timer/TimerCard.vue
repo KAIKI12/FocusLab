@@ -10,16 +10,19 @@
  */
 
 import { computed, ref, watch } from "vue";
+import { Minimize2 } from "lucide-vue-next";
 
 import InterruptionDialog from "@/components/timer/InterruptionDialog.vue";
 import PomodoroRing from "@/components/timer/PomodoroRing.vue";
 import TimerControls from "@/components/timer/TimerControls.vue";
+import { useBubble } from "@/composables/useBubble";
 import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
 
 const timer = useTimerStore();
 const tasks = useTaskStore();
+const { open: openBubble } = useBubble();
 
 const taskName = computed(() => {
   const id = timer.snapshot?.taskId;
@@ -52,6 +55,9 @@ watch(
   <section v-if="timer.snapshot && !timer.isIdle" class="fl-timer-card">
     <header class="fl-timer-head">
       <span class="fl-timer-task">{{ taskName }}</span>
+      <button class="fl-bubble-btn" type="button" title="悬浮球" @click="openBubble">
+        <Minimize2 :size="14" />
+      </button>
     </header>
     <PomodoroRing :snapshot="timer.snapshot" />
     <TimerControls />
@@ -77,11 +83,31 @@ watch(
 
 .fl-timer-head {
   text-align: center;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
 }
 
 .fl-timer-task {
+  flex: 1;
   font-size: var(--fs-16);
   font-weight: var(--fw-semibold);
   color: var(--color-text-primary);
+}
+
+.fl-bubble-btn {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  padding: 4px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+.fl-bubble-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 </style>
