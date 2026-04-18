@@ -45,7 +45,7 @@
     background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.35) 80%);
     pointer-events: none;
   }
-  .stage.light { background: linear-gradient(135deg, #EAF1FF 0%, #F5F7FA 100%); }
+  .stage.light { background: linear-gradient(135deg, var(--color-primary-soft) 0%, #F5F7FA 100%); }
   .stage.light::before {
     background-image:
       linear-gradient(to right, color-mix(in srgb, var(--color-primary) 5%, transparent) 1px, transparent 1px),
@@ -211,7 +211,7 @@
     background: var(--color-bg-elevated);
     color: var(--color-q1);
     display: grid; place-items: center;
-    box-shadow: 0 4px 12px rgba(245, 108, 108, 0.25);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-q1) 25%, transparent);
   }
   .dc-head h3 { font-size: var(--fs-20); font-weight: var(--fw-semibold); color: var(--color-q1); margin-bottom: 4px; }
   .dc-head .sub { font-size: var(--fs-13, 13px); color: #A83232; }

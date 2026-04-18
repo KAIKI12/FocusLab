@@ -371,7 +371,7 @@
   .intent-banner__btn.is-selected .intent-banner__slot {
     background: #fff;
     border-color: var(--color-gold);
-    box-shadow: 0 2px 6px rgba(250, 173, 20, 0.25);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--color-gold) 25%, transparent);
   }
   .intent-banner__btn.is-selected .intent-banner__emoji { filter: grayscale(0); opacity: 1; }
 
@@ -597,7 +597,7 @@
           </div>
 
           <!-- DDL 到期总览条 (v1.2.2) -->
-          <div class="ddl-summary" style="display:flex;align-items:center;gap:var(--sp-3);padding:8px 12px;margin-bottom:var(--sp-4);background:color-mix(in srgb, #FF8C00 8%, transparent);border:1px solid color-mix(in srgb, #FF8C00 25%, transparent);border-radius:var(--r-sm);font-size:var(--fs-13, 13px)">
+          <div class="ddl-summary" style="display:flex;align-items:center;gap:var(--sp-3);padding:8px 12px;margin-bottom:var(--sp-4);background:color-mix(in srgb, var(--color-warning) 8%, transparent);border:1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);border-radius:var(--r-sm);font-size:var(--fs-13, 13px)">
             <span style="font-size:16px;line-height:1">⏰</span>
             <div style="flex:1;color:var(--color-text-primary);line-height:1.5">
               <strong style="color:#C2410C">2 个任务今日到期</strong>

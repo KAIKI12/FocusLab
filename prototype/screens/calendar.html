@@ -137,7 +137,7 @@
     font-weight: var(--fw-bold);
     flex-shrink: 0;
   }
-  .lvl-pill.s { background: linear-gradient(135deg, #FAAD14, #FF8C00); color: #fff; }
+  .lvl-pill.s { background: linear-gradient(135deg, var(--color-gold), var(--color-warning)); color: #fff; }
   .lvl-pill.a { background: var(--color-gold-soft); color: #AD6800; }
   .lvl-pill.b { background: var(--color-primary-soft); color: var(--color-primary-dark); }
   .lvl-pill.c { background: var(--color-bg-hover); color: var(--color-text-muted); }
@@ -156,12 +156,12 @@
     display: block;
   }
   .event-pill.lesson { background: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary-dark); border-left: 2px solid var(--color-primary); padding-left: 4px; }
-  .event-pill.meeting { background: rgba(255, 140, 0, 0.15); color: #D2691E; border-left: 2px solid var(--color-warning); padding-left: 4px; }
+  .event-pill.meeting { background: color-mix(in srgb, var(--color-warning) 15%, transparent); color: #D2691E; border-left: 2px solid var(--color-warning); padding-left: 4px; }
   .event-pill.milestone { background: color-mix(in srgb, #B87FFF 15%, transparent); color: #7B52D6; border-left: 2px solid #B87FFF; padding-left: 4px; }
   .event-pill.fixed { background: var(--color-bg-hover); color: var(--color-text-secondary); }
   /* DDL / 任务到期日 (v1.2.2 任务到期日与日历待办) */
-  .event-pill.due { background: color-mix(in srgb, #FAAD14 14%, transparent); color: #AD6800; border-left: 2px solid #FAAD14; padding-left: 4px; font-weight: var(--fw-medium); }
-  .event-pill.due.is-today { background: color-mix(in srgb, #FF8C00 20%, transparent); color: #C2410C; border-left-color: #FF8C00; font-weight: var(--fw-semibold); }
+  .event-pill.due { background: color-mix(in srgb, var(--color-gold) 14%, transparent); color: #AD6800; border-left: 2px solid var(--color-gold); padding-left: 4px; font-weight: var(--fw-medium); }
+  .event-pill.due.is-today { background: color-mix(in srgb, var(--color-warning) 20%, transparent); color: #C2410C; border-left-color: var(--color-warning); font-weight: var(--fw-semibold); }
 
   /* Day cell footer (pomodoro + focus time) */
   .day-foot {
@@ -578,8 +578,8 @@
             <span>⏰ 今日到期 · 1</span>
           </div>
           <div class="day-event-list" style="margin-bottom:var(--sp-4)">
-            <div class="day-event-item" style="background:color-mix(in srgb, #FF8C00 10%, transparent);border-left:3px solid #FF8C00;padding-left:8px">
-              <span class="type-dot" style="background:#FF8C00"></span>
+            <div class="day-event-item" style="background:color-mix(in srgb, var(--color-warning) 10%, transparent);border-left:3px solid var(--color-warning);padding-left:8px">
+              <span class="type-dot" style="background:var(--color-warning)"></span>
               <span class="time" style="color:#C2410C">今日到期</span>
               <div class="body">
                 <div class="title">复现 baseline 代码</div>

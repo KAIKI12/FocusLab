@@ -57,7 +57,7 @@
     display: grid; place-items: center;
   }
   .fake-icon.doc .ico-box { background: color-mix(in srgb, var(--color-primary) 80%, transparent); }
-  .fake-icon.folder .ico-box { background: rgba(250, 173, 20, 0.8); }
+  .fake-icon.folder .ico-box { background: color-mix(in srgb, var(--color-gold) 80%, transparent); }
   .fake-icon.code .ico-box { background: rgba(46, 204, 113, 0.8); }
 
   /* Taskbar at bottom */
@@ -179,11 +179,11 @@
   .orb.complete {
     background: linear-gradient(135deg, var(--color-success), #95DE64);
     animation: flashGreen 0.6s ease-out 2;
-    box-shadow: 0 8px 24px rgba(82, 196, 26, 0.45);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--color-success) 45%, transparent);
   }
   @keyframes flashGreen {
-    0%, 100% { box-shadow: 0 8px 24px rgba(82, 196, 26, 0.45); }
-    50% { box-shadow: 0 8px 32px rgba(82, 196, 26, 0.8), 0 0 0 6px rgba(82, 196, 26, 0.25); }
+    0%, 100% { box-shadow: 0 8px 24px color-mix(in srgb, var(--color-success) 45%, transparent); }
+    50% { box-shadow: 0 8px 32px color-mix(in srgb, var(--color-success) 80%, transparent), 0 0 0 6px color-mix(in srgb, var(--color-success) 25%, transparent); }
   }
 
   .orb-caption {

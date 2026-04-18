@@ -49,8 +49,8 @@
     animation: finalPulse 2.4s ease-in-out infinite;
   }
   @keyframes finalPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 140, 0, 0); }
-    50% { box-shadow: inset 0 0 120px rgba(255, 140, 0, 0.12); }
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-warning) 0%, transparent); }
+    50% { box-shadow: inset 0 0 120px color-mix(in srgb, var(--color-warning) 12%, transparent); }
   }
   .p-frame.state-break { background: linear-gradient(180deg, #F5FCEF 0%, #E4F6D4 100%); }
   .p-frame.state-done {
@@ -100,22 +100,22 @@
   .state-focus .ring-huge .track { stroke: color-mix(in srgb, var(--color-primary) 12%, transparent); }
   .state-focus .ring-huge .arc { stroke: url(#gFocus); filter: drop-shadow(0 0 12px color-mix(in srgb, var(--color-primary) 25%, transparent)); }
 
-  .state-final .ring-huge .track { stroke: rgba(255, 140, 0, 0.14); }
+  .state-final .ring-huge .track { stroke: color-mix(in srgb, var(--color-warning) 14%, transparent); }
   .state-final .ring-huge .arc {
     stroke: url(#gFinal);
-    filter: drop-shadow(0 0 12px rgba(255, 140, 0, 0.35));
+    filter: drop-shadow(0 0 12px color-mix(in srgb, var(--color-warning) 35%, transparent));
     animation: ringPulse 2s ease-in-out infinite;
   }
   @keyframes ringPulse {
-    0%, 100% { filter: drop-shadow(0 0 10px rgba(255, 140, 0, 0.2)); }
-    50% { filter: drop-shadow(0 0 24px rgba(255, 140, 0, 0.5)); }
+    0%, 100% { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-warning) 20%, transparent)); }
+    50% { filter: drop-shadow(0 0 24px color-mix(in srgb, var(--color-warning) 50%, transparent)); }
   }
 
-  .state-break .ring-huge .track { stroke: rgba(82, 196, 26, 0.14); }
-  .state-break .ring-huge .arc { stroke: url(#gBreak); filter: drop-shadow(0 0 12px rgba(82, 196, 26, 0.25)); }
+  .state-break .ring-huge .track { stroke: color-mix(in srgb, var(--color-success) 14%, transparent); }
+  .state-break .ring-huge .arc { stroke: url(#gBreak); filter: drop-shadow(0 0 12px color-mix(in srgb, var(--color-success) 25%, transparent)); }
 
-  .state-done .ring-huge .track { stroke: rgba(250, 173, 20, 0.14); }
-  .state-done .ring-huge .arc { stroke: url(#gDone); filter: drop-shadow(0 0 18px rgba(250, 173, 20, 0.4)); }
+  .state-done .ring-huge .track { stroke: color-mix(in srgb, var(--color-gold) 14%, transparent); }
+  .state-done .ring-huge .arc { stroke: url(#gDone); filter: drop-shadow(0 0 18px color-mix(in srgb, var(--color-gold) 40%, transparent)); }
 
   /* STATE 5 · 自由计时(v1.2.3 新增)· 紫罗兰 · 递增秒表语义,非倒计时 */
   .p-frame.state-free { background: linear-gradient(180deg, #F7F3FF 0%, #EDE5FF 100%); }
@@ -188,9 +188,9 @@
   }
   .state-focus .btn-main { background: var(--color-primary); }
   .state-focus .btn-main:hover { background: var(--color-primary-dark); }
-  .state-final .btn-main { background: var(--color-warning); box-shadow: 0 8px 20px rgba(255, 140, 0, 0.35); }
-  .state-break .btn-main { background: var(--color-success); box-shadow: 0 8px 20px rgba(82, 196, 26, 0.35); }
-  .state-done .btn-main { background: var(--color-gold); box-shadow: 0 8px 20px rgba(250, 173, 20, 0.4); }
+  .state-final .btn-main { background: var(--color-warning); box-shadow: 0 8px 20px color-mix(in srgb, var(--color-warning) 35%, transparent); }
+  .state-break .btn-main { background: var(--color-success); box-shadow: 0 8px 20px color-mix(in srgb, var(--color-success) 35%, transparent); }
+  .state-done .btn-main { background: var(--color-gold); box-shadow: 0 8px 20px color-mix(in srgb, var(--color-gold) 40%, transparent); }
 
   /* Bottom meta in each frame */
   .p-bottom {
@@ -333,7 +333,7 @@
           <div class="ring-huge">
             <svg viewBox="0 0 300 300">
               <defs>
-                <linearGradient id="gFinal" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FAAD14"/><stop offset="100%" stop-color="#FF8C00"/></linearGradient>
+                <linearGradient id="gFinal" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="var(--color-gold)"/><stop offset="100%" stop-color="var(--color-warning)"/></linearGradient>
               </defs>
               <circle class="track" cx="150" cy="150" r="135" />
               <circle class="arc" cx="150" cy="150" r="135" stroke-dashoffset="678" />
@@ -374,7 +374,7 @@
           <div class="ring-huge">
             <svg viewBox="0 0 300 300">
               <defs>
-                <linearGradient id="gBreak" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#52C41A"/><stop offset="100%" stop-color="#95DE64"/></linearGradient>
+                <linearGradient id="gBreak" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="var(--color-success)"/><stop offset="100%" stop-color="#95DE64"/></linearGradient>
               </defs>
               <circle class="track" cx="150" cy="150" r="135" />
               <circle class="arc" cx="150" cy="150" r="135" stroke-dashoffset="424" />
@@ -416,7 +416,7 @@
           <div class="ring-huge" style="width:200px;height:200px;margin-bottom:var(--sp-4)">
             <svg viewBox="0 0 300 300">
               <defs>
-                <linearGradient id="gDone" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FAAD14"/><stop offset="100%" stop-color="#FFD666"/></linearGradient>
+                <linearGradient id="gDone" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="var(--color-gold)"/><stop offset="100%" stop-color="#FFD666"/></linearGradient>
               </defs>
               <circle class="track" cx="150" cy="150" r="135" />
               <circle class="arc" cx="150" cy="150" r="135" stroke-dashoffset="0" />

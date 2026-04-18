@@ -273,10 +273,10 @@
     <a class="screen-card" href="screens/settlement.html">
       <div class="thumb">
         <div style="position:absolute;z-index:1;display:flex;gap:6px;">
-          <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,#FAAD14,#FF8C00);"></div>
-          <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,#FAAD14,#FFD666);"></div>
+          <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,var(--color-gold),var(--color-warning));"></div>
+          <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,var(--color-gold),#FFD666);"></div>
           <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));"></div>
-          <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,#8C8C8C,#B2B6C2);"></div>
+          <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,var(--color-neutral),#B2B6C2);"></div>
         </div>
         <span class="thumb-label" style="margin-top:64px">S · A · B · C</span>
       </div>
@@ -518,7 +518,7 @@
 
 <section class="batch">
   <div class="batch-header">
-    <span class="batch-badge is-p0" style="background: color-mix(in srgb, #FAAD14 18%, transparent); color: #AD6800;">Batch 4 · 🧪 实验功能</span>
+    <span class="batch-badge is-p0" style="background: color-mix(in srgb, var(--color-gold) 18%, transparent); color: #AD6800;">Batch 4 · 🧪 实验功能</span>
     <div>
       <div class="batch-title">社交分享层 · 默认关闭,设置中可开</div>
       <div class="batch-desc">心情打卡 + 科研人格图鉴 + 成就徽章 · 遵循 ADR-009 / ADR-011 · 不联动任务引擎</div>
@@ -562,13 +562,13 @@
     </a>
 
     <a class="screen-card" href="screens/persona-hatch.html">
-      <div class="thumb" style="background:radial-gradient(circle at 50% 45%, rgba(250,173,20,0.2), transparent 60%), var(--color-bg-subtle);">
+      <div class="thumb" style="background:radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--color-gold) 20%, transparent), transparent 60%), var(--color-bg-subtle);">
         <div style="position:absolute;z-index:1;display:flex;align-items:center;gap:10px">
           <span style="font-size:32px;opacity:0.35">🥚</span>
           <span style="color:var(--color-text-muted);font-size:14px">→</span>
           <span style="font-size:32px;opacity:0.65">🐣</span>
           <span style="color:var(--color-text-muted);font-size:14px">→</span>
-          <span style="font-size:32px;filter:drop-shadow(0 4px 8px rgba(250,173,20,0.4))">🦇</span>
+          <span style="font-size:32px;filter:drop-shadow(0 4px 8px color-mix(in srgb, var(--color-gold) 40%, transparent))">🦇</span>
         </div>
         <span class="thumb-label" style="margin-top:70px">day 1 → day 7</span>
       </div>
@@ -609,9 +609,9 @@
       <div class="color-row"><span class="color-swatch" style="background:var(--color-primary)"></span><span>Primary · var(--color-primary)</span></div>
       <div class="color-row"><span class="color-swatch" style="background:var(--color-primary-light)"></span><span>Light · var(--color-primary-light)</span></div>
       <div class="color-row"><span class="color-swatch" style="background:var(--color-primary-dark)"></span><span>Dark · var(--color-primary-dark)</span></div>
-      <div class="color-row"><span class="color-swatch" style="background:#52C41A"></span><span>Success · #52C41A</span></div>
-      <div class="color-row"><span class="color-swatch" style="background:#FAAD14"></span><span>Gold · #FAAD14</span></div>
-      <div class="color-row"><span class="color-swatch" style="background:#8C8C8C"></span><span>Neutral · #8C8C8C</span></div>
+      <div class="color-row"><span class="color-swatch" style="background:var(--color-success)"></span><span>Success · var(--color-success)</span></div>
+      <div class="color-row"><span class="color-swatch" style="background:var(--color-gold)"></span><span>Gold · var(--color-gold)</span></div>
+      <div class="color-row"><span class="color-swatch" style="background:var(--color-neutral)"></span><span>Neutral · var(--color-neutral)</span></div>
     </div>
 
     <div class="card spec-card">

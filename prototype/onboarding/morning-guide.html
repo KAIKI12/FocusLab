@@ -25,7 +25,7 @@
     position: relative;
     padding: var(--sp-8) var(--sp-8) var(--sp-6);
     border-radius: var(--r-lg);
-    background: linear-gradient(135deg, #FFF4D1 0%, #FFDFA0 30%, #FFB6B9 65%, #B8A2FF 100%);
+    background: linear-gradient(135deg, var(--color-gold-soft) 0%, #FFDFA0 30%, #FFB6B9 65%, #B8A2FF 100%);
     color: #3D2B4F;
     margin-bottom: var(--sp-6);
     overflow: hidden;
@@ -284,7 +284,7 @@
     display: flex; flex-direction: column; gap: 2px;
   }
   .schedule-event.lesson { background: color-mix(in srgb, var(--color-primary) 15%, transparent); border-left: 3px solid var(--color-primary); color: var(--color-primary-dark); }
-  .schedule-event.meeting { background: rgba(255, 140, 0, 0.15); border-left: 3px solid var(--color-warning); color: #D2691E; }
+  .schedule-event.meeting { background: color-mix(in srgb, var(--color-warning) 15%, transparent); border-left: 3px solid var(--color-warning); color: #D2691E; }
   .schedule-event .title { font-weight: var(--fw-semibold); }
   .schedule-event .time { font-family: var(--font-mono); font-size: 10px; opacity: 0.8; }
 
@@ -692,7 +692,7 @@
         </div>
         <div class="g-step-body">
           <!-- ⏰ 今日到期 · 自动置顶(v1.2.2 任务到期日与日历待办) -->
-          <div style="padding:12px 14px;margin-bottom:var(--sp-4);background:color-mix(in srgb, #FF8C00 8%, transparent);border:1px solid color-mix(in srgb, #FF8C00 28%, transparent);border-radius:var(--r-sm)">
+          <div style="padding:12px 14px;margin-bottom:var(--sp-4);background:color-mix(in srgb, var(--color-warning) 8%, transparent);border:1px solid color-mix(in srgb, var(--color-warning) 28%, transparent);border-radius:var(--r-sm)">
             <div style="display:flex;align-items:center;gap:var(--sp-2);margin-bottom:8px">
               <span style="font-size:16px;line-height:1">⏰</span>
               <strong style="color:#C2410C;font-size:var(--fs-14)">今日到期 · 2 个任务</strong>
