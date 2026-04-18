@@ -221,3 +221,43 @@ export interface CreateMilestoneInput {
   name: string;
   description?: string;
 }
+
+// ---------- Settlement (Phase 2) ----------
+
+export interface Settlement {
+  id: string;
+  settleDate: string;
+  totalTasks: number;
+  completedTasks: number;
+  extraTasks: number;
+  shelvedTasks: number;
+  completionRate: number;
+  totalFocusMinutes: number;
+  totalPomodoros: number;
+  totalInterruptions: number;
+  grade: "S" | "A" | "B" | "C";
+  longestFocusTaskId: string | null;
+  longestFocusMinutes: number | null;
+  aiSummary: string | null;
+  userReflection: string | null;
+  triggerType: string;
+  createdAt: string;
+}
+
+export interface YesterdaySummary {
+  settleDate: string;
+  completedTasks: number;
+  totalTasks: number;
+  completionRate: number;
+  grade: "S" | "A" | "B" | "C";
+  totalFocusMinutes: number;
+  totalPomodoros: number;
+  longestFocusTaskName: string | null;
+  carriedOverCount: number;
+}
+
+export interface SettleInput {
+  planDate?: string;
+  triggerType?: string;
+  userReflection?: string;
+}

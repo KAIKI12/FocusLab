@@ -12,15 +12,17 @@
  *   ・✕ 从计划移除(删 dta,不影响 task)
  */
 
-import { Calendar, Check, Grid2X2, List, Lock, Minimize2, Pencil, Play, Plus, Trash2, X } from "lucide-vue-next";
+import { Calendar, Check, Grid2X2, List, Lock, Minimize2, Moon, Pencil, Play, Plus, Trash2, X } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 
+import YesterdayCard from "@/components/settlement/YesterdayCard.vue";
 import QuadrantGrid from "@/components/task/QuadrantGrid.vue";
 import TaskEditModal from "@/components/task/TaskEditModal.vue";
 import PresetSwitcher from "@/components/timer/PresetSwitcher.vue";
 import TimerCard from "@/components/timer/TimerCard.vue";
 import { useBubble } from "@/composables/useBubble";
 import { useAssignmentStore } from "@/stores/useAssignmentStore";
+import { useSettlementStore } from "@/stores/useSettlementStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
 import type { Task } from "@/types";
@@ -28,6 +30,7 @@ import type { Task } from "@/types";
 const tasks = useTaskStore();
 const assignments = useAssignmentStore();
 const timer = useTimerStore();
+const settlement = useSettlementStore();
 const { open: openBubble } = useBubble();
 
 const name = ref("");
@@ -86,10 +89,23 @@ async function onStartPomodoro(taskId: string) {
           任务池 + 今日计划 + 番茄钟 + 四象限
         </p>
       </div>
-      <button class="fl-bubble-entry" type="button" title="悬浮球" @click="openBubble">
-        <Minimize2 :size="14" /> 悬浮球
-      </button>
+      <div class="fl-page-actions">
+        <button class="fl-bubble-entry" type="button" title="悬浮球" @click="openBubble">
+          <Minimize2 :size="14" /> 悬浮球
+        </button>
+        <button
+          class="fl-settle-btn"
+          type="button"
+          :disabled="settlement.settling"
+          @click="settlement.settle()"
+        >
+          <Moon :size="14" /> 结束今天
+        </button>
+      </div>
     </header>
+
+    <!-- 昨日回顾(有数据时自动展示) -->
+    <YesterdayCard />
 
     <!-- 当前计时卡(仅 non-idle 时渲染) -->
     <TimerCard />
@@ -288,6 +304,11 @@ async function onStartPomodoro(taskId: string) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+}
+
+.fl-page-actions {
+  display: flex;
+  gap: var(--sp-2);
 }
 
 .fl-page-head h1 {
@@ -534,6 +555,28 @@ async function onStartPomodoro(taskId: string) {
 .fl-bubble-entry:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+.fl-settle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+.fl-settle-btn:hover {
+  border-color: var(--color-q2);
+  color: var(--color-q2);
+}
+.fl-settle-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .fl-empty {
