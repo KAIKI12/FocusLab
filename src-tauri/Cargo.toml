@@ -1,0 +1,40 @@
+[package]
+name = "focuslab"
+version = "0.1.0"
+description = "FocusLab — 面向研究生的桌面番茄钟 + AI 陪伴工具"
+authors = ["FocusLab"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` 后缀用于避免 lib 名字与 bin 名字冲突(Windows 下需要)
+name = "focuslab_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+
+# 序列化
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# 数据库
+rusqlite = { version = "0.31", features = ["bundled", "chrono", "uuid"] }
+
+# 时间与 UUID
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.9"
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# 异步与日志
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# 错误处理
+thiserror = "1"
