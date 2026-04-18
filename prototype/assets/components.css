@@ -1,0 +1,476 @@
+/* =========================================================
+   FocusLab · Components
+   ========================================================= */
+
+/* ================== Button ================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  height: 36px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  transition: background var(--dur-base) var(--ease-smooth),
+              color var(--dur-base) var(--ease-smooth),
+              box-shadow var(--dur-base) var(--ease-smooth),
+              border-color var(--dur-base) var(--ease-smooth);
+  user-select: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn svg { width: 16px; height: 16px; }
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+}
+.btn-primary:hover { background: var(--color-primary-dark); }
+
+.btn-secondary {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+.btn-secondary:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-strong);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+.btn-ghost:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.btn-soft {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+}
+.btn-soft:hover { background: color-mix(in srgb, var(--color-primary-soft) 85%, var(--color-primary)); }
+
+.btn-sm { height: 28px; padding: 0 var(--sp-3); font-size: var(--fs-12); border-radius: var(--r-xs); }
+.btn-sm svg { width: 14px; height: 14px; }
+.btn-lg { height: 44px; padding: 0 var(--sp-6); font-size: var(--fs-16); }
+
+.btn-icon {
+  width: 36px; height: 36px; padding: 0;
+  border-radius: var(--r-sm);
+  color: var(--color-text-secondary);
+}
+.btn-icon:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.btn-icon.btn-sm { width: 28px; height: 28px; }
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ================== Card ================== */
+.card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+}
+.card-lg {
+  border-radius: var(--r-lg);
+}
+.card-inner { padding: var(--sp-5); }
+.card-body { padding: var(--sp-5); }
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--color-divider);
+}
+.card-title {
+  font-size: var(--fs-16);
+  font-weight: var(--fw-semibold);
+}
+
+/* ================== Chip / Tag ================== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: 24px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+  background: var(--color-bg-hover);
+  color: var(--color-text-secondary);
+}
+.chip svg { width: 12px; height: 12px; }
+.chip-q1 { background: var(--color-q1-soft); color: var(--color-q1); }
+.chip-q2 { background: var(--color-q2-soft); color: #B8860B; }
+.chip-q3 { background: var(--color-q3-soft); color: #D2691E; }
+.chip-q4 { background: var(--color-q4-soft); color: #389E0D; }
+.chip-brand { background: var(--color-primary-soft); color: var(--color-primary-dark); }
+.chip-neutral { background: var(--color-bg-hover); color: var(--color-text-muted); }
+
+/* DDL / 到期日 chip (v1.2.2 任务到期日与日历待办)
+   语义分层: 普通 → soon(3日内) → today(当日) → overdue(已逾期)
+   遵循 ADR-005 "陪伴不监工": 克制用红,以暖橙/琥珀为主 */
+.chip-due {
+  background: var(--color-bg-hover);
+  color: var(--color-text-secondary);
+}
+.chip-due.is-soon {
+  background: color-mix(in srgb, #FAAD14 14%, transparent);
+  color: #AD6800;
+}
+.chip-due.is-today {
+  background: color-mix(in srgb, #FF8C00 18%, transparent);
+  color: #C2410C;
+  font-weight: var(--fw-semibold);
+}
+.chip-due.is-overdue {
+  background: color-mix(in srgb, #D46B08 20%, transparent);
+  color: #9A3412;
+  font-weight: var(--fw-semibold);
+  animation: due-pulse 2.4s ease-in-out infinite;
+}
+@keyframes due-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 107, 8, 0.35); }
+  50%      { box-shadow: 0 0 0 3px rgba(212, 107, 8, 0); }
+}
+
+.chip-dot::before {
+  content: "";
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+  margin-right: 4px;
+}
+
+/* ================== Checkbox (round focus-friendly) ================== */
+.fl-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-border-strong);
+  background: var(--color-bg-elevated);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all var(--dur-base) var(--ease-smooth);
+  position: relative;
+}
+.fl-check:hover { border-color: var(--color-primary); }
+.fl-check svg {
+  width: 12px; height: 12px;
+  color: #fff;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all var(--dur-base) var(--ease-out);
+}
+.fl-check.is-checked {
+  background: var(--color-success);
+  border-color: var(--color-success);
+}
+.fl-check.is-checked svg { opacity: 1; transform: scale(1); }
+
+/* ================== Progress bar ================== */
+.progress {
+  width: 100%;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--color-bg-hover);
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--r-pill);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.progress-bar.success { background: var(--color-success); }
+.progress-bar.gold { background: var(--color-gold); }
+.progress-bar.gradient-s {
+  background: linear-gradient(90deg, #FFB347 0%, #FFD700 25%, #52C41A 50%, #4F8CFF 75%, #B87FFF 100%);
+  background-size: 200% 100%;
+}
+
+/* ================== Input ================== */
+.input {
+  width: 100%;
+  height: 36px;
+  padding: 0 var(--sp-3);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  color: var(--color-text-primary);
+  transition: border-color var(--dur-base) var(--ease-smooth),
+              box-shadow var(--dur-base) var(--ease-smooth);
+}
+.input::placeholder { color: var(--color-text-muted); }
+.input:hover { border-color: var(--color-border-strong); }
+.input:focus { border-color: var(--color-primary); box-shadow: var(--shadow-focus); outline: none; }
+
+.textarea { min-height: 84px; padding: var(--sp-3); line-height: var(--lh-base); resize: vertical; }
+
+/* ================== Sidebar (icon rail) ================== */
+.sidebar {
+  width: 60px;
+  flex-shrink: 0;
+  background: var(--color-bg-elevated);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-3) 0;
+  gap: var(--sp-2);
+  z-index: var(--z-sidebar);
+}
+.sidebar .logo {
+  width: 36px; height: 36px;
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  display: grid; place-items: center;
+  color: #fff; font-weight: var(--fw-bold); font-size: 16px;
+  margin-bottom: var(--sp-2);
+  box-shadow: 0 2px 8px rgba(79, 140, 255, 0.32);
+}
+.sidebar .nav-item {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  border-radius: var(--r-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  position: relative;
+  transition: background var(--dur-base) var(--ease-smooth),
+              color var(--dur-base) var(--ease-smooth);
+}
+.sidebar .nav-item svg { width: 20px; height: 20px; }
+.sidebar .nav-item:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.sidebar .nav-item.is-active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+}
+.sidebar .nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 10px; bottom: 10px;
+  width: 3px;
+  border-radius: var(--r-pill);
+  background: var(--color-primary);
+}
+.sidebar .nav-spacer { flex: 1; }
+
+/* Tooltip 悬停提示 (纯 CSS) */
+.sidebar .nav-item[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 48px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--color-text-primary);
+  color: var(--color-bg-elevated);
+  padding: 4px 8px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+  z-index: var(--z-tooltip);
+  box-shadow: var(--shadow-float);
+}
+
+/* ================== Theme toggle ================== */
+.theme-toggle {
+  width: 48px; height: 26px;
+  border-radius: var(--r-pill);
+  background: var(--color-bg-hover);
+  position: relative;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  transition: background var(--dur-base);
+}
+.theme-toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-card);
+  transition: left var(--dur-slow) var(--ease-out);
+}
+[data-theme="dark"] .theme-toggle::after { left: 24px; }
+
+/* ================== Divider ================== */
+.divider {
+  height: 1px;
+  background: var(--color-divider);
+  margin: var(--sp-4) 0;
+}
+
+/* ================== Empty state ================== */
+.empty {
+  text-align: center;
+  padding: var(--sp-10) var(--sp-6);
+  color: var(--color-text-muted);
+}
+.empty .empty-icon {
+  width: 48px; height: 48px;
+  margin: 0 auto var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--color-bg-hover);
+  display: grid; place-items: center;
+  color: var(--color-text-muted);
+}
+
+/* ================== Task row ================== */
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-sm);
+  transition: background var(--dur-base) var(--ease-smooth);
+  cursor: pointer;
+}
+.task-row:hover { background: var(--color-bg-hover); }
+.task-row.is-active {
+  background: var(--color-primary-soft);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  padding: calc(var(--sp-3) - 1px) calc(var(--sp-4) - 1px);
+}
+.task-row .task-title {
+  flex: 1;
+  font-size: var(--fs-14);
+  color: var(--color-text-primary);
+  font-weight: var(--fw-medium);
+}
+.task-row.is-done .task-title {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+.task-row .task-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-12);
+  color: var(--color-text-muted);
+}
+.task-row .drag-handle {
+  width: 12px; color: var(--color-text-muted); opacity: 0;
+  transition: opacity var(--dur-base);
+}
+.task-row:hover .drag-handle { opacity: 1; }
+
+/* ================== Info banner (AI 建议) ================== */
+.ai-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: linear-gradient(to right, var(--color-primary-soft), transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+  border-radius: var(--r-md);
+  color: var(--color-text-primary);
+  font-size: var(--fs-14);
+}
+.ai-banner .ai-avatar {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), #B87FFF);
+  display: grid; place-items: center;
+  color: #fff;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+/* ================== Energy status pills ================== */
+.energy-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-12);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--dur-base);
+}
+.energy-pill:hover { border-color: var(--color-border-strong); }
+.energy-pill.is-active {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+}
+
+/* ================== Badge (level) ================== */
+.level-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px; height: 56px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-24);
+  font-weight: var(--fw-bold);
+  color: #fff;
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+.level-badge.lvl-s { background: linear-gradient(135deg, #FAAD14, #FF8C00); box-shadow: 0 4px 12px rgba(250, 173, 20, 0.4); }
+.level-badge.lvl-a { background: linear-gradient(135deg, #FAAD14, #FFD666); box-shadow: 0 4px 12px rgba(250, 173, 20, 0.25); }
+.level-badge.lvl-b { background: linear-gradient(135deg, #4F8CFF, #7AABFF); box-shadow: 0 4px 12px rgba(79, 140, 255, 0.25); }
+.level-badge.lvl-c { background: linear-gradient(135deg, #8C8C8C, #B2B6C2); }
+
+/* ================== Keyboard shortcut chip ================== */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  border-bottom-width: 2px;
+  border-radius: var(--r-xs);
+}
+
+/* ================== Showcase (原型展示外框) ================== */
+.showcase {
+  padding: var(--sp-8) var(--sp-6);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.showcase-title {
+  font-size: var(--fs-24);
+  font-weight: var(--fw-semibold);
+  margin-bottom: var(--sp-1);
+}
+.showcase-sub {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-14);
+  margin-bottom: var(--sp-6);
+}
+
+/* 用于对比不同态并排展示 */
+.variant-grid {
+  display: grid;
+  gap: var(--sp-5);
+}
+.variant-caption {
+  font-size: var(--fs-12);
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-top: var(--sp-2);
+  letter-spacing: 0.3px;
+}

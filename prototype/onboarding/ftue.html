@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · FTUE · 首次启动引导</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { background: var(--color-bg); padding: 0; }
+  .showcase-wrap { max-width: 1200px; margin: 0 auto; padding: var(--sp-8) var(--sp-6); }
+
+  .showcase-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: var(--sp-6); gap: var(--sp-4); flex-wrap: wrap; }
+  .showcase-head h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .showcase-head .sub { color: var(--color-text-secondary); font-size: var(--fs-14); margin-top: 4px; }
+  .nav-back { color: var(--color-text-secondary); font-size: var(--fs-13, 13px); display:inline-flex; align-items:center; gap:4px; }
+  .nav-back:hover { color: var(--color-primary); }
+
+  /* Stepper */
+  .stepper {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-lg);
+    padding: var(--sp-5);
+    margin-bottom: var(--sp-6);
+    box-shadow: var(--shadow-card);
+    position: sticky;
+    top: var(--sp-4);
+    z-index: var(--z-sticky);
+  }
+  .stepper-inner { display: flex; align-items: center; gap: var(--sp-3); }
+  .step-dot {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    flex-shrink: 0;
+  }
+  .step-dot .num {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--color-bg-hover);
+    color: var(--color-text-muted);
+    font-weight: var(--fw-semibold);
+    font-size: var(--fs-14);
+    transition: all var(--dur-base);
+  }
+  .step-dot.is-active .num { background: var(--color-primary); color: #fff; box-shadow: 0 4px 12px rgba(79, 140, 255, 0.3); }
+  .step-dot.is-done .num { background: var(--color-success-soft); color: var(--color-success); }
+  .step-dot .label { font-size: var(--fs-12); color: var(--color-text-secondary); white-space: nowrap; }
+  .step-dot.is-active .label { color: var(--color-primary); font-weight: var(--fw-medium); }
+  .step-line { flex: 1; height: 2px; background: var(--color-bg-hover); border-radius: 1px; }
+  .step-line.is-done { background: var(--color-success); }
+
+  /* Each step as an app-window card */
+  .step-card {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    margin-bottom: var(--sp-6);
+    box-shadow: var(--shadow-card);
+  }
+  .step-frame {
+    display: flex;
+    height: 40px; padding: 0 var(--sp-4);
+    align-items: center; justify-content: space-between;
+    background: var(--color-bg-subtle);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .step-frame .left { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-12); color: var(--color-text-secondary); }
+  .step-frame .tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+    padding: 2px 8px;
+    border-radius: var(--r-xs);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+  }
+  .step-frame .window-dots { display: flex; gap: 6px; }
+  .step-frame .window-dots span { width: 10px; height: 10px; border-radius: 50%; }
+  .step-frame .window-dots span:nth-child(1) { background: #FF5F57; }
+  .step-frame .window-dots span:nth-child(2) { background: #FEBC2E; }
+  .step-frame .window-dots span:nth-child(3) { background: #28C840; }
+
+  .step-body {
+    padding: var(--sp-8) var(--sp-6);
+    min-height: 420px;
+  }
+
+  .step-title-row { display: flex; align-items: baseline; gap: var(--sp-3); margin-bottom: var(--sp-2); }
+  .step-num-big { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--color-primary); font-weight: var(--fw-semibold); letter-spacing: 1px; }
+  .step-h { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .step-desc { color: var(--color-text-secondary); font-size: var(--fs-14); margin-bottom: var(--sp-6); }
+
+  .step-actions { display: flex; gap: var(--sp-3); align-items: center; margin-top: var(--sp-6); padding-top: var(--sp-5); border-top: 1px solid var(--color-divider); }
+  .step-actions .spacer { flex: 1; }
+
+  /* ============ Step 1: Welcome ============ */
+  .welcome-hero { text-align: center; padding: var(--sp-6) 0 var(--sp-8); }
+  .welcome-logo {
+    width: 72px; height: 72px;
+    margin: 0 auto var(--sp-4);
+    border-radius: var(--r-lg);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    display: grid; place-items: center;
+    color: #fff; font-size: 32px; font-weight: var(--fw-bold);
+    box-shadow: 0 12px 32px rgba(79, 140, 255, 0.35);
+  }
+  .welcome-title { font-size: 32px; font-weight: var(--fw-bold); letter-spacing: -0.8px; margin-bottom: var(--sp-2); }
+  .welcome-sub { font-size: var(--fs-16); color: var(--color-text-secondary); }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--sp-4);
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .feature-item {
+    display: flex; gap: var(--sp-3);
+    padding: var(--sp-4);
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-divider);
+    border-radius: var(--r-md);
+    transition: all var(--dur-base);
+  }
+  .feature-item:hover { border-color: var(--color-primary); background: var(--color-primary-soft); }
+  .feature-item .fi-icon {
+    width: 40px; height: 40px;
+    border-radius: var(--r-md);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .feature-item .fi-icon.a { background: var(--color-primary-soft); color: var(--color-primary); }
+  .feature-item .fi-icon.b { background: var(--color-success-soft); color: var(--color-success); }
+  .feature-item .fi-icon.c { background: color-mix(in srgb, #B87FFF 15%, transparent); color: #B87FFF; }
+  .feature-item .fi-icon.d { background: var(--color-gold-soft); color: var(--color-gold); }
+  .feature-item h4 { font-size: var(--fs-14); font-weight: var(--fw-semibold); margin-bottom: 2px; }
+  .feature-item p { font-size: var(--fs-12); color: var(--color-text-secondary); line-height: 1.5; }
+
+  /* ============ Step 2: Preferences ============ */
+  .pref-group { margin-bottom: var(--sp-6); }
+  .pref-group:last-child { margin-bottom: 0; }
+  .pref-label {
+    font-size: var(--fs-12);
+    font-weight: var(--fw-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--sp-3);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .pref-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); }
+  .pref-choice {
+    padding: var(--sp-4);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--r-md);
+    background: var(--color-bg-elevated);
+    cursor: pointer;
+    transition: all var(--dur-base);
+    text-align: center;
+  }
+  .pref-choice:hover { border-color: var(--color-primary-light); }
+  .pref-choice.is-selected { border-color: var(--color-primary); background: var(--color-primary-soft); }
+  .pref-choice .pc-icon {
+    width: 32px; height: 32px;
+    margin: 0 auto var(--sp-2);
+    border-radius: var(--r-md);
+    background: var(--color-bg-hover);
+    color: var(--color-text-secondary);
+    display: grid; place-items: center;
+  }
+  .pref-choice.is-selected .pc-icon { background: var(--color-primary); color: #fff; }
+  .pref-choice .pc-title { font-size: var(--fs-14); font-weight: var(--fw-semibold); margin-bottom: 2px; }
+  .pref-choice .pc-sub { font-size: var(--fs-12); color: var(--color-text-secondary); }
+
+  .pref-row-time { display: flex; align-items: center; gap: var(--sp-3); }
+  .time-input {
+    padding: 10px 14px;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono);
+    font-size: var(--fs-16);
+    color: var(--color-text-primary);
+    width: 120px;
+    text-align: center;
+  }
+  .pref-hint { font-size: var(--fs-12); color: var(--color-text-muted); display: flex; align-items: center; gap: 4px; }
+
+  /* ============ Step 3: AI ============ */
+  .ai-card {
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-divider);
+    border-radius: var(--r-md);
+    padding: var(--sp-5);
+    margin-bottom: var(--sp-4);
+  }
+  .privacy-banner {
+    display: flex; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4);
+    background: var(--color-gold-soft);
+    color: #AD6800;
+    border: 1px solid color-mix(in srgb, var(--color-gold) 30%, transparent);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-13, 13px);
+    line-height: 1.6;
+    margin-bottom: var(--sp-4);
+  }
+  .privacy-banner .pb-icon { flex-shrink: 0; margin-top: 2px; }
+
+  .provider-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+  .provider-card {
+    padding: var(--sp-3);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--r-sm);
+    background: var(--color-bg-elevated);
+    cursor: pointer;
+    transition: all var(--dur-base);
+    text-align: center;
+  }
+  .provider-card:hover { border-color: var(--color-primary-light); }
+  .provider-card.is-selected { border-color: var(--color-primary); background: var(--color-primary-soft); }
+  .provider-card.is-disabled { opacity: 0.5; cursor: not-allowed; }
+  .provider-name { font-size: var(--fs-14); font-weight: var(--fw-semibold); margin-bottom: 2px; }
+  .provider-sub { font-size: 11px; color: var(--color-text-muted); }
+  .provider-card.is-disabled .provider-sub { color: var(--color-warning); }
+
+  .field { margin-bottom: var(--sp-4); }
+  .field-label { display: block; font-size: var(--fs-12); color: var(--color-text-secondary); font-weight: var(--fw-medium); margin-bottom: 6px; }
+  .field-input-wrap { position: relative; }
+  .field-input-wrap .toggle-visibility {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--color-text-muted); cursor: pointer;
+  }
+  .field-hint { font-size: 11px; color: var(--color-text-muted); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+
+  .tone-pills { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+  .tone-pill {
+    padding: 8px 14px;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-pill);
+    cursor: pointer;
+    font-size: var(--fs-13, 13px);
+    transition: all var(--dur-base);
+  }
+  .tone-pill:hover { border-color: var(--color-primary-light); }
+  .tone-pill.is-selected { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+
+  /* ============ Step 4: Goal/Task ============ */
+  .tab-big { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-5); }
+  .tab-big-item {
+    flex: 1;
+    padding: var(--sp-4);
+    background: var(--color-bg-subtle);
+    border: 1.5px solid var(--color-divider);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    transition: all var(--dur-base);
+    display: flex; align-items: center; gap: var(--sp-3);
+  }
+  .tab-big-item:hover { border-color: var(--color-primary-light); }
+  .tab-big-item.is-selected { border-color: var(--color-primary); background: var(--color-primary-soft); }
+  .tab-big-item .tbi-icon {
+    width: 40px; height: 40px;
+    border-radius: var(--r-md);
+    background: var(--color-bg-elevated);
+    color: var(--color-primary);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .tab-big-item.is-selected .tbi-icon { background: var(--color-primary); color: #fff; }
+  .tab-big-item h4 { font-size: var(--fs-14); font-weight: var(--fw-semibold); margin-bottom: 2px; }
+  .tab-big-item p { font-size: var(--fs-12); color: var(--color-text-secondary); line-height: 1.5; }
+
+  /* Goal preview card */
+  .goal-preview {
+    padding: var(--sp-5);
+    background: linear-gradient(135deg, var(--color-primary-soft), color-mix(in srgb, #B87FFF 10%, transparent));
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+    border-radius: var(--r-md);
+    margin-top: var(--sp-4);
+  }
+  .ai-milestone-list { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-3); }
+  .ai-milestone-row {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 8px 12px;
+    background: var(--color-bg-elevated);
+    border: 1px dashed color-mix(in srgb, var(--color-primary) 30%, transparent);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-13, 13px);
+  }
+  .ai-milestone-row .mile-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    display: grid; place-items: center;
+  }
+
+  /* ============ Step 5: Start ============ */
+  .start-summary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-5);
+  }
+  .summary-row {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-3);
+    background: var(--color-bg-subtle);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-13, 13px);
+  }
+  .summary-row .sr-icon {
+    width: 32px; height: 32px;
+    border-radius: var(--r-sm);
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .summary-row .sr-text { flex: 1; min-width: 0; }
+  .summary-row .sr-text strong { color: var(--color-text-primary); }
+  .summary-row .sr-text span { color: var(--color-text-secondary); font-size: var(--fs-12); display: block; }
+
+  .shortcut-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); margin-bottom: var(--sp-5); }
+  .shortcut-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-13, 13px);
+  }
+  .shortcut-item .desc { color: var(--color-text-secondary); }
+
+  .final-cta {
+    display: flex; flex-direction: column; align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-5);
+    border: 2px dashed color-mix(in srgb, var(--color-primary) 40%, transparent);
+    border-radius: var(--r-md);
+    background: linear-gradient(135deg, var(--color-primary-soft), transparent);
+  }
+  .final-cta .emoji { font-size: 40px; }
+  .final-cta .tip { font-size: var(--fs-14); color: var(--color-text-primary); text-align: center; }
+
+  @media (max-width: 720px) {
+    .features-grid { grid-template-columns: 1fr; }
+    .pref-choices { grid-template-columns: 1fr; }
+    .provider-grid { grid-template-columns: 1fr; }
+    .tab-big { flex-direction: column; }
+    .start-summary { grid-template-columns: 1fr; }
+    .shortcut-grid { grid-template-columns: 1fr; }
+    .step-dot .label { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="showcase-wrap">
+  <div class="showcase-head">
+    <div>
+      <h1>🚀 FTUE · 首次启动引导</h1>
+      <div class="sub">5 步 · 2 分钟内完成基础设置 · 每一步都可跳过 · 数据写入正式表 (docs/02 §9)</div>
+    </div>
+    <a class="nav-back" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回原型导航</a>
+  </div>
+
+  <!-- Stepper (示意 Step 2 激活) -->
+  <div class="stepper">
+    <div class="stepper-inner">
+      <div class="step-dot is-done"><div class="num"><span data-icon="check" data-size="16"></span></div><div class="label">欢迎</div></div>
+      <div class="step-line is-done"></div>
+      <div class="step-dot is-active"><div class="num">2</div><div class="label">基础偏好</div></div>
+      <div class="step-line"></div>
+      <div class="step-dot"><div class="num">3</div><div class="label">AI 设置</div></div>
+      <div class="step-line"></div>
+      <div class="step-dot"><div class="num">4</div><div class="label">第一步</div></div>
+      <div class="step-line"></div>
+      <div class="step-dot"><div class="num">5</div><div class="label">开始工作</div></div>
+    </div>
+  </div>
+
+  <!-- ============================ STEP 1 · 欢迎 ============================ -->
+  <div class="step-card">
+    <div class="step-frame">
+      <div class="left">
+        <span class="tag">Step 1 / 5</span>
+        <span>欢迎页</span>
+      </div>
+      <div class="window-dots"><span></span><span></span><span></span></div>
+    </div>
+    <div class="step-body">
+      <div class="welcome-hero">
+        <div class="welcome-logo">F</div>
+        <div class="welcome-title">欢迎来到 FocusLab</div>
+        <div class="welcome-sub">陪伴式效率管理 · 不做监工,做镜子;不做法官,做伙伴</div>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-item">
+          <div class="fi-icon a"><span data-icon="clock"></span></div>
+          <div>
+            <h4>专注计时</h4>
+            <p>番茄钟陪你一段一段推进,常驻悬浮球不打扰</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="fi-icon b"><span data-icon="bar-chart"></span></div>
+          <div>
+            <h4>数据洞察</h4>
+            <p>时间花在哪里 · 哪个时段效率最好 · 自己看得到</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="fi-icon c"><span data-icon="sparkles"></span></div>
+          <div>
+            <h4>AI 助手</h4>
+            <p>帮你拆分任务 · 规划里程碑 · 写日结算寄语(可选)</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="fi-icon d"><span data-icon="smile"></span></div>
+          <div>
+            <h4>温和反馈</h4>
+            <p>从不用"失败"一词 · 没完成就明天再来</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <span class="pref-hint"><span data-icon="clock" data-size="12"></span> 整个引导大约 2 分钟</span>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost btn-sm">跳过全部 · 直接使用</button>
+        <button class="btn btn-primary">
+          开始设置 <span data-icon="chevron-right" data-size="14"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ STEP 2 · 基础偏好 ============================ -->
+  <div class="step-card">
+    <div class="step-frame">
+      <div class="left">
+        <span class="tag">Step 2 / 5</span>
+        <span>基础偏好 · 可后续调整</span>
+      </div>
+      <div class="window-dots"><span></span><span></span><span></span></div>
+    </div>
+    <div class="step-body">
+      <div class="step-title-row">
+        <div class="step-num-big">02 · PREFERENCES</div>
+      </div>
+      <h2 class="step-h">几个小问题,设定你的节奏</h2>
+      <p class="step-desc">没有标准答案 · 这些都可以在设置里随时改</p>
+
+      <div class="pref-group">
+        <div class="pref-label"><span data-icon="clock" data-size="14"></span> 你喜欢多长的专注时段?</div>
+        <div class="pref-choices">
+          <div class="pref-choice">
+            <div class="pc-icon"><span data-icon="coffee"></span></div>
+            <div class="pc-title">25 分钟</div>
+            <div class="pc-sub">经典番茄 · 推荐新手</div>
+          </div>
+          <div class="pref-choice is-selected">
+            <div class="pc-icon"><span data-icon="target"></span></div>
+            <div class="pc-title">45 分钟</div>
+            <div class="pc-sub">深度思考 · 研究生友好</div>
+          </div>
+          <div class="pref-choice">
+            <div class="pc-icon"><span data-icon="flame"></span></div>
+            <div class="pc-title">90 分钟</div>
+            <div class="pc-sub">完整专注周期 · 心流型</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pref-group">
+        <div class="pref-label"><span data-icon="sun" data-size="14"></span> 外观</div>
+        <div class="pref-choices">
+          <div class="pref-choice is-selected">
+            <div class="pc-icon"><span data-icon="sun"></span></div>
+            <div class="pc-title">浅色</div>
+            <div class="pc-sub">白天工位默认</div>
+          </div>
+          <div class="pref-choice">
+            <div class="pc-icon"><span data-icon="moon"></span></div>
+            <div class="pc-title">深色</div>
+            <div class="pc-sub">熬夜写论文</div>
+          </div>
+          <div class="pref-choice">
+            <div class="pc-icon"><span data-icon="settings"></span></div>
+            <div class="pc-title">跟随系统</div>
+            <div class="pc-sub">自动切换</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pref-group">
+        <div class="pref-label"><span data-icon="moon" data-size="14"></span> 日结算兜底时间</div>
+        <div class="pref-row-time">
+          <input type="time" value="22:00" class="time-input" />
+          <span class="pref-hint">
+            <span data-icon="circle-alert" data-size="12"></span>
+            如果到这个时间你还没手动结算,会弹一次温和提醒
+          </span>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button class="btn btn-ghost btn-sm"><span data-icon="chevron-left" data-size="14"></span> 上一步</button>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost btn-sm">暂时跳过</button>
+        <button class="btn btn-primary">继续 <span data-icon="chevron-right" data-size="14"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ STEP 3 · AI 设置 ============================ -->
+  <div class="step-card">
+    <div class="step-frame">
+      <div class="left">
+        <span class="tag">Step 3 / 5</span>
+        <span>AI 设置 · 可选</span>
+      </div>
+      <div class="window-dots"><span></span><span></span><span></span></div>
+    </div>
+    <div class="step-body">
+      <div class="step-title-row">
+        <div class="step-num-big">03 · AI (OPTIONAL)</div>
+      </div>
+      <h2 class="step-h">让 AI 做你的科研伙伴</h2>
+      <p class="step-desc">帮你拆任务 · 规划里程碑 · 写日结算寄语 · 完全可选,跳过不影响任何核心功能</p>
+
+      <div class="privacy-banner">
+        <span class="pb-icon" data-icon="lock" data-size="16"></span>
+        <div>
+          <strong>隐私提示</strong> · AI 功能会将 <strong>任务名称和描述</strong> 发送到 AI 服务商处理。
+          FocusLab <strong>不会</strong>存储或上传你的数据到我们自己的服务器。
+          你可以在设置中随时关闭 AI,所有核心功能完全离线可用。
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">选择提供商</label>
+        <div class="provider-grid">
+          <div class="provider-card is-selected">
+            <div class="provider-name">Anthropic Claude</div>
+            <div class="provider-sub">Sonnet 4.6 推荐</div>
+          </div>
+          <div class="provider-card">
+            <div class="provider-name">OpenAI</div>
+            <div class="provider-sub">GPT-4o / GPT-4 Turbo</div>
+          </div>
+          <div class="provider-card is-disabled">
+            <div class="provider-name">本地模型</div>
+            <div class="provider-sub">即将支持 · Ollama</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">API Key</label>
+        <div class="field-input-wrap">
+          <input class="input" type="password" value="sk-ant-•••••••••••••••••••••••••••••••••••" />
+          <span class="toggle-visibility" data-icon="globe" data-size="16"></span>
+        </div>
+        <div class="field-hint">
+          <span data-icon="lock" data-size="12"></span>
+          Key 仅保存在本地 Keychain,不会经过 FocusLab 服务器 · 随时可删除
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">AI 语气风格</label>
+        <div class="tone-pills">
+          <span class="tone-pill is-selected">温暖鼓励</span>
+          <span class="tone-pill">客观中立</span>
+          <span class="tone-pill">简洁直接</span>
+          <span class="tone-pill">活泼有趣</span>
+        </div>
+        <div class="field-hint" style="margin-top: var(--sp-3)">
+          示例:<em style="color:var(--color-text-secondary)">"今天 baseline 复现有突破,明天可以开始改进方案了 · 里程碑 3 收官在望"</em>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button class="btn btn-ghost btn-sm"><span data-icon="chevron-left" data-size="14"></span> 上一步</button>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost btn-sm">暂不使用 AI</button>
+        <button class="btn btn-primary">继续 <span data-icon="chevron-right" data-size="14"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ STEP 4 · 第一个目标 ============================ -->
+  <div class="step-card">
+    <div class="step-frame">
+      <div class="left">
+        <span class="tag">Step 4 / 5</span>
+        <span>创建你的第一步</span>
+      </div>
+      <div class="window-dots"><span></span><span></span><span></span></div>
+    </div>
+    <div class="step-body">
+      <div class="step-title-row">
+        <div class="step-num-big">04 · FIRST STEP</div>
+      </div>
+      <h2 class="step-h">先告诉 FocusLab 你最近在做什么</h2>
+      <p class="step-desc">不用完美 · 有方向就行 · 进主界面不是空白的就很好</p>
+
+      <div class="tab-big">
+        <div class="tab-big-item is-selected">
+          <div class="tbi-icon"><span data-icon="target" data-size="20"></span></div>
+          <div>
+            <h4>创建一个长线目标</h4>
+            <p>发论文 · 毕业设计 · 开题报告 — AI 可自动规划里程碑</p>
+          </div>
+        </div>
+        <div class="tab-big-item">
+          <div class="tbi-icon"><span data-icon="list" data-size="20"></span></div>
+          <div>
+            <h4>直接加今天的任务</h4>
+            <p>只想先试试番茄钟 · 加个简单任务开始计时</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">目标名称</label>
+        <input class="input" value="发表一篇 SCI 论文(论文 A)" />
+      </div>
+      <div class="field">
+        <label class="field-label">简短描述 (可选)</label>
+        <textarea class="input textarea" rows="2">基于 Efficient Attention 方向,目标 IEEE Trans. 或顶会 short paper。</textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">预计完成时间</label>
+        <div class="pref-row-time">
+          <input type="date" value="2026-10-31" class="time-input" style="width:180px" />
+          <span class="pref-hint">
+            <span data-icon="calendar" data-size="12"></span>
+            约 6 个月后 · 计划会变,到时可以调
+          </span>
+        </div>
+      </div>
+
+      <div class="goal-preview">
+        <div style="display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-2)">
+          <div class="ai-avatar" style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--color-primary),#B87FFF);display:grid;place-items:center;color:#fff">
+            <span data-icon="sparkles" data-size="12"></span>
+          </div>
+          <strong style="font-size:var(--fs-14)">AI 为你规划了 7 个里程碑</strong>
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto">重新生成</button>
+        </div>
+        <div style="font-size:var(--fs-12);color:var(--color-text-secondary);margin-bottom:var(--sp-3)">
+          根据你的方向和截止日期估算 · 每个里程碑 2-6 周 · 可以在目标页里增删改
+        </div>
+        <div class="ai-milestone-list">
+          <div class="ai-milestone-row"><span class="mile-num">1</span> 确定研究方向 · 选题调研 <span style="margin-left:auto;color:var(--color-text-muted)">≈ 2 周</span></div>
+          <div class="ai-milestone-row"><span class="mile-num">2</span> 完成文献综述 <span style="margin-left:auto;color:var(--color-text-muted)">≈ 3 周</span></div>
+          <div class="ai-milestone-row"><span class="mile-num">3</span> 方法论设计 · baseline 复现 <span style="margin-left:auto;color:var(--color-text-muted)">≈ 4 周</span></div>
+          <div class="ai-milestone-row"><span class="mile-num">4</span> 实验与数据收集 <span style="margin-left:auto;color:var(--color-text-muted)">≈ 6 周</span></div>
+          <div class="ai-milestone-row"><span class="mile-num">5</span> 撰写初稿 <span style="margin-left:auto;color:var(--color-text-muted)">≈ 4 周</span></div>
+          <div class="ai-milestone-row"><span class="mile-num">6</span> 导师审稿 + 修改 <span style="margin-left:auto;color:var(--color-text-muted)">≈ 3 周</span></div>
+          <div class="ai-milestone-row"><span class="mile-num">7</span> 投稿 + 审稿回复 <span style="margin-left:auto;color:var(--color-text-muted)">≈ 4 周</span></div>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button class="btn btn-ghost btn-sm"><span data-icon="chevron-left" data-size="14"></span> 上一步</button>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost btn-sm">暂时跳过</button>
+        <button class="btn btn-primary">保存 · 继续 <span data-icon="chevron-right" data-size="14"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ STEP 5 · 开始工作 ============================ -->
+  <div class="step-card">
+    <div class="step-frame">
+      <div class="left">
+        <span class="tag">Step 5 / 5</span>
+        <span>一切就绪</span>
+      </div>
+      <div class="window-dots"><span></span><span></span><span></span></div>
+    </div>
+    <div class="step-body">
+      <div class="step-title-row">
+        <div class="step-num-big">05 · READY TO WORK</div>
+      </div>
+      <h2 class="step-h">好了,可以开始了 🌱</h2>
+      <p class="step-desc">下面是已经帮你设好的默认配置和几个高频快捷键</p>
+
+      <div class="pref-label"><span data-icon="check" data-size="14"></span> 已完成的设置</div>
+      <div class="start-summary">
+        <div class="summary-row">
+          <div class="sr-icon"><span data-icon="clock" data-size="16"></span></div>
+          <div class="sr-text"><strong>45 分钟专注 + 5 分钟休息</strong><span>来自你刚才的选择</span></div>
+        </div>
+        <div class="summary-row">
+          <div class="sr-icon"><span data-icon="sun" data-size="16"></span></div>
+          <div class="sr-text"><strong>浅色主题</strong><span>支持随时切换</span></div>
+        </div>
+        <div class="summary-row">
+          <div class="sr-icon"><span data-icon="moon" data-size="16"></span></div>
+          <div class="sr-text"><strong>日结算兜底 22:00</strong><span>也可以手动点"结束今天"</span></div>
+        </div>
+        <div class="summary-row">
+          <div class="sr-icon"><span data-icon="target" data-size="16"></span></div>
+          <div class="sr-text"><strong>长线目标:论文 A</strong><span>AI 已规划 7 个里程碑</span></div>
+        </div>
+      </div>
+
+      <div class="pref-label"><span data-icon="zap" data-size="14"></span> 常用快捷键</div>
+      <div class="shortcut-grid">
+        <div class="shortcut-item"><span class="desc">暂停/继续专注</span><span class="kbd">Space</span></div>
+        <div class="shortcut-item"><span class="desc">快速添加任务</span><span class="kbd">⌘ N</span></div>
+        <div class="shortcut-item"><span class="desc">切换悬浮球 / 主窗口</span><span class="kbd">⌘ ⇧ F</span></div>
+        <div class="shortcut-item"><span class="desc">打开设置</span><span class="kbd">⌘ ,</span></div>
+        <div class="shortcut-item"><span class="desc">结束今天 · 日结算</span><span class="kbd">⌘ ⇧ E</span></div>
+        <div class="shortcut-item"><span class="desc">查看所有快捷键</span><span class="kbd">⌘ /</span></div>
+      </div>
+
+      <div class="final-cta">
+        <div class="emoji">🌱</div>
+        <div class="tip">FocusLab 不会监工你 · 它只会在你需要的时候递一句话。<br/>想什么时候休息,就什么时候休息。</div>
+        <button class="btn btn-primary btn-lg" style="margin-top: var(--sp-2)">
+          开始工作
+          <span data-icon="arrow-right" data-size="16"></span>
+        </button>
+      </div>
+
+      <div class="step-actions">
+        <button class="btn btn-ghost btn-sm"><span data-icon="chevron-left" data-size="14"></span> 上一步</button>
+        <span class="spacer"></span>
+        <span class="pref-hint"><span data-icon="sparkles" data-size="12"></span> 想改什么随时去设置里找</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  try {
+    const saved = localStorage.getItem('fl-theme');
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+
+  // Simple selection toggle for pref-choice / provider-card / tab-big
+  function setupSingleSelect(selector) {
+    const groups = new Map();
+    document.querySelectorAll(selector).forEach(el => {
+      const parent = el.parentElement;
+      if (!groups.has(parent)) groups.set(parent, []);
+      groups.get(parent).push(el);
+      el.addEventListener('click', () => {
+        if (el.classList.contains('is-disabled')) return;
+        groups.get(parent).forEach(sib => sib.classList.remove('is-selected'));
+        el.classList.add('is-selected');
+      });
+    });
+  }
+  setupSingleSelect('.pref-choice');
+  setupSingleSelect('.provider-card');
+  setupSingleSelect('.tab-big-item');
+  setupSingleSelect('.tone-pill');
+</script>
+</body>
+</html>

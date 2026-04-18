@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 悬浮球 · 托盘</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { background: var(--color-bg); padding: 0; }
+  .showcase-wrap { max-width: 1400px; margin: 0 auto; padding: var(--sp-8) var(--sp-6); }
+  .showcase-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: var(--sp-6); }
+  .showcase-head h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .showcase-head .sub { color: var(--color-text-secondary); font-size: var(--fs-14); margin-top: 4px; }
+  .nav-back { color: var(--color-text-secondary); font-size: var(--fs-13, 13px); display:inline-flex; align-items:center; gap:4px; }
+  .nav-back:hover { color: var(--color-primary); }
+
+  /* 模拟桌面 */
+  .desktop {
+    position: relative;
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    background: linear-gradient(135deg, #6DA5FF 0%, #B87FFF 50%, #FF9AA2 100%);
+    min-height: 620px;
+    box-shadow: var(--shadow-modal);
+    border: 1px solid var(--color-border);
+  }
+  .desktop::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 20% 80%, rgba(255,255,255,0.15), transparent 40%),
+                radial-gradient(circle at 80% 20%, rgba(255,255,255,0.12), transparent 40%);
+  }
+  /* 假文件图标 */
+  .fake-icons {
+    position: absolute;
+    top: 24px; left: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, 80px);
+    gap: 16px;
+    z-index: 1;
+  }
+  .fake-icon {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: #fff; font-size: 11px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+  .fake-icon .ico-box {
+    width: 52px; height: 52px; border-radius: var(--r-md);
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    backdrop-filter: blur(10px);
+    display: grid; place-items: center;
+  }
+  .fake-icon.doc .ico-box { background: rgba(79, 140, 255, 0.8); }
+  .fake-icon.folder .ico-box { background: rgba(250, 173, 20, 0.8); }
+  .fake-icon.code .ico-box { background: rgba(46, 204, 113, 0.8); }
+
+  /* Taskbar at bottom */
+  .taskbar {
+    position: absolute;
+    bottom: 8px; left: 50%;
+    transform: translateX(-50%);
+    height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--r-pill);
+    z-index: 3;
+  }
+  .taskbar .app {
+    width: 32px; height: 32px;
+    border-radius: var(--r-sm);
+    background: rgba(255, 255, 255, 0.25);
+    display: grid; place-items: center;
+    color: #fff;
+  }
+  .taskbar .app.focus { background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)); }
+
+  /* 三态悬浮球 */
+  .orb-demos {
+    position: absolute;
+    display: flex;
+    gap: 80px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+  }
+  .orb-demo { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); }
+  .orb-label {
+    font-size: var(--fs-12);
+    color: #fff;
+    font-weight: var(--fw-medium);
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: var(--r-pill);
+    backdrop-filter: blur(8px);
+  }
+
+  .orb {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    display: grid; place-items: center;
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(79, 140, 255, 0.35);
+    position: relative;
+    cursor: grab;
+    transition: transform var(--dur-base) var(--ease-smooth);
+  }
+  .orb:hover { transform: scale(1.05); }
+
+  /* 呼吸态 */
+  .orb.breathing {
+    animation: breathe 4s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { opacity: 0.75; box-shadow: 0 6px 14px rgba(79,140,255,0.3); }
+    50% { opacity: 1; box-shadow: 0 10px 24px rgba(79,140,255,0.5); }
+  }
+
+  /* 专注中带环形进度 */
+  .orb.focusing {
+    background: var(--color-primary);
+  }
+  .orb.focusing::before {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    background: conic-gradient(from -90deg, var(--color-primary) 0deg 216deg, rgba(255,255,255,0.4) 216deg 360deg);
+    z-index: -1;
+    padding: 4px;
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+  }
+  .orb.focusing .orb-time {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: -0.5px;
+  }
+
+  /* 完成绿闪 */
+  .orb.complete {
+    background: linear-gradient(135deg, var(--color-success), #95DE64);
+    animation: flashGreen 0.6s ease-out 2;
+    box-shadow: 0 8px 24px rgba(82, 196, 26, 0.45);
+  }
+  @keyframes flashGreen {
+    0%, 100% { box-shadow: 0 8px 24px rgba(82, 196, 26, 0.45); }
+    50% { box-shadow: 0 8px 32px rgba(82, 196, 26, 0.8), 0 0 0 6px rgba(82, 196, 26, 0.25); }
+  }
+
+  .orb-caption {
+    font-size: var(--fs-12);
+    color: rgba(255, 255, 255, 0.85);
+    text-align: center;
+    max-width: 120px;
+    line-height: 1.5;
+  }
+
+  /* Expanded panel */
+  .orb-panel {
+    position: absolute;
+    bottom: 70px; right: 24px;
+    width: 340px;
+    background: var(--color-bg-elevated);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+    z-index: 4;
+    border: 1px solid var(--color-border);
+  }
+  .orb-panel::after {
+    content: "";
+    position: absolute;
+    bottom: -8px; right: 28px;
+    width: 16px; height: 16px;
+    background: var(--color-bg-elevated);
+    border-right: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+    transform: rotate(45deg);
+  }
+  .op-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .op-head .phase { display: flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--color-primary); font-weight: var(--fw-medium); }
+  .op-body { padding: var(--sp-4); }
+  .op-task { font-size: var(--fs-14); font-weight: var(--fw-semibold); margin-bottom: 4px; }
+  .op-meta { font-size: var(--fs-12); color: var(--color-text-muted); margin-bottom: var(--sp-3); }
+  .op-ring {
+    width: 120px; height: 120px;
+    margin: 0 auto var(--sp-3);
+    position: relative;
+  }
+  .op-ring svg { width: 100%; height: 100%; }
+  .op-ring .track { fill: none; stroke: var(--color-divider); stroke-width: 6; }
+  .op-ring .arc { fill: none; stroke: var(--color-primary); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 377; stroke-dashoffset: 94; transform: rotate(-90deg); transform-origin: 50% 50%; }
+  .op-ring .center {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-mono);
+    font-size: 24px;
+    font-weight: var(--fw-semibold);
+  }
+  .op-ctrl { display: flex; gap: 8px; justify-content: center; }
+  .op-ctrl .btn-circle {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--color-bg-hover);
+    display: grid; place-items: center;
+    cursor: pointer;
+    transition: all var(--dur-base);
+    color: var(--color-text-secondary);
+  }
+  .op-ctrl .btn-circle:hover { background: var(--color-primary-soft); color: var(--color-primary); }
+  .op-ctrl .btn-main {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--color-primary); color: #fff;
+    display: grid; place-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(79, 140, 255, 0.3);
+  }
+
+  .op-switch {
+    margin-top: var(--sp-3);
+    padding-top: var(--sp-3);
+    border-top: 1px solid var(--color-divider);
+  }
+  .op-switch .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-muted); margin-bottom: 6px; }
+  .op-switch .item {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 6px 8px; border-radius: var(--r-xs);
+    cursor: pointer; transition: background var(--dur-base);
+    font-size: var(--fs-13, 13px);
+  }
+  .op-switch .item:hover { background: var(--color-bg-hover); }
+  .op-switch .item .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .op-switch .item.q1 .dot { background: var(--color-q1); }
+  .op-switch .item.q2 .dot { background: var(--color-q2); }
+
+  .op-foot {
+    display: flex; justify-content: space-between;
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--color-bg-subtle);
+    border-top: 1px solid var(--color-divider);
+    font-size: var(--fs-12);
+    color: var(--color-text-muted);
+  }
+
+  /* Tray menu */
+  .tray-menu {
+    position: absolute;
+    bottom: 70px; right: 180px;
+    width: 240px;
+    background: var(--color-bg-elevated);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-modal);
+    border: 1px solid var(--color-border);
+    padding: 6px;
+    z-index: 4;
+  }
+  .tray-menu .item {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 8px 10px;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    font-size: var(--fs-13, 13px);
+    color: var(--color-text-primary);
+  }
+  .tray-menu .item:hover { background: var(--color-bg-hover); }
+  .tray-menu .item .shortcut { margin-left: auto; font-size: 11px; color: var(--color-text-muted); font-family: var(--font-mono); }
+  .tray-menu .item.primary { color: var(--color-primary); font-weight: var(--fw-medium); }
+  .tray-menu .divider { height: 1px; background: var(--color-divider); margin: 4px -6px; }
+  .tray-menu .item.danger { color: var(--color-q1); }
+
+  /* Notes grid below */
+  .notes {
+    margin-top: var(--sp-6);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-4);
+  }
+  .note-card {
+    padding: var(--sp-4);
+  }
+  .note-card h4 { font-size: var(--fs-14); font-weight: var(--fw-semibold); margin-bottom: var(--sp-2); display: flex; align-items: center; gap: 6px; }
+  .note-card p { font-size: var(--fs-13, 13px); color: var(--color-text-secondary); line-height: 1.6; }
+
+  @media (max-width: 960px) {
+    .orb-demos { gap: 40px; top: 30%; }
+    .orb-panel { position: static; margin: 24px; width: auto; }
+    .tray-menu { position: static; margin: 24px; width: auto; }
+    .notes { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="showcase-wrap">
+  <div class="showcase-head">
+    <div>
+      <h1>悬浮球 · 托盘 · mini 面板</h1>
+      <div class="sub">常驻桌面角落 · 不打扰专注 · 一键唤起控制 (docs/05 §3.4)</div>
+    </div>
+    <a class="nav-back" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回原型导航</a>
+  </div>
+
+  <!-- 模拟桌面 -->
+  <div class="desktop">
+    <div class="fake-icons">
+      <div class="fake-icon doc">
+        <div class="ico-box">PDF</div>
+        <span>文献.pdf</span>
+      </div>
+      <div class="fake-icon folder">
+        <div class="ico-box"><span data-icon="home" data-size="20"></span></div>
+        <span>实验数据</span>
+      </div>
+      <div class="fake-icon code">
+        <div class="ico-box">{}</div>
+        <span>baseline.py</span>
+      </div>
+    </div>
+
+    <!-- 三态展示 -->
+    <div class="orb-demos">
+      <div class="orb-demo">
+        <div class="orb-label">01 · 呼吸态</div>
+        <div class="orb breathing">F</div>
+        <div class="orb-caption">无任务时,透明度 70%-90% 呼吸,几乎隐形</div>
+      </div>
+
+      <div class="orb-demo">
+        <div class="orb-label">02 · 专注中</div>
+        <div class="orb focusing">
+          <span class="orb-time">18:32</span>
+        </div>
+        <div class="orb-caption">环形进度实时,点击展开控制面板</div>
+      </div>
+
+      <div class="orb-demo">
+        <div class="orb-label">03 · 完成闪烁</div>
+        <div class="orb complete">
+          <span data-icon="check" data-size="24"></span>
+        </div>
+        <div class="orb-caption">任务完成短暂绿闪 0.5s · 然后回到呼吸态</div>
+      </div>
+    </div>
+
+    <!-- Mock taskbar -->
+    <div class="taskbar">
+      <div class="app focus">F</div>
+      <div class="app"><span data-icon="globe" data-size="16"></span></div>
+      <div class="app"><span data-icon="calendar" data-size="16"></span></div>
+      <div class="app"><span data-icon="edit" data-size="16"></span></div>
+      <div style="width:1px;height:20px;background:rgba(255,255,255,0.25);margin:0 4px"></div>
+      <div class="app"><span data-icon="bell" data-size="14"></span></div>
+      <div class="app"><span data-icon="settings" data-size="14"></span></div>
+    </div>
+
+    <!-- Expanded panel (点击悬浮球弹出) -->
+    <div class="orb-panel" role="dialog" aria-label="FocusLab 快捷面板">
+      <div class="op-head">
+        <div class="phase">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--color-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--color-primary) 25%,transparent)"></span>
+          专注中 · 第 4 / 8 番茄
+        </div>
+        <button class="btn-icon btn-sm"><span data-icon="x" data-size="14"></span></button>
+      </div>
+      <div class="op-body">
+        <div class="op-task">复现 baseline 代码</div>
+        <div class="op-meta">🎯 论文A · 里程碑 3 · 已专注 1h 32m</div>
+
+        <div class="op-ring">
+          <svg viewBox="0 0 120 120">
+            <circle class="track" cx="60" cy="60" r="50" />
+            <circle class="arc" cx="60" cy="60" r="50" />
+          </svg>
+          <div class="center">18:32</div>
+        </div>
+
+        <div class="op-ctrl">
+          <button class="btn-circle" aria-label="结束"><span data-icon="square" data-size="14"></span></button>
+          <button class="btn-main" aria-label="暂停"><span data-icon="pause" data-size="18"></span></button>
+          <button class="btn-circle" aria-label="跳过"><span data-icon="skip-forward" data-size="14"></span></button>
+        </div>
+
+        <div class="op-switch">
+          <div class="label">快速切换</div>
+          <div class="item q1">
+            <span class="dot"></span>
+            <span style="flex:1">阅读文献 2 篇</span>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--color-text-muted)">1.5h</span>
+          </div>
+          <div class="item q2">
+            <span class="dot"></span>
+            <span style="flex:1">设计改进方案</span>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--color-text-muted)">2h</span>
+          </div>
+        </div>
+      </div>
+      <div class="op-foot">
+        <span>双击悬浮球 = 打开主窗口</span>
+        <span class="kbd">⌘⇧F</span>
+      </div>
+    </div>
+
+    <!-- Tray right-click menu -->
+    <div class="tray-menu" role="menu" aria-label="托盘右键菜单">
+      <div class="item primary" role="menuitem">
+        <span data-icon="home" data-size="14"></span>
+        打开主窗口
+        <span class="shortcut">⌘⇧F</span>
+      </div>
+      <div class="item" role="menuitem">
+        <span data-icon="pause" data-size="14"></span>
+        暂停当前任务
+        <span class="shortcut">Space</span>
+      </div>
+      <div class="item" role="menuitem">
+        <span data-icon="skip-forward" data-size="14"></span>
+        切换任务
+      </div>
+      <div class="divider"></div>
+      <div class="item" role="menuitem">
+        <span data-icon="plus" data-size="14"></span>
+        快速添加任务
+        <span class="shortcut">⌘N</span>
+      </div>
+      <div class="item" role="menuitem">
+        <span data-icon="moon" data-size="14"></span>
+        结束今天
+      </div>
+      <div class="divider"></div>
+      <div class="item" role="menuitem">
+        <span data-icon="settings" data-size="14"></span>
+        设置
+      </div>
+      <div class="item danger" role="menuitem">
+        <span data-icon="x" data-size="14"></span>
+        退出 FocusLab
+      </div>
+    </div>
+  </div>
+
+  <!-- 设计注解 -->
+  <div class="notes">
+    <div class="card note-card">
+      <h4><span data-icon="flame" data-size="16"></span> 呼吸态</h4>
+      <p>无任务或非专注时,透明度 70%-90% 正弦曲线呼吸,周期 4s。研究生长时间对着屏幕,几乎感知不到。</p>
+    </div>
+    <div class="card note-card">
+      <h4><span data-icon="clock" data-size="16"></span> 专注中</h4>
+      <p>显示微型环形进度 + 剩余时间。hover 放大 5%,click 展开 mini 面板。可以被拖拽,靠近屏幕边缘时弹性吸附。</p>
+    </div>
+    <div class="card note-card">
+      <h4><span data-icon="check" data-size="16"></span> 完成闪烁</h4>
+      <p>任务完成瞬间短暂绿闪 0.5s,然后回到呼吸态。不打扰、不弹窗、不阻塞下一步操作。</p>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  try {
+    const saved = localStorage.getItem('fl-theme');
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+</script>
+</body>
+</html>

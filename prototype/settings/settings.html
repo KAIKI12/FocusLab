@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 设置</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { padding: 0; }
+  .page-shell { display: flex; min-height: 100vh; max-width: 1440px; margin: 0 auto; background: var(--color-bg-elevated); box-shadow: 0 0 0 1px var(--color-border); }
+  .main-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 40px; padding: 0 var(--sp-4);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+  }
+  .titlebar .left { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-12); color: var(--color-text-secondary); }
+
+  .content {
+    flex: 1; background: var(--color-bg);
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* Settings side nav (inner) */
+  .settings-nav {
+    width: 240px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+    padding: var(--sp-5) var(--sp-3);
+    overflow-y: auto;
+  }
+  .settings-nav .nav-title {
+    font-size: var(--fs-12);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: var(--fw-medium);
+    padding: 0 var(--sp-3) var(--sp-2);
+  }
+  .settings-nav .s-item {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 8px 12px;
+    border-radius: var(--r-sm);
+    color: var(--color-text-secondary);
+    font-size: var(--fs-14);
+    cursor: pointer;
+    margin-bottom: 2px;
+    transition: all var(--dur-base);
+  }
+  .settings-nav .s-item:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+  .settings-nav .s-item.is-active {
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+    font-weight: var(--fw-medium);
+  }
+  .settings-nav .s-item svg { width: 16px; height: 16px; }
+  .settings-nav .s-badge {
+    margin-left: auto;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: var(--r-pill);
+    background: var(--color-primary);
+    color: #fff;
+  }
+
+  /* Settings main panel */
+  .settings-main {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--sp-8) var(--sp-8);
+  }
+
+  .set-group-head {
+    margin-bottom: var(--sp-5);
+    padding-bottom: var(--sp-4);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .set-group-head h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .set-group-head p { color: var(--color-text-secondary); font-size: var(--fs-14); margin-top: 4px; }
+
+  /* Hidden groups */
+  .set-group { display: none; max-width: 780px; }
+  .set-group.is-active { display: block; }
+
+  /* Setting row */
+  .set-row {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: var(--sp-5);
+    padding: var(--sp-5) 0;
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .set-row:last-child { border-bottom: none; }
+  .set-row-main { flex: 1; min-width: 0; }
+  .set-title { font-size: var(--fs-14); font-weight: var(--fw-semibold); color: var(--color-text-primary); margin-bottom: 4px; }
+  .set-desc { font-size: var(--fs-13, 13px); color: var(--color-text-secondary); line-height: 1.6; }
+  .set-control { flex-shrink: 0; }
+
+  /* Toggle switch */
+  .toggle-sw {
+    width: 44px; height: 24px;
+    border-radius: var(--r-pill);
+    background: var(--color-border-strong);
+    position: relative;
+    cursor: pointer;
+    transition: background var(--dur-base);
+    flex-shrink: 0;
+  }
+  .toggle-sw::after {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    transition: left var(--dur-base) var(--ease-out);
+  }
+  .toggle-sw.is-on { background: var(--color-primary); }
+  .toggle-sw.is-on::after { left: 22px; }
+
+  /* Select (styled) */
+  .select-wrap { position: relative; min-width: 180px; }
+  .select-wrap select {
+    width: 100%;
+    height: 36px;
+    padding: 0 32px 0 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-sm);
+    background: var(--color-bg-elevated);
+    font-size: var(--fs-14);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    appearance: none;
+  }
+  .select-wrap select:hover { border-color: var(--color-border-strong); }
+  .select-wrap::after {
+    content: "▾";
+    position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+    pointer-events: none;
+    font-size: 14px;
+  }
+
+  /* Radio group (pill) */
+  .radio-pill-group { display: flex; gap: 2px; padding: 2px; background: var(--color-bg-hover); border-radius: var(--r-sm); }
+  .radio-pill {
+    padding: 6px 14px;
+    font-size: var(--fs-13, 13px);
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    color: var(--color-text-secondary);
+  }
+  .radio-pill.is-active {
+    background: var(--color-bg-elevated);
+    color: var(--color-primary);
+    box-shadow: var(--shadow-card);
+    font-weight: var(--fw-medium);
+  }
+
+  /* Slider */
+  .slider-wrap { width: 200px; }
+  .slider-row { display: flex; align-items: center; gap: var(--sp-2); }
+  input[type="range"].fl-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 4px;
+    border-radius: var(--r-pill);
+    background: linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) 50%, var(--color-border) 50%, var(--color-border) 100%);
+    outline: none;
+  }
+  input[type="range"].fl-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    box-shadow: 0 2px 6px rgba(79,140,255,0.35);
+    cursor: pointer;
+    border: 2px solid #fff;
+  }
+  .slider-value { font-family: var(--font-mono); font-size: var(--fs-13, 13px); color: var(--color-text-primary); min-width: 40px; text-align: right; }
+
+  /* Time input */
+  .time-pair { display: flex; align-items: center; gap: 6px; }
+  .time-input {
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-sm);
+    background: var(--color-bg-elevated);
+    font-family: var(--font-mono);
+    font-size: var(--fs-13, 13px);
+    width: 80px;
+    text-align: center;
+  }
+
+  /* Callout */
+  .callout {
+    padding: var(--sp-3) var(--sp-4);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-13, 13px);
+    line-height: 1.6;
+    margin: var(--sp-4) 0;
+    display: flex; gap: var(--sp-2);
+  }
+  .callout.warn { background: var(--color-gold-soft); color: #AD6800; border: 1px solid color-mix(in srgb, var(--color-gold) 30%, transparent); }
+  .callout.info { background: var(--color-primary-soft); color: var(--color-primary-dark); border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent); }
+  .callout.danger { background: var(--color-q1-soft); color: var(--color-q1); border: 1px solid color-mix(in srgb, var(--color-q1) 30%, transparent); }
+  .callout.exp {
+    background: color-mix(in srgb, var(--color-primary-soft) 60%, var(--color-bg-elevated));
+    color: var(--color-text-secondary);
+    border: 1px dashed color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+  }
+  .callout.exp strong { color: var(--color-primary-dark); }
+
+  /* Experimental feature card */
+  .exp-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    margin-top: var(--sp-4);
+    background: var(--color-bg-elevated);
+    transition: border-color var(--dur-base) var(--ease-smooth);
+  }
+  .exp-card.is-enabled {
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+  .exp-card__head {
+    display: flex; align-items: flex-start;
+    gap: var(--sp-4);
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .exp-card__emoji {
+    font-size: 28px; line-height: 1;
+    width: 48px; height: 48px;
+    display: grid; place-items: center;
+    background: var(--color-bg-subtle);
+    border-radius: var(--r-md);
+    flex-shrink: 0;
+  }
+  .exp-card__info { flex: 1; min-width: 0; }
+  .exp-card__info h4 {
+    font-size: var(--fs-16); font-weight: var(--fw-semibold);
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 4px;
+  }
+  .exp-card__info .exp-tag {
+    font-size: 11px; font-weight: var(--fw-medium);
+    padding: 2px 8px; border-radius: var(--r-pill);
+    background: var(--color-gold-soft); color: #AD6800;
+    letter-spacing: 0.02em;
+  }
+  .exp-card__info p {
+    font-size: var(--fs-13, 13px);
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+  .exp-card__head .toggle-sw { margin-top: 6px; flex-shrink: 0; }
+
+  .exp-card__body {
+    display: none;
+    padding: var(--sp-4) var(--sp-5);
+    background: var(--color-bg-subtle);
+  }
+  .exp-card.is-enabled .exp-card__body { display: block; }
+
+  .exp-sub-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--sp-4);
+    padding: var(--sp-3) 0;
+    border-bottom: 1px dashed var(--color-divider);
+  }
+  .exp-sub-row:last-of-type { border-bottom: 0; }
+  .exp-sub-row .k {
+    font-size: var(--fs-14); font-weight: var(--fw-medium);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .exp-sub-row .k .emoji { font-size: 18px; }
+  .exp-sub-row .d {
+    font-size: var(--fs-12); color: var(--color-text-muted);
+    margin-top: 2px;
+  }
+
+  .exp-card__footer {
+    margin-top: var(--sp-3);
+    padding-top: var(--sp-3);
+    border-top: 1px solid var(--color-divider);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--sp-3);
+  }
+  .exp-card__footer .link {
+    font-size: var(--fs-12);
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: var(--fw-medium);
+  }
+  .exp-card__footer .link:hover { text-decoration: underline; }
+
+  /* "建造中" 占位卡 */
+  .exp-placeholder {
+    border: 1px dashed var(--color-border);
+    border-radius: var(--r-md);
+    padding: var(--sp-5);
+    margin-top: var(--sp-3);
+    background: var(--color-bg-subtle);
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: var(--fs-13, 13px);
+  }
+
+  /* Shortcut list */
+  .sc-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .sc-row:last-child { border-bottom: none; }
+  .sc-row .sc-name { font-size: var(--fs-13, 13px); }
+  .sc-combo { display: flex; gap: 4px; }
+
+  /* Mode cards */
+  .mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); margin-top: var(--sp-4); }
+  .mode-card {
+    padding: var(--sp-5);
+    border: 2px solid var(--color-border);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    background: var(--color-bg-elevated);
+    transition: all var(--dur-base);
+  }
+  .mode-card:hover { border-color: var(--color-primary-light); }
+  .mode-card.is-selected { border-color: var(--color-primary); background: var(--color-primary-soft); }
+  .mode-card h4 { font-size: var(--fs-16); font-weight: var(--fw-semibold); margin-bottom: 6px; }
+  .mode-card h4 .lead { display: inline-block; margin-right: 6px; font-size: 16px; }
+  .mode-card p { font-size: var(--fs-12); color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--sp-3); }
+  .mode-card ul { list-style: none; padding: 0; margin: 0; font-size: var(--fs-12); }
+  .mode-card ul li { padding: 4px 0; color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px; }
+  .mode-card ul li svg { width: 12px; height: 12px; }
+  .mode-card ul li.yes { color: var(--color-success); }
+  .mode-card ul li.no { color: var(--color-text-muted); }
+
+  /* Data action card */
+  .data-action-card {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-sm);
+    margin-bottom: var(--sp-3);
+    transition: all var(--dur-base);
+  }
+  .data-action-card:hover { border-color: var(--color-primary-light); background: var(--color-bg-subtle); }
+  .data-action-card .icon-box {
+    width: 40px; height: 40px;
+    border-radius: var(--r-sm);
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .data-action-card.danger .icon-box { background: var(--color-q1-soft); color: var(--color-q1); }
+  .data-action-card .info { flex: 1; }
+  .data-action-card .info h4 { font-size: var(--fs-14); font-weight: var(--fw-semibold); }
+  .data-action-card .info p { font-size: var(--fs-12); color: var(--color-text-secondary); margin-top: 2px; }
+
+  /* About */
+  .about-hero {
+    text-align: center;
+    padding: var(--sp-6) 0;
+  }
+  .about-hero .logo-big {
+    width: 72px; height: 72px;
+    margin: 0 auto var(--sp-3);
+    border-radius: var(--r-lg);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    display: grid; place-items: center;
+    color: #fff; font-size: 32px; font-weight: var(--fw-bold);
+    box-shadow: 0 8px 24px rgba(79, 140, 255, 0.3);
+  }
+  .about-hero h2 { font-size: var(--fs-24); font-weight: var(--fw-semibold); }
+  .about-hero .v { color: var(--color-text-muted); font-family: var(--font-mono); font-size: var(--fs-12); margin-top: 4px; }
+
+  @media (max-width: 960px) {
+    .settings-nav { width: 200px; }
+    .mode-cards { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    .content { flex-direction: column; }
+    .settings-nav { width: 100%; border-right: none; border-bottom: 1px solid var(--color-border); }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-shell">
+  <aside class="sidebar" aria-label="主导航">
+    <div class="logo">F</div>
+    <div class="nav-item" data-tip="今日" role="button" tabindex="0"><span data-icon="home"></span></div>
+    <div class="nav-item" data-tip="任务" role="button" tabindex="0"><span data-icon="list"></span></div>
+    <div class="nav-item" data-tip="长线目标" role="button" tabindex="0"><span data-icon="target"></span></div>
+    <div class="nav-item" data-tip="数据分析" role="button" tabindex="0"><span data-icon="bar-chart"></span></div>
+    <div class="nav-item" data-tip="日历" role="button" tabindex="0"><span data-icon="calendar"></span></div>
+    <div class="nav-spacer"></div>
+    <div class="nav-item is-active" data-tip="设置" role="button" tabindex="0"><span data-icon="settings"></span></div>
+  </aside>
+
+  <div class="main-col">
+    <div class="titlebar">
+      <div class="left">
+        <span style="width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));display:inline-grid;place-items:center;color:#fff;font-weight:700;font-size:10px">F</span>
+        FocusLab · 设置
+      </div>
+      <a class="btn btn-ghost btn-sm" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回导航</a>
+    </div>
+
+    <div class="content">
+      <!-- Settings nav -->
+      <aside class="settings-nav">
+        <div class="nav-title">偏好</div>
+        <div class="s-item is-active" data-group="general"><span data-icon="settings"></span> 通用</div>
+        <div class="s-item" data-group="appearance"><span data-icon="sun"></span> 外观</div>
+        <div class="s-item" data-group="pomodoro"><span data-icon="clock"></span> 番茄钟</div>
+        <div class="s-item" data-group="notifications"><span data-icon="bell"></span> 通知</div>
+        <div class="s-item" data-group="shortcuts"><span data-icon="zap"></span> 快捷键</div>
+
+        <div class="nav-title" style="margin-top: var(--sp-5)">AI 与隐私</div>
+        <div class="s-item" data-group="ai"><span data-icon="sparkles"></span> AI 助手 <span class="s-badge">New</span></div>
+        <div class="s-item" data-group="privacy"><span data-icon="lock"></span> 隐私</div>
+
+        <div class="nav-title" style="margin-top: var(--sp-5)">数据</div>
+        <div class="s-item" data-group="data"><span data-icon="home"></span> 备份与导出</div>
+
+        <div class="nav-title" style="margin-top: var(--sp-5)">🧪 实验</div>
+        <div class="s-item" data-group="experimental"><span data-icon="sparkles"></span> 实验功能 <span class="s-badge">Beta</span></div>
+
+        <div class="nav-title" style="margin-top: var(--sp-5)">其它</div>
+        <div class="s-item" data-group="about"><span data-icon="flag"></span> 关于 FocusLab</div>
+      </aside>
+
+      <!-- Settings main -->
+      <div class="settings-main">
+
+        <!-- ============ GENERAL ============ -->
+        <section class="set-group is-active" data-group="general">
+          <div class="set-group-head">
+            <h1>通用</h1>
+            <p>基础行为与工作模式</p>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">工作模式</div>
+              <div class="set-desc">极简模式关闭 AI / 四象限 / 长线目标等功能,只保留任务列表 + 番茄钟。</div>
+              <div class="mode-cards">
+                <div class="mode-card is-selected">
+                  <h4><span class="lead">🌊</span>标准模式</h4>
+                  <p>完整功能 · 适合想深度使用的研究生</p>
+                  <ul>
+                    <li class="yes"><span data-icon="check"></span> 四象限视图</li>
+                    <li class="yes"><span data-icon="check"></span> 长线目标 + 里程碑</li>
+                    <li class="yes"><span data-icon="check"></span> AI 所有功能</li>
+                    <li class="yes"><span data-icon="check"></span> 日结算分级</li>
+                    <li class="yes"><span data-icon="check"></span> 周报 · 热力图</li>
+                  </ul>
+                </div>
+                <div class="mode-card">
+                  <h4><span class="lead">🍃</span>极简模式</h4>
+                  <p>纯任务列表 + 番茄钟 · 适合只想用核心功能</p>
+                  <ul>
+                    <li class="yes"><span data-icon="check"></span> 任务列表</li>
+                    <li class="yes"><span data-icon="check"></span> 番茄钟</li>
+                    <li class="yes"><span data-icon="check"></span> 基本日结算</li>
+                    <li class="no"><span data-icon="x"></span> 无 AI · 无四象限</li>
+                    <li class="no"><span data-icon="x"></span> 无长线目标</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">开机自启动</div>
+              <div class="set-desc">系统开机后自动运行 FocusLab · 以迷你悬浮球形态启动,不打扰</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">启动时默认视图</div>
+              <div class="set-desc">FocusLab 启动时先展示哪个界面</div>
+            </div>
+            <div class="set-control">
+              <div class="select-wrap">
+                <select>
+                  <option selected>今日计划</option>
+                  <option>迷你悬浮球</option>
+                  <option>上次关闭的视图</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">日期分界线</div>
+              <div class="set-desc">"逻辑日"从几点开始 · 研究生常熬夜,建议设置在凌晨 4:00 (docs/02 §5.5)</div>
+            </div>
+            <div class="set-control">
+              <div class="time-pair">
+                <input type="time" value="04:00" class="time-input" />
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">语言 / Language</div>
+              <div class="set-desc">界面语言 · 英文版开发中</div>
+            </div>
+            <div class="set-control">
+              <div class="select-wrap">
+                <select>
+                  <option selected>简体中文</option>
+                  <option>English (Preview)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ APPEARANCE ============ -->
+        <section class="set-group" data-group="appearance">
+          <div class="set-group-head">
+            <h1>外观</h1>
+            <p>视觉主题、字号与动效</p>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">主题</div>
+              <div class="set-desc">研究生经常熬夜 · 深色模式会自动降低饱和度</div>
+            </div>
+            <div class="set-control">
+              <div class="radio-pill-group">
+                <span class="radio-pill is-active">浅色</span>
+                <span class="radio-pill">深色</span>
+                <span class="radio-pill">跟随系统</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">字号</div>
+              <div class="set-desc">研究生长时间看屏幕,对字号敏感</div>
+            </div>
+            <div class="set-control">
+              <div class="radio-pill-group">
+                <span class="radio-pill">小</span>
+                <span class="radio-pill is-active">中 (默认)</span>
+                <span class="radio-pill">大</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">减少动画</div>
+              <div class="set-desc">关闭粒子特效 / 呼吸灯 / 滑动动画 · 响应系统级 prefers-reduced-motion</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw" role="switch"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">主色</div>
+              <div class="set-desc">品牌主色调 · 影响按钮、圆环、进度条等</div>
+            </div>
+            <div class="set-control">
+              <div style="display:flex;gap:8px">
+                <span style="width:28px;height:28px;border-radius:50%;background:#4F8CFF;border:3px solid #fff;box-shadow:0 0 0 2px #4F8CFF;cursor:pointer"></span>
+                <span style="width:28px;height:28px;border-radius:50%;background:#52C41A;cursor:pointer"></span>
+                <span style="width:28px;height:28px;border-radius:50%;background:#B87FFF;cursor:pointer"></span>
+                <span style="width:28px;height:28px;border-radius:50%;background:#FAAD14;cursor:pointer"></span>
+                <span style="width:28px;height:28px;border-radius:50%;background:#F56C6C;cursor:pointer"></span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ POMODORO ============ -->
+        <section class="set-group" data-group="pomodoro">
+          <div class="set-group-head">
+            <h1>番茄钟</h1>
+            <p>专注时长、休息节奏与提醒</p>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">默认专注时长</div>
+              <div class="set-desc">可以在创建任务时单独调整</div>
+            </div>
+            <div class="set-control">
+              <div class="slider-wrap">
+                <div class="slider-row">
+                  <input type="range" min="15" max="120" value="45" class="fl-slider" />
+                  <span class="slider-value">45m</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">短休息时长</div>
+              <div class="set-desc">每个番茄钟后的休息</div>
+            </div>
+            <div class="set-control">
+              <div class="slider-wrap">
+                <div class="slider-row">
+                  <input type="range" min="3" max="15" value="5" class="fl-slider" />
+                  <span class="slider-value">5m</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">长休息时长</div>
+              <div class="set-desc">每 4 个番茄钟后的长休息</div>
+            </div>
+            <div class="set-control">
+              <div class="slider-wrap">
+                <div class="slider-row">
+                  <input type="range" min="10" max="30" value="15" class="fl-slider" />
+                  <span class="slider-value">15m</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">自动开始休息</div>
+              <div class="set-desc">专注结束后自动进入休息 · 不用点按钮</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">自动开始下一个番茄钟</div>
+              <div class="set-desc">休息结束后自动开始下一段专注 · 推荐关闭,给自己选择的机会</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw" role="switch"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">提醒音效</div>
+              <div class="set-desc">番茄钟开始 / 结束 / 完成时的提示音</div>
+            </div>
+            <div class="set-control">
+              <div class="select-wrap">
+                <select>
+                  <option>无声</option>
+                  <option selected>柔和钟声</option>
+                  <option>清脆叮声</option>
+                  <option>自然白噪</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ NOTIFICATIONS ============ -->
+        <section class="set-group" data-group="notifications">
+          <div class="set-group-head">
+            <h1>通知</h1>
+            <p>系统通知与不打扰时段</p>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">系统通知</div>
+              <div class="set-desc">使用操作系统的通知中心 · 番茄钟结束、休息提醒等</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">日结算提醒</div>
+              <div class="set-desc">到兜底时间还没手动结算时提醒一次</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">任务到期前一天提醒</div>
+              <div class="set-desc">有截止日期的任务,提前 1 天推送系统通知 + 悬浮球红点 · 只做内部日历,不同步外部日历(ADR-012)</div>
+            </div>
+            <div class="set-control">
+              <div style="display:flex;align-items:center;gap:var(--sp-2)">
+                <input type="time" value="20:00" class="time-input" />
+                <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">到期当日自动置顶</div>
+              <div class="set-desc">到期当天若任务未完成,自动置顶到"今日任务"面板 · 不改象限分类,只附 ⏰ 今日到期 标签</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">勿扰时段</div>
+              <div class="set-desc">这段时间内所有通知静音,只保留关键(如专注结束)</div>
+            </div>
+            <div class="set-control">
+              <div class="time-pair">
+                <input type="time" value="22:30" class="time-input" />
+                <span style="color:var(--color-text-muted)">-</span>
+                <input type="time" value="08:30" class="time-input" />
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">休息结束三选一弹窗</div>
+              <div class="set-desc">休息结束时弹出"继续 / 延长 / 结束"三个选项 · docs/02 §5</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">呼吸式存在感</div>
+              <div class="set-desc">悬浮球每 30 分钟轻微透明度变化 · 纯视觉,无文字</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ SHORTCUTS ============ -->
+        <section class="set-group" data-group="shortcuts">
+          <div class="set-group-head">
+            <h1>快捷键</h1>
+            <p>所有快捷键均可重新绑定</p>
+          </div>
+
+          <div class="callout info">
+            <span data-icon="sparkles" data-size="16"></span>
+            <span>macOS 下的 ⌘ 对应 Windows / Linux 下的 Ctrl · 按下对应按键录制新组合</span>
+          </div>
+
+          <div class="sc-row"><span class="sc-name">暂停/继续专注</span><span class="sc-combo"><span class="kbd">Space</span></span></div>
+          <div class="sc-row"><span class="sc-name">快速添加任务</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">N</span></span></div>
+          <div class="sc-row"><span class="sc-name">切换悬浮球 / 主窗口</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">F</span></span></div>
+          <div class="sc-row"><span class="sc-name">打开设置</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">,</span></span></div>
+          <div class="sc-row"><span class="sc-name">结束今天 · 日结算</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">E</span></span></div>
+          <div class="sc-row"><span class="sc-name">切换任务</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">T</span></span></div>
+          <div class="sc-row"><span class="sc-name">打开四象限视图</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">Q</span></span></div>
+          <div class="sc-row"><span class="sc-name">查看所有快捷键</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">/</span></span></div>
+          <div class="sc-row"><span class="sc-name">全局唤起 FocusLab</span><span class="sc-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">L</span></span></div>
+        </section>
+
+        <!-- ============ AI ============ -->
+        <section class="set-group" data-group="ai">
+          <div class="set-group-head">
+            <h1>AI 助手</h1>
+            <p>所有 AI 功能完全可选 · 关闭不影响任何核心功能</p>
+          </div>
+
+          <div class="callout warn">
+            <span data-icon="lock" data-size="16"></span>
+            <span>你的 API Key 仅保存在本地 Keychain,永远不会经过 FocusLab 的服务器。任务名和描述会发送给你选定的 AI 提供商。</span>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">启用 AI 功能</div>
+              <div class="set-desc">关闭后,所有 AI 按钮会变灰 · 所有非 AI 核心功能继续可用</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">提供商</div>
+              <div class="set-desc">AI 服务商 · 本地 Ollama 模型支持即将推出</div>
+            </div>
+            <div class="set-control">
+              <div class="select-wrap" style="min-width:220px">
+                <select>
+                  <option selected>Anthropic Claude Sonnet 4.6</option>
+                  <option>OpenAI GPT-4o</option>
+                  <option>Ollama (即将支持)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">API Key</div>
+              <div class="set-desc">Key 仅存于本地 · 随时可清除</div>
+            </div>
+            <div class="set-control">
+              <div style="display:flex;gap:6px;align-items:center">
+                <code style="font-family:var(--font-mono);font-size:var(--fs-12);color:var(--color-text-secondary);padding:4px 10px;background:var(--color-bg-hover);border-radius:var(--r-xs)">sk-ant-••••••••••••••••3df2</code>
+                <button class="btn btn-ghost btn-sm">更换</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">语气风格</div>
+              <div class="set-desc">AI 寄语 / 建议的语气</div>
+            </div>
+            <div class="set-control">
+              <div class="select-wrap">
+                <select>
+                  <option selected>温暖鼓励</option>
+                  <option>客观中立</option>
+                  <option>简洁直接</option>
+                  <option>活泼有趣</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">AI 能使用的数据范围</div>
+              <div class="set-desc">选定的内容会包含在发送给 AI 的 prompt 中</div>
+            </div>
+            <div class="set-control">
+              <button class="btn btn-secondary btn-sm">管理 · 6 项已允许</button>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">查看发送给 AI 的数据示例</div>
+              <div class="set-desc">完全透明 · 你能看到每次调用包含什么</div>
+            </div>
+            <div class="set-control">
+              <button class="btn btn-ghost btn-sm">查看示例 <span data-icon="chevron-right" data-size="14"></span></button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ PRIVACY ============ -->
+        <section class="set-group" data-group="privacy">
+          <div class="set-group-head">
+            <h1>隐私</h1>
+            <p>你的数据属于你</p>
+          </div>
+
+          <div class="callout info">
+            <span data-icon="lock" data-size="16"></span>
+            <span>FocusLab 采用"本地优先"架构:所有核心数据存在你的电脑本地 SQLite 数据库中,不上传任何服务器。</span>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">匿名使用统计</div>
+              <div class="set-desc">帮助我们了解哪些功能在被使用 · 不含任务内容、时长、任何识别信息</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw" role="switch"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">崩溃日志</div>
+              <div class="set-desc">发生崩溃时自动上报堆栈 · 不含任务内容</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">清除所有 AI 交互记录</div>
+              <div class="set-desc">删除本地保存的 AI prompt / 回复历史 · 不影响其它数据</div>
+            </div>
+            <div class="set-control">
+              <button class="btn btn-ghost btn-sm" style="color:var(--color-q1)">清除</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ DATA ============ -->
+        <section class="set-group" data-group="data">
+          <div class="set-group-head">
+            <h1>备份与导出</h1>
+            <p>你可以随时把数据带走</p>
+          </div>
+
+          <div class="data-action-card">
+            <div class="icon-box"><span data-icon="edit" data-size="18"></span></div>
+            <div class="info">
+              <h4>导出全部数据</h4>
+              <p>JSON / Markdown / CSV 三选一 · 遵循 GDPR 精神</p>
+            </div>
+            <button class="btn btn-primary btn-sm">导出</button>
+          </div>
+
+          <div class="data-action-card">
+            <div class="icon-box"><span data-icon="home" data-size="18"></span></div>
+            <div class="info">
+              <h4>自动本地备份</h4>
+              <p>每天凌晨备份到本地 · 保留最近 14 天</p>
+            </div>
+            <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+          </div>
+
+          <div class="data-action-card">
+            <div class="icon-box"><span data-icon="calendar" data-size="18"></span></div>
+            <div class="info">
+              <h4>从备份恢复</h4>
+              <p>最近一次备份:今天 04:00 · 12.3 MB</p>
+            </div>
+            <button class="btn btn-ghost btn-sm">恢复</button>
+          </div>
+
+          <div class="data-action-card">
+            <div class="icon-box"><span data-icon="sparkles" data-size="18"></span></div>
+            <div class="info">
+              <h4>导出科研日志</h4>
+              <p>按长线目标 → 里程碑 → 时间线 整理为 Markdown</p>
+            </div>
+            <button class="btn btn-ghost btn-sm">导出 .md</button>
+          </div>
+
+          <div class="callout danger" style="margin-top: var(--sp-6)">
+            <span data-icon="circle-alert" data-size="16"></span>
+            <span><strong>危险区域</strong> · 以下操作不可恢复</span>
+          </div>
+
+          <div class="data-action-card danger">
+            <div class="icon-box"><span data-icon="trash" data-size="18"></span></div>
+            <div class="info">
+              <h4>重置所有数据</h4>
+              <p>清除所有任务、目标、设置,回到首次启动状态</p>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="color:var(--color-q1)">重置</button>
+          </div>
+        </section>
+
+        <!-- ============ EXPERIMENTAL ============ -->
+        <section class="set-group" data-group="experimental">
+          <div class="set-group-head">
+            <h1>🧪 实验功能</h1>
+            <p>正在探索的能力 · 默认关闭 · 可随时关回 · 不影响核心功能</p>
+          </div>
+
+          <div class="callout exp">
+            <span data-icon="sparkles" data-size="16"></span>
+            <span>
+              <strong>为什么是实验功能?</strong> 按 ADR-009 / ADR-010 精神,这里的能力**不反向驱动任务引擎**(不改任务难度、不改番茄时长、不改 S/A/B/C 评级)。
+              我们先小步验证,再决定是否升为正式功能。你的数据始终保留,即使关闭后再开,历史记录仍在。
+            </span>
+          </div>
+
+          <!-- 心情打卡: 第一个实验功能 -->
+          <div class="exp-card" id="exp-mood">
+            <div class="exp-card__head">
+              <div class="exp-card__emoji">☀️</div>
+              <div class="exp-card__info">
+                <h4>
+                  每日心情打卡
+                  <span class="exp-tag">Beta</span>
+                </h4>
+                <p>
+                  早晨给今天定一个"意图档位"(🌙→🔥),晚上结算时再记录"真实感受"(😔→😍)。
+                  两次打卡合计约 10 秒 · 仅记录,不联动任务推荐或评级。
+                </p>
+              </div>
+              <div class="toggle-sw" role="switch" aria-checked="false" data-bind="mood-master"></div>
+            </div>
+
+            <!-- 子选项: 主开关开启后才显示 -->
+            <div class="exp-card__body">
+              <div class="exp-sub-row">
+                <div>
+                  <div class="k"><span class="emoji">🌤</span> 晨间意图打卡</div>
+                  <div class="d">每日首次打开主窗口时展开一次 · 在"今日切片"折叠卡内 · 可跳过</div>
+                </div>
+                <div class="toggle-sw is-on" role="switch" aria-checked="true" data-bind="mood-morning"></div>
+              </div>
+
+              <div class="exp-sub-row">
+                <div>
+                  <div class="k"><span class="emoji">🙂</span> 晚间真实情绪</div>
+                  <div class="d">日结算第 2 步 · 先看摘要再自评 · 不影响 S/A/B/C 评级</div>
+                </div>
+                <div class="toggle-sw is-on" role="switch" aria-checked="true" data-bind="mood-evening"></div>
+              </div>
+
+              <div class="exp-sub-row">
+                <div>
+                  <div class="k">连续 3 天未打卡自动暂停提示</div>
+                  <div class="d">避免把"打卡"变成另一种负担 · 三天没填会收起入口,两周内可重启</div>
+                </div>
+                <div class="toggle-sw is-on" role="switch" aria-checked="true" data-bind="mood-auto-pause"></div>
+              </div>
+
+              <div class="exp-card__footer">
+                <span style="font-size:var(--fs-12);color:var(--color-text-muted)">
+                  📎 相关决策: <code>ADR-009</code> · <code>docs/02 §5.6</code>
+                </span>
+                <a class="link" href="../screens/mood-check.html" target="_blank" rel="noopener">
+                  预览交互 <span data-icon="external-link" data-size="12"></span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- 预留: 其他未来实验功能 -->
+          <div class="exp-placeholder">
+            更多实验功能正在设计中 · 如果你有想法,去「关于 FocusLab · 反馈与建议」告诉我们
+          </div>
+        </section>
+
+        <!-- ============ ABOUT ============ -->
+        <section class="set-group" data-group="about">
+          <div class="about-hero">
+            <div class="logo-big">F</div>
+            <h2>FocusLab</h2>
+            <div class="v">v1.0.0 · 2026-04-17 · 构建 2604.17</div>
+          </div>
+
+          <div class="callout info" style="max-width:600px;margin:0 auto var(--sp-6)">
+            <span data-icon="smile" data-size="16"></span>
+            <span>陪伴式效率管理 · 不做监工,做镜子;不做法官,做伙伴</span>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">检查更新</div>
+              <div class="set-desc">当前已是最新版本</div>
+            </div>
+            <div class="set-control">
+              <button class="btn btn-secondary btn-sm">手动检查</button>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">自动更新</div>
+              <div class="set-desc">有新版本时自动下载,下次启动应用</div>
+            </div>
+            <div class="set-control">
+              <div class="toggle-sw is-on" role="switch" aria-checked="true"></div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">反馈与建议</div>
+              <div class="set-desc">告诉我们你想要什么功能 · 每封都会读</div>
+            </div>
+            <div class="set-control">
+              <button class="btn btn-primary btn-sm"><span data-icon="edit" data-size="14"></span> 写反馈</button>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-title">开源许可</div>
+              <div class="set-desc">FocusLab 使用了许多出色的开源项目</div>
+            </div>
+            <div class="set-control">
+              <button class="btn btn-ghost btn-sm">查看列表 <span data-icon="chevron-right" data-size="14"></span></button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  try {
+    const saved = localStorage.getItem('fl-theme');
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+
+  // Group switching
+  const items = document.querySelectorAll('.settings-nav .s-item[data-group]');
+  const groups = document.querySelectorAll('.set-group[data-group]');
+  items.forEach(it => {
+    it.addEventListener('click', () => {
+      const g = it.dataset.group;
+      items.forEach(x => x.classList.toggle('is-active', x.dataset.group === g));
+      groups.forEach(x => x.classList.toggle('is-active', x.dataset.group === g));
+      document.querySelector('.settings-main').scrollTop = 0;
+    });
+  });
+
+  // Toggle switches + 持久化到 localStorage(有 data-bind 才持久化)
+  document.querySelectorAll('.toggle-sw').forEach(el => {
+    // 启动时从 localStorage 恢复
+    if (el.dataset.bind) {
+      const key = 'fl-pref-' + el.dataset.bind;
+      const stored = localStorage.getItem(key);
+      if (stored === 'on') {
+        el.classList.add('is-on'); el.setAttribute('aria-checked', 'true');
+      } else if (stored === 'off') {
+        el.classList.remove('is-on'); el.setAttribute('aria-checked', 'false');
+      }
+    }
+    el.addEventListener('click', () => {
+      el.classList.toggle('is-on');
+      el.setAttribute('aria-checked', el.classList.contains('is-on'));
+      if (el.dataset.bind) {
+        localStorage.setItem('fl-pref-' + el.dataset.bind, el.classList.contains('is-on') ? 'on' : 'off');
+      }
+    });
+  });
+
+  // Experimental · mood master toggle → 展开子选项
+  const moodMaster = document.querySelector('[data-bind="mood-master"]');
+  const moodCard   = document.getElementById('exp-mood');
+  if (moodMaster && moodCard) {
+    const syncMood = () => {
+      moodCard.classList.toggle('is-enabled', moodMaster.classList.contains('is-on'));
+    };
+    moodMaster.addEventListener('click', () => { setTimeout(syncMood, 0); });
+    syncMood();
+  }
+
+  // Radio pill groups
+  document.querySelectorAll('.radio-pill-group').forEach(group => {
+    group.querySelectorAll('.radio-pill').forEach(p => {
+      p.addEventListener('click', () => {
+        group.querySelectorAll('.radio-pill').forEach(x => x.classList.remove('is-active'));
+        p.classList.add('is-active');
+      });
+    });
+  });
+
+  // Mode cards
+  document.querySelectorAll('.mode-cards').forEach(group => {
+    group.querySelectorAll('.mode-card').forEach(c => {
+      c.addEventListener('click', () => {
+        group.querySelectorAll('.mode-card').forEach(x => x.classList.remove('is-selected'));
+        c.classList.add('is-selected');
+      });
+    });
+  });
+
+  // Slider track gradient update
+  document.querySelectorAll('input[type="range"].fl-slider').forEach(slider => {
+    const update = () => {
+      const pct = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+      slider.style.background = `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${pct}%, var(--color-border) ${pct}%, var(--color-border) 100%)`;
+      const valueEl = slider.parentElement.querySelector('.slider-value');
+      if (valueEl) {
+        // preserve m suffix if present
+        const hadM = valueEl.textContent.trim().endsWith('m');
+        valueEl.textContent = slider.value + (hadM ? 'm' : '');
+      }
+    };
+    slider.addEventListener('input', update);
+    update();
+  });
+</script>
+</body>
+</html>

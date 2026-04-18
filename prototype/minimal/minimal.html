@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 极简模式</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { padding: 0; background: var(--color-bg); }
+  .showcase-wrap { max-width: 1200px; margin: 0 auto; padding: var(--sp-8) var(--sp-6); }
+
+  .showcase-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: var(--sp-6); gap: var(--sp-4); flex-wrap: wrap; }
+  .showcase-head h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .showcase-head .sub { color: var(--color-text-secondary); font-size: var(--fs-14); margin-top: 4px; }
+  .nav-back { color: var(--color-text-secondary); font-size: var(--fs-13, 13px); display:inline-flex; align-items:center; gap:4px; }
+  .nav-back:hover { color: var(--color-primary); }
+
+  /* Comparison layout */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: var(--sp-6);
+    align-items: start;
+  }
+
+  /* ============ Minimal window mockup ============ */
+  .mini-window {
+    background: var(--color-bg-elevated);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 640px;
+    border: 1px solid var(--color-border);
+  }
+
+  .mw-title {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 36px; padding: 0 var(--sp-3);
+    background: var(--color-bg-subtle);
+    border-bottom: 1px solid var(--color-border);
+    user-select: none;
+  }
+  .mw-title .left { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-12); color: var(--color-text-secondary); }
+  .mw-title .dots { display: flex; gap: 5px; }
+  .mw-title .dots span { width: 10px; height: 10px; border-radius: 50%; }
+  .mw-title .dots span:nth-child(1) { background: #FF5F57; }
+  .mw-title .dots span:nth-child(2) { background: #FEBC2E; }
+  .mw-title .dots span:nth-child(3) { background: #28C840; }
+
+  .mw-body {
+    flex: 1;
+    padding: var(--sp-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    min-width: 0;
+  }
+
+  .mw-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding-bottom: var(--sp-3);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .mw-head .date { font-size: var(--fs-14); font-weight: var(--fw-semibold); }
+  .mw-head .week { font-size: var(--fs-12); color: var(--color-text-muted); }
+
+  /* Section */
+  .mw-section-title {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: var(--fs-12);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-muted);
+    font-weight: var(--fw-medium);
+    margin-bottom: var(--sp-2);
+  }
+
+  /* Task rows (plain) */
+  .mw-task {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 10px 12px;
+    border-radius: var(--r-sm);
+    border: 1px solid transparent;
+    transition: background var(--dur-base);
+    cursor: pointer;
+  }
+  .mw-task:hover { background: var(--color-bg-hover); }
+  .mw-task .fl-check { width: 18px; height: 18px; }
+  .mw-task .title { flex: 1; font-size: var(--fs-14); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mw-task .meta { font-size: var(--fs-12); color: var(--color-text-muted); flex-shrink: 0; }
+  .mw-task.is-done .title { text-decoration: line-through; color: var(--color-text-muted); }
+  .mw-task .start-btn {
+    opacity: 0;
+    transition: opacity var(--dur-base);
+  }
+  .mw-task:hover .start-btn { opacity: 1; }
+
+  .mw-add {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 12px;
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--r-sm);
+    color: var(--color-text-muted);
+    font-size: var(--fs-13, 13px);
+    cursor: pointer;
+    transition: all var(--dur-base);
+  }
+  .mw-add:hover { color: var(--color-primary); border-color: var(--color-primary); background: var(--color-primary-soft); }
+
+  /* Pomodoro mini */
+  .mw-pomo {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3);
+    background: var(--color-bg-subtle);
+    border-radius: var(--r-sm);
+  }
+  .mw-pomo.is-empty { color: var(--color-text-muted); }
+  .mw-pomo .mini-ring {
+    width: 48px; height: 48px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .mw-pomo .mini-ring svg { width: 100%; height: 100%; }
+  .mw-pomo .mini-ring .tr { fill: none; stroke: var(--color-border); stroke-width: 4; }
+  .mw-pomo .mini-ring .fl { fill: none; stroke: var(--color-primary); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 132; stroke-dashoffset: 33; transform: rotate(-90deg); transform-origin: 50% 50%; }
+  .mw-pomo .mini-ring .c {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+  }
+  .mw-pomo .info { flex: 1; min-width: 0; }
+  .mw-pomo .info .t { font-size: var(--fs-13, 13px); font-weight: var(--fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mw-pomo .info .s { font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
+  .mw-pomo .ctrl { display: flex; gap: 4px; }
+  .mw-pomo .ctrl button {
+    width: 28px; height: 28px;
+    border-radius: var(--r-xs);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    display: grid; place-items: center;
+    cursor: pointer;
+    transition: all var(--dur-base);
+  }
+  .mw-pomo .ctrl button:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+  /* Stats row */
+  .mw-stats {
+    display: flex; justify-content: space-between;
+    padding: var(--sp-3);
+    border-top: 1px solid var(--color-divider);
+    font-size: var(--fs-12);
+    color: var(--color-text-secondary);
+  }
+  .mw-stats .item strong { color: var(--color-text-primary); font-family: var(--font-mono); font-size: var(--fs-14); display: block; }
+
+  /* Footer */
+  .mw-foot {
+    padding: var(--sp-3);
+    display: flex; justify-content: center;
+    border-top: 1px solid var(--color-divider);
+  }
+
+  /* ============ Compare panel (right) ============ */
+  .compare-info {
+    padding: var(--sp-5);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+  }
+  .compare-info h2 { font-size: var(--fs-16); font-weight: var(--fw-semibold); margin-bottom: var(--sp-3); }
+  .compare-info > p { font-size: var(--fs-14); color: var(--color-text-secondary); line-height: 1.7; margin-bottom: var(--sp-4); }
+
+  .quote {
+    padding: var(--sp-3) var(--sp-4);
+    border-left: 3px solid var(--color-primary);
+    background: var(--color-primary-soft);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-13, 13px);
+    color: var(--color-primary-dark);
+    line-height: 1.7;
+    margin-bottom: var(--sp-5);
+  }
+
+  .feat-table { width: 100%; border-collapse: collapse; font-size: var(--fs-13, 13px); }
+  .feat-table thead th {
+    text-align: left;
+    padding: 10px 12px;
+    background: var(--color-bg-subtle);
+    color: var(--color-text-muted);
+    font-size: var(--fs-12);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: var(--fw-medium);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .feat-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .feat-table td:first-child { color: var(--color-text-primary); }
+  .feat-table td.yes { color: var(--color-success); text-align: center; }
+  .feat-table td.no { color: var(--color-text-muted); text-align: center; }
+  .feat-table tbody tr:last-child td { border-bottom: none; }
+
+  .toggle-inline {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-4);
+    background: var(--color-bg-subtle);
+    border-radius: var(--r-md);
+    margin-top: var(--sp-4);
+  }
+  .toggle-inline .t { flex: 1; font-size: var(--fs-13, 13px); }
+  .toggle-inline .t strong { display: block; font-size: var(--fs-14); font-weight: var(--fw-semibold); margin-bottom: 2px; }
+  .toggle-inline .t span { color: var(--color-text-secondary); }
+
+  /* Who should use */
+  .use-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); margin-top: var(--sp-4); }
+  .use-card { padding: var(--sp-3); background: var(--color-bg-subtle); border-radius: var(--r-sm); }
+  .use-card h4 { display: flex; align-items: center; gap: 6px; font-size: var(--fs-13, 13px); font-weight: var(--fw-semibold); margin-bottom: 6px; }
+  .use-card p { font-size: var(--fs-12); color: var(--color-text-secondary); line-height: 1.5; }
+  .use-card.std h4 { color: var(--color-primary); }
+  .use-card.min h4 { color: var(--color-success); }
+
+  .caption {
+    margin-top: var(--sp-3);
+    text-align: center;
+    font-size: var(--fs-12);
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 960px) {
+    .compare-grid { grid-template-columns: 1fr; }
+    .mini-window { max-width: 420px; margin: 0 auto; }
+    .use-cards { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="showcase-wrap">
+  <div class="showcase-head">
+    <div>
+      <h1>🍃 极简模式</h1>
+      <div class="sub">只保留核心 · 一个小窗口就是全部 · docs/05 §6</div>
+    </div>
+    <a class="nav-back" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回原型导航</a>
+  </div>
+
+  <div class="compare-grid">
+
+    <!-- ============ 左:极简窗口 mockup ============ -->
+    <div>
+      <div class="mini-window">
+        <div class="mw-title">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <div class="left">
+            <span style="width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));display:inline-grid;place-items:center;color:#fff;font-weight:700;font-size:9px">F</span>
+            FocusLab
+          </div>
+          <button class="btn-icon btn-sm" aria-label="设置"><span data-icon="settings" data-size="14"></span></button>
+        </div>
+
+        <div class="mw-body">
+          <!-- Header -->
+          <div class="mw-head">
+            <div>
+              <div class="date">4 月 17 日</div>
+            </div>
+            <div class="week">周五 · 上午 10:24</div>
+          </div>
+
+          <!-- Today tasks -->
+          <div>
+            <div class="mw-section-title">
+              <span>今天的任务 · 1/4</span>
+              <button class="btn btn-ghost btn-sm" style="padding:0;color:var(--color-primary)"><span data-icon="plus" data-size="14"></span></button>
+            </div>
+            <div class="mw-task">
+              <span class="fl-check"></span>
+              <span class="title">复现 baseline 代码</span>
+              <button class="btn btn-soft btn-sm start-btn" style="padding:0 10px"><span data-icon="play" data-size="12"></span> 开始</button>
+            </div>
+            <div class="mw-task">
+              <span class="fl-check"></span>
+              <span class="title">阅读文献 2 篇</span>
+              <span class="meta">1.5h</span>
+            </div>
+            <div class="mw-task is-done">
+              <span class="fl-check is-checked"><span data-icon="check" data-size="12"></span></span>
+              <span class="title">回复导师邮件</span>
+              <span class="meta">30m</span>
+            </div>
+            <div class="mw-task">
+              <span class="fl-check"></span>
+              <span class="title">提交报销单</span>
+              <span class="meta">20m</span>
+            </div>
+            <div class="mw-add">
+              <span data-icon="plus" data-size="14"></span>
+              添加任务
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--color-divider); margin: var(--sp-2) 0"></div>
+
+          <!-- Pomodoro mini -->
+          <div>
+            <div class="mw-section-title">
+              <span>番茄钟</span>
+            </div>
+            <div class="mw-pomo">
+              <div class="mini-ring">
+                <svg viewBox="0 0 48 48">
+                  <circle class="tr" cx="24" cy="24" r="21"/>
+                  <circle class="fl" cx="24" cy="24" r="21"/>
+                </svg>
+                <div class="c">18:32</div>
+              </div>
+              <div class="info">
+                <div class="t">复现 baseline 代码</div>
+                <div class="s">第 4 个番茄钟 · 专注中</div>
+              </div>
+              <div class="ctrl">
+                <button aria-label="暂停"><span data-icon="pause" data-size="12"></span></button>
+                <button aria-label="结束"><span data-icon="square" data-size="12"></span></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats -->
+          <div class="mw-stats">
+            <div class="item">完成 <strong>1 / 4</strong></div>
+            <div class="item">专注 <strong>1h 20m</strong></div>
+            <div class="item">番茄钟 <strong>3 个</strong></div>
+          </div>
+
+          <!-- Footer: end today -->
+          <div class="mw-foot">
+            <button class="btn btn-primary btn-sm" style="width:100%">
+              <span data-icon="moon" data-size="14"></span>
+              结束今天
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="caption">极简模式窗口 · 420 × 640 推荐尺寸 · 一眼就够了</div>
+    </div>
+
+    <!-- ============ 右:说明与对比 ============ -->
+    <div>
+      <div class="compare-info">
+        <h2>为什么需要极简模式?</h2>
+        <p>
+          有些研究生不需要 AI、不需要四象限、不需要长线目标,只想要一个简单的任务清单 + 番茄钟。
+          FocusLab 的极简模式把界面砍到最小,隐藏所有高级功能,给你一个接近 Forest + 便签的体验。
+        </p>
+        <div class="quote">
+          "渐进,不强制 · 新用户看到简洁界面,老用户解锁高级功能 · 永远给用户'不用这个功能'的选项。"<br/>
+          <span style="font-size:11px;color:var(--color-text-muted)">— docs/01 · 产品设计原则 4</span>
+        </div>
+
+        <h3 style="font-size:var(--fs-14);font-weight:var(--fw-semibold);margin-bottom:var(--sp-3)">功能对照</h3>
+        <table class="feat-table">
+          <thead>
+            <tr><th>功能</th><th style="text-align:center">标准模式</th><th style="text-align:center">极简模式</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>任务列表</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+            <tr><td>番茄钟</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+            <tr><td>悬浮球</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+            <tr><td>系统托盘</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+            <tr><td>基本日结算</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+            <tr><td>四象限视图</td><td class="yes">✓</td><td class="no">—</td></tr>
+            <tr><td>长线目标 + 里程碑</td><td class="yes">✓</td><td class="no">—</td></tr>
+            <tr><td>AI 所有功能</td><td class="yes">✓</td><td class="no">—</td></tr>
+            <tr><td>日结算 S/A/B/C 分级</td><td class="yes">✓</td><td class="no">—</td></tr>
+            <tr><td>热力图 · 趋势图</td><td class="yes">✓</td><td class="no">—</td></tr>
+            <tr><td>能量状态选择</td><td class="yes">✓</td><td class="no">—</td></tr>
+            <tr><td>引导思考流程</td><td class="yes">✓</td><td class="no">—</td></tr>
+            <tr><td>周报 · 数据分析</td><td class="yes">✓</td><td class="no">—</td></tr>
+          </tbody>
+        </table>
+
+        <div class="toggle-inline">
+          <div class="t">
+            <strong>当前模式 · 标准</strong>
+            <span>任何时候都可以切换 · 数据互通,不会丢失</span>
+          </div>
+          <div class="radio-pill-group">
+            <span class="radio-pill is-active">标准</span>
+            <span class="radio-pill">极简</span>
+          </div>
+        </div>
+
+        <div class="use-cards">
+          <div class="use-card std">
+            <h4><span data-icon="sparkles" data-size="14"></span> 适合标准模式</h4>
+            <p>研究生、博士生、产品经理 · 多线任务并行 · 需要长期目标跟踪和数据洞察</p>
+          </div>
+          <div class="use-card min">
+            <h4><span data-icon="smile" data-size="14"></span> 适合极简模式</h4>
+            <p>偶尔用用番茄钟 · 只想要清单 + 计时 · 不喜欢花哨的数据报告</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings hint -->
+      <div class="card" style="margin-top:var(--sp-4);padding:var(--sp-4);display:flex;align-items:center;gap:var(--sp-3)">
+        <div style="width:36px;height:36px;border-radius:var(--r-sm);background:var(--color-primary-soft);color:var(--color-primary);display:grid;place-items:center">
+          <span data-icon="settings" data-size="18"></span>
+        </div>
+        <div style="flex:1;font-size:var(--fs-13, 13px);color:var(--color-text-secondary)">
+          <strong style="color:var(--color-text-primary)">切换路径</strong> · 设置 → 通用 → 工作模式
+        </div>
+        <a class="btn btn-ghost btn-sm" href="../settings/settings.html">去设置</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 对照:极简 vs 标准 视觉尺寸感 -->
+  <div style="margin-top: var(--sp-10); padding: var(--sp-5); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--r-md);">
+    <h3 style="font-size:var(--fs-14);font-weight:var(--fw-semibold);margin-bottom:var(--sp-3);color:var(--color-text-secondary)">📐 视觉密度对比 · 同一屏下两种模式占用空间</h3>
+    <div style="display:flex;align-items:flex-start;gap:var(--sp-5)">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-2)">
+        <div style="width:280px;height:180px;background:linear-gradient(135deg,var(--color-primary-soft),transparent);border:1.5px solid var(--color-primary);border-radius:var(--r-sm);position:relative">
+          <div style="position:absolute;top:8px;left:8px;font-size:10px;color:var(--color-primary);font-family:var(--font-mono)">1440 × 900</div>
+          <div style="position:absolute;bottom:8px;right:8px;font-size:11px;color:var(--color-primary-dark);font-weight:var(--fw-medium)">标准模式</div>
+        </div>
+        <span style="font-size:var(--fs-12);color:var(--color-text-secondary)">完整工作台体验</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-2);margin-top:60px">
+        <div style="width:130px;height:180px;background:linear-gradient(135deg,var(--color-success-soft),transparent);border:1.5px solid var(--color-success);border-radius:var(--r-sm);position:relative">
+          <div style="position:absolute;top:8px;left:8px;font-size:10px;color:var(--color-success);font-family:var(--font-mono)">420 × 640</div>
+          <div style="position:absolute;bottom:8px;right:8px;font-size:11px;color:#389E0D;font-weight:var(--fw-medium)">极简</div>
+        </div>
+        <span style="font-size:var(--fs-12);color:var(--color-text-secondary)">贴在屏幕角落常驻</span>
+      </div>
+
+      <div style="flex:1;padding:var(--sp-4);background:var(--color-bg-subtle);border-radius:var(--r-sm);font-size:var(--fs-13, 13px);color:var(--color-text-secondary);line-height:1.7">
+        <p style="margin-bottom:var(--sp-2)"><strong style="color:var(--color-text-primary)">标准模式</strong> · 1440 × 900 典型工位显示器 · 适合科研工作台主角色</p>
+        <p><strong style="color:var(--color-text-primary)">极简模式</strong> · 窗口宽度仅 420px · 可贴在屏幕角落常驻,不遮挡其它工作窗口</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  try {
+    const saved = localStorage.getItem('fl-theme');
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+
+  // Radio pill toggle
+  document.querySelectorAll('.radio-pill-group').forEach(group => {
+    group.querySelectorAll('.radio-pill').forEach(p => {
+      p.addEventListener('click', () => {
+        group.querySelectorAll('.radio-pill').forEach(x => x.classList.remove('is-active'));
+        p.classList.add('is-active');
+      });
+    });
+  });
+
+  // Task check toggle
+  document.querySelectorAll('.mw-task').forEach(row => {
+    const check = row.querySelector('.fl-check');
+    check.addEventListener('click', (e) => {
+      e.stopPropagation();
+      check.classList.toggle('is-checked');
+      row.classList.toggle('is-done');
+      if (check.classList.contains('is-checked') && !check.querySelector('svg')) {
+        check.innerHTML = window.Icon ? window.Icon.create('check', { size: 12 }) : '';
+      } else if (!check.classList.contains('is-checked')) {
+        check.innerHTML = '';
+      }
+    });
+  });
+</script>
+</body>
+</html>

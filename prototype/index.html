@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · UI 原型导航</title>
+<link rel="stylesheet" href="assets/tokens.css" />
+<link rel="stylesheet" href="assets/base.css" />
+<link rel="stylesheet" href="assets/components.css" />
+<style>
+  body { background: var(--color-bg); }
+  .hero {
+    padding: 64px var(--sp-6) 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-6);
+  }
+  .hero-title-row { display: flex; align-items: center; gap: var(--sp-3); }
+  .hero-logo {
+    width: 48px; height: 48px; border-radius: var(--r-md);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    display: grid; place-items: center;
+    color: #fff; font-size: 22px; font-weight: var(--fw-bold);
+    box-shadow: 0 6px 16px rgba(79, 140, 255, 0.32);
+  }
+  .hero h1 { font-size: 32px; font-weight: var(--fw-bold); letter-spacing: -0.5px; }
+  .hero-tag { font-size: var(--fs-14); color: var(--color-text-secondary); margin-top: 4px; }
+  .hero-right { display: flex; align-items: center; gap: var(--sp-3); color: var(--color-text-secondary); font-size: var(--fs-12); }
+
+  .batch {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--sp-6) var(--sp-8);
+  }
+  .batch-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-5);
+  }
+  .batch-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--r-pill);
+    font-size: var(--fs-12);
+    font-weight: var(--fw-medium);
+  }
+  .batch-badge.is-p0 { background: var(--color-primary-soft); color: var(--color-primary-dark); }
+  .batch-badge.is-next { background: var(--color-bg-hover); color: var(--color-text-muted); }
+  .batch-title { font-size: var(--fs-20); font-weight: var(--fw-semibold); }
+  .batch-desc { color: var(--color-text-secondary); font-size: var(--fs-14); }
+
+  .screen-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--sp-4);
+  }
+  .screen-card {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    transition: transform var(--dur-base) var(--ease-smooth),
+                box-shadow var(--dur-base) var(--ease-smooth),
+                border-color var(--dur-base) var(--ease-smooth);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+  }
+  .screen-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-float);
+  }
+  .screen-card.disabled { cursor: not-allowed; opacity: 0.7; }
+  .screen-card.disabled:hover { transform: none; box-shadow: var(--shadow-card); border-color: var(--color-border); }
+
+  .thumb {
+    aspect-ratio: 16 / 10;
+    background: var(--color-bg-subtle);
+    border-bottom: 1px solid var(--color-divider);
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+  }
+  .thumb::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 80% 20%, var(--color-primary-soft), transparent 60%);
+    pointer-events: none;
+  }
+  .thumb-label {
+    position: relative;
+    z-index: 1;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--color-text-muted);
+    letter-spacing: 0.5px;
+  }
+
+  .thumb .mini-ring {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 72px; height: 72px;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+  }
+  .thumb .mini-ring circle { fill: none; stroke-width: 6; }
+  .thumb .mini-ring .track { stroke: var(--color-divider); }
+  .thumb .mini-ring .fill { stroke: var(--color-primary); stroke-linecap: round; stroke-dasharray: 220; stroke-dashoffset: 60; transform: rotate(-90deg); transform-origin: 50% 50%; }
+
+  .screen-info { padding: var(--sp-4); }
+  .screen-name { font-size: var(--fs-16); font-weight: var(--fw-semibold); margin-bottom: 4px; }
+  .screen-sub { font-size: var(--fs-12); color: var(--color-text-secondary); line-height: var(--lh-base); }
+  .screen-path {
+    margin-top: var(--sp-3);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-muted);
+  }
+
+  /* 设计规范小抄 */
+  .spec {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--sp-6) 64px;
+  }
+  .spec-title {
+    font-size: var(--fs-16);
+    font-weight: var(--fw-semibold);
+    margin-bottom: var(--sp-4);
+    color: var(--color-text-secondary);
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .spec-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--sp-4);
+  }
+  .spec-card { padding: var(--sp-4); }
+  .spec-card h4 { font-size: var(--fs-12); color: var(--color-text-muted); margin-bottom: var(--sp-3); letter-spacing: 0.5px; text-transform: uppercase; }
+
+  .color-row { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-12); margin-bottom: 8px; }
+  .color-swatch { width: 20px; height: 20px; border-radius: var(--r-sm); flex-shrink: 0; border: 1px solid var(--color-border); }
+
+  .scale-list { display: flex; flex-direction: column; gap: 6px; }
+  .scale-list .row { display: flex; align-items: baseline; justify-content: space-between; font-size: var(--fs-12); color: var(--color-text-secondary); }
+  .scale-list .row .sample { color: var(--color-text-primary); }
+
+  .radius-demo { display: flex; align-items: center; gap: var(--sp-3); }
+  .radius-demo .box { width: 32px; height: 32px; background: var(--color-primary-soft); border: 1px solid var(--color-primary); }
+
+  .shadow-demo { display: flex; flex-direction: column; gap: var(--sp-3); padding-top: var(--sp-2); }
+  .shadow-demo .tile {
+    height: 32px;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-sm);
+    display: flex; align-items: center; padding: 0 var(--sp-3);
+    font-size: var(--fs-12); color: var(--color-text-secondary);
+  }
+
+  @media (max-width: 960px) {
+    .spec-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 600px) {
+    .spec-grid { grid-template-columns: 1fr; }
+    .hero { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div>
+    <div class="hero-title-row">
+      <div class="hero-logo">F</div>
+      <div>
+        <h1>FocusLab · UI 原型</h1>
+        <div class="hero-tag">面向研究生的桌面端专注力应用 · 陪伴式效率管理</div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-right">
+    <span>浅</span>
+    <div class="theme-toggle" id="themeToggle" role="switch" aria-label="切换深浅模式"></div>
+    <span>深</span>
+  </div>
+</header>
+
+<section class="batch">
+  <div class="batch-header">
+    <span class="batch-badge is-p0">Batch 1 · P0 核心</span>
+    <div>
+      <div class="batch-title">核心工作流程 5 屏</div>
+      <div class="batch-desc">研究生每天都会触达的主链路:主窗口 → 任务 → 专注 → 悬浮 → 结算。</div>
+    </div>
+  </div>
+
+  <div class="screen-grid">
+    <a class="screen-card" href="screens/main-today.html">
+      <div class="thumb">
+        <svg class="mini-ring" viewBox="0 0 80 80">
+          <circle class="track" cx="40" cy="40" r="35" />
+          <circle class="fill" cx="40" cy="40" r="35" />
+        </svg>
+        <span class="thumb-label">today · plan</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">主窗口 · 今日计划</div>
+        <div class="screen-sub">侧栏导航 + 当前专注卡 + 四象限任务分组 + 底部进度</div>
+        <div class="screen-path">screens/main-today.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="screens/main-tasks.html">
+      <div class="thumb">
+        <svg viewBox="0 0 120 80" style="position:absolute;z-index:1;width:52%">
+          <rect x="4" y="4" width="52" height="32" rx="4" fill="var(--color-q1-soft)" stroke="var(--color-q1)" stroke-width="0.8"/>
+          <rect x="64" y="4" width="52" height="32" rx="4" fill="var(--color-q2-soft)" stroke="var(--color-q2)" stroke-width="0.8"/>
+          <rect x="4" y="44" width="52" height="32" rx="4" fill="var(--color-q3-soft)" stroke="var(--color-q3)" stroke-width="0.8"/>
+          <rect x="64" y="44" width="52" height="32" rx="4" fill="var(--color-q4-soft)" stroke="var(--color-q4)" stroke-width="0.8"/>
+        </svg>
+        <span class="thumb-label" style="margin-top:80px">quadrant view</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">任务列表 · 四象限</div>
+        <div class="screen-sub">紧急重要矩阵 · 视图切换 · AI 建议条 · 空态占位</div>
+        <div class="screen-path">screens/main-tasks.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="screens/pomodoro.html">
+      <div class="thumb">
+        <svg class="mini-ring" viewBox="0 0 80 80" style="width:90px;height:90px">
+          <circle class="track" cx="40" cy="40" r="34" stroke-width="6"/>
+          <circle cx="40" cy="40" r="34" fill="none" stroke="var(--color-primary)" stroke-width="6" stroke-dasharray="214" stroke-dashoffset="40" stroke-linecap="round" transform="rotate(-90 40 40)"/>
+          <text x="40" y="45" text-anchor="middle" font-size="14" font-weight="600" fill="var(--color-text-primary)">18:32</text>
+        </svg>
+        <span class="thumb-label" style="margin-top:120px">pomodoro</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">番茄钟沉浸视图</div>
+        <div class="screen-sub">专注 / 最后 5 分钟 / 休息 / 完成 四态 · 色彩主题切换</div>
+        <div class="screen-path">screens/pomodoro.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="screens/floating-ball.html">
+      <div class="thumb">
+        <div style="position:absolute;bottom:24px;right:24px;width:56px;height:56px;border-radius:999px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));box-shadow:0 6px 16px rgba(79,140,255,.35);z-index:2;"></div>
+        <span class="thumb-label">floating orb</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">悬浮球 · 托盘</div>
+        <div class="screen-sub">三态展示 · 展开 mini 面板 · 托盘右键菜单</div>
+        <div class="screen-path">screens/floating-ball.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="screens/settlement.html">
+      <div class="thumb">
+        <div style="position:absolute;z-index:1;display:flex;gap:6px;">
+          <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,#FAAD14,#FF8C00);"></div>
+          <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,#FAAD14,#FFD666);"></div>
+          <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,#4F8CFF,#7AABFF);"></div>
+          <div style="width:28px;height:36px;border-radius:6px;background:linear-gradient(135deg,#8C8C8C,#B2B6C2);"></div>
+        </div>
+        <span class="thumb-label" style="margin-top:64px">S · A · B · C</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">日结算面板</div>
+        <div class="screen-sub">S/A/B/C 四级变体 · AI 寄语 · 温和未完成处理</div>
+        <div class="screen-path">screens/settlement.html</div>
+      </div>
+    </a>
+  </div>
+</section>
+
+<section class="batch">
+  <div class="batch-header">
+    <span class="batch-badge is-p0" style="background: var(--color-success-soft); color: var(--color-success);">Batch 2 · 扩展场景</span>
+    <div>
+      <div class="batch-title">完整使用周期 5 屏</div>
+      <div class="batch-desc">从首次启动到长线运营 · 与 Batch 1 共用同一 Token 体系。</div>
+    </div>
+  </div>
+
+  <div class="screen-grid">
+
+    <a class="screen-card" href="onboarding/ftue.html">
+      <div class="thumb">
+        <div style="position:absolute;z-index:1;display:flex;gap:4px;">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--color-success);display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700">✓</div>
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--color-primary);display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700;box-shadow:0 0 0 3px rgba(79,140,255,0.25)">2</div>
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--color-bg-hover);display:grid;place-items:center;color:var(--color-text-muted);font-size:11px;font-weight:700">3</div>
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--color-bg-hover);display:grid;place-items:center;color:var(--color-text-muted);font-size:11px;font-weight:700">4</div>
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--color-bg-hover);display:grid;place-items:center;color:var(--color-text-muted);font-size:11px;font-weight:700">5</div>
+        </div>
+        <span class="thumb-label" style="margin-top:48px">onboarding · 5 steps</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">FTUE 首次启动引导</div>
+        <div class="screen-sub">5 步并排呈现 · 欢迎 / 偏好 / AI / 首个目标 / 开工</div>
+        <div class="screen-path">onboarding/ftue.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="goals/milestones.html">
+      <div class="thumb">
+        <svg viewBox="0 0 180 60" style="position:absolute;z-index:1;width:70%">
+          <line x1="15" y1="30" x2="165" y2="30" stroke="var(--color-border-strong)" stroke-width="2" stroke-dasharray="4 3"/>
+          <line x1="15" y1="30" x2="70" y2="30" stroke="var(--color-success)" stroke-width="2"/>
+          <circle cx="15" cy="30" r="8" fill="var(--color-success)"/>
+          <circle cx="42" cy="30" r="8" fill="var(--color-success)"/>
+          <circle cx="70" cy="30" r="10" fill="var(--color-primary)" stroke="rgba(79,140,255,0.3)" stroke-width="4"/>
+          <circle cx="98" cy="30" r="7" fill="var(--color-bg-elevated)" stroke="var(--color-border-strong)" stroke-width="2"/>
+          <circle cx="126" cy="30" r="7" fill="var(--color-bg-elevated)" stroke="var(--color-border-strong)" stroke-width="2"/>
+          <circle cx="154" cy="30" r="7" fill="var(--color-bg-elevated)" stroke="var(--color-border-strong)" stroke-width="2"/>
+        </svg>
+        <span class="thumb-label" style="margin-top:80px">milestone timeline</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">长线目标 + 里程碑</div>
+        <div class="screen-sub">目标 → 里程碑 → 子任务 三层时间线 · 进度环</div>
+        <div class="screen-path">goals/milestones.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="insights/analytics.html">
+      <div class="thumb">
+        <svg viewBox="0 0 140 70" style="position:absolute;z-index:1;width:65%">
+          <path d="M 5 55 L 25 30 L 45 40 L 65 15 L 85 25 L 105 10 L 125 20" fill="none" stroke="var(--color-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 5 55 L 25 30 L 45 40 L 65 15 L 85 25 L 105 10 L 125 20 L 125 65 L 5 65 Z" fill="var(--color-primary)" opacity="0.18"/>
+          <circle cx="105" cy="10" r="3" fill="var(--color-primary)"/>
+        </svg>
+        <span class="thumb-label" style="margin-top:80px">trend · heatmap · donut</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">数据分析 · 周报</div>
+        <div class="screen-sub">热力图 · 时间分布 · 趋势曲线 · AI 周度小结</div>
+        <div class="screen-path">insights/analytics.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="settings/settings.html">
+      <div class="thumb">
+        <div style="position:absolute;z-index:1;display:flex;flex-direction:column;gap:6px;width:62%">
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--color-primary-soft);border-radius:6px">
+            <div style="width:14px;height:14px;border-radius:3px;background:var(--color-primary)"></div>
+            <div style="flex:1;height:4px;background:var(--color-primary-dark);border-radius:2px;opacity:0.5"></div>
+            <div style="width:28px;height:14px;border-radius:10px;background:var(--color-primary)"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--color-bg-elevated);border-radius:6px;border:1px solid var(--color-border)">
+            <div style="width:14px;height:14px;border-radius:3px;background:var(--color-bg-hover)"></div>
+            <div style="flex:1;height:4px;background:var(--color-border);border-radius:2px"></div>
+            <div style="width:28px;height:14px;border-radius:10px;background:var(--color-border-strong)"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--color-bg-elevated);border-radius:6px;border:1px solid var(--color-border)">
+            <div style="width:14px;height:14px;border-radius:3px;background:var(--color-bg-hover)"></div>
+            <div style="flex:1;height:4px;background:var(--color-border);border-radius:2px"></div>
+            <div style="width:28px;height:14px;border-radius:10px;background:var(--color-primary)"></div>
+          </div>
+        </div>
+        <span class="thumb-label" style="margin-top:96px">preferences</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">设置</div>
+        <div class="screen-sub">通用 / 外观 / 番茄钟 / 通知 / 快捷键 / AI / 隐私 / 数据</div>
+        <div class="screen-path">settings/settings.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="minimal/minimal.html">
+      <div class="thumb">
+        <div style="position:absolute;z-index:1;width:88px;height:110px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:6px;box-shadow:0 4px 12px rgba(20,28,48,0.12);overflow:hidden">
+          <div style="height:14px;background:var(--color-bg-subtle);border-bottom:1px solid var(--color-border);display:flex;align-items:center;gap:2px;padding:0 4px">
+            <span style="width:4px;height:4px;border-radius:50%;background:#FF5F57"></span>
+            <span style="width:4px;height:4px;border-radius:50%;background:#FEBC2E"></span>
+            <span style="width:4px;height:4px;border-radius:50%;background:#28C840"></span>
+          </div>
+          <div style="padding:6px">
+            <div style="height:3px;background:var(--color-text-muted);width:50%;margin-bottom:6px;border-radius:1px"></div>
+            <div style="height:3px;background:var(--color-border-strong);width:80%;margin-bottom:4px;border-radius:1px"></div>
+            <div style="height:3px;background:var(--color-border-strong);width:70%;margin-bottom:4px;border-radius:1px"></div>
+            <div style="height:3px;background:var(--color-border);width:60%;margin-bottom:8px;border-radius:1px"></div>
+            <div style="height:12px;background:var(--color-primary);border-radius:2px"></div>
+          </div>
+        </div>
+        <span class="thumb-label" style="margin-top:130px">minimal · 420 × 640</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">极简模式</div>
+        <div class="screen-sub">纯列表 · 无 AI · 贴屏幕角落常驻</div>
+        <div class="screen-path">minimal/minimal.html</div>
+      </div>
+    </a>
+  </div>
+</section>
+
+<section class="batch">
+  <div class="batch-header">
+    <span class="batch-badge is-p0" style="background: color-mix(in srgb, #B87FFF 15%, transparent); color: #7B52D6;">Batch 3 · 场景细节</span>
+    <div>
+      <div class="batch-title">深度使用场景 5 屏</div>
+      <div class="batch-desc">从晨起仪式到任务复盘 · 从日历总览到搁置策略 · 从命令面板到危险操作确认</div>
+    </div>
+  </div>
+
+  <div class="screen-grid">
+
+    <a class="screen-card" href="onboarding/morning-guide.html">
+      <div class="thumb">
+        <div style="position:absolute;z-index:1;font-size:60px;line-height:1">🌅</div>
+        <span class="thumb-label" style="margin-top:90px">morning · 5 steps</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">晨起引导思考</div>
+        <div class="screen-sub">昨日回顾 / 审视目标 / 检查日程 / 设定目标 / 能量状态 + 轻量思考卡</div>
+        <div class="screen-path">onboarding/morning-guide.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="screens/micro-review.html">
+      <div class="thumb">
+        <div style="position:absolute;z-index:1;width:110px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:6px;box-shadow:var(--shadow-float);overflow:hidden">
+          <div style="padding:6px 8px;background:var(--color-primary-soft);font-size:10px;font-weight:600;color:var(--color-primary-dark)">📝 快速复盘</div>
+          <div style="padding:6px 8px;font-size:9px;color:var(--color-text-secondary);line-height:1.4">
+            <div style="color:var(--color-text-primary);font-weight:600;margin-bottom:3px">复现 baseline</div>
+            <div>预估 2h → 实际 3h 28m</div>
+            <div style="margin-top:4px;display:flex;gap:3px"><span style="background:var(--color-primary);color:#fff;padding:1px 4px;border-radius:2px">比预期难</span></div>
+          </div>
+        </div>
+        <span class="thumb-label" style="margin-top:120px">micro review</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">任务微复盘</div>
+        <div class="screen-sub">4 种触发场景 · 时间偏差 / Q1 / 里程碑 / 静默 · 数据喂给周报和科研日志</div>
+        <div class="screen-path">screens/micro-review.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="screens/calendar.html">
+      <div class="thumb">
+        <div style="position:absolute;z-index:1;display:grid;grid-template-columns:repeat(7,14px);gap:2px">
+          <div style="width:14px;height:12px;background:var(--color-bg-hover);border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:var(--color-bg-hover);border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:var(--color-primary-soft);border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:color-mix(in srgb, var(--color-primary) 40%, var(--color-bg-hover));border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:color-mix(in srgb, var(--color-primary) 65%, var(--color-bg-hover));border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:var(--color-bg-hover);border-radius:2px;opacity:0.3"></div>
+          <div style="width:14px;height:12px;background:var(--color-bg-hover);border-radius:2px;opacity:0.3"></div>
+          <div style="width:14px;height:12px;background:var(--color-primary-soft);border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:color-mix(in srgb, var(--color-primary) 40%, var(--color-bg-hover));border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:var(--color-primary);border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:color-mix(in srgb, var(--color-primary) 65%, var(--color-bg-hover));border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:color-mix(in srgb, var(--color-primary) 40%, var(--color-bg-hover));border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:var(--color-bg-hover);border-radius:2px;opacity:0.3"></div>
+          <div style="width:14px;height:12px;background:var(--color-bg-hover);border-radius:2px;opacity:0.3"></div>
+          <div style="width:14px;height:12px;background:var(--color-primary-soft);border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:var(--color-primary);border-radius:2px;box-shadow:0 0 0 2px var(--color-primary);transform:scale(1.1)"></div>
+          <div style="width:14px;height:12px;background:var(--color-bg-hover);border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:var(--color-bg-hover);border-radius:2px"></div>
+          <div style="width:14px;height:12px;background:var(--color-bg-hover);border-radius:2px;opacity:0.3"></div>
+          <div style="width:14px;height:12px;background:var(--color-bg-hover);border-radius:2px;opacity:0.3"></div>
+        </div>
+        <span class="thumb-label" style="margin-top:80px">month · schedule</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">日历视图</div>
+        <div class="screen-sub">月视图 + 每日 S/A/B/C 标记 + 每周固定日程模板 + 可用时间预估</div>
+        <div class="screen-path">screens/calendar.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="screens/parked.html">
+      <div class="thumb">
+        <div style="position:absolute;z-index:1;font-size:56px;line-height:1">🍃</div>
+        <span class="thumb-label" style="margin-top:90px">parked · gentle</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">搁置区</div>
+        <div class="screen-sub">搁置 ≠ 失败 · 自动降级规则 D1→D30 · 任务恢复/拆分/删除</div>
+        <div class="screen-path">screens/parked.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="screens/modals.html">
+      <div class="thumb">
+        <div style="position:absolute;z-index:1;display:flex;gap:6px">
+          <div style="width:24px;height:30px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:3px;box-shadow:var(--shadow-float)"></div>
+          <div style="width:24px;height:30px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:3px;box-shadow:var(--shadow-float);transform:translateY(-4px)"></div>
+          <div style="width:24px;height:30px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:3px;box-shadow:var(--shadow-float)"></div>
+        </div>
+        <span class="thumb-label" style="margin-top:60px">6 modals · unified</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">全局模态弹窗</div>
+        <div class="screen-sub">命令面板 / AI 隐私 / 危险确认 / 数据导出 / Payload 查看 / 快速加任务</div>
+        <div class="screen-path">screens/modals.html</div>
+      </div>
+    </a>
+
+  </div>
+</section>
+
+<section class="batch">
+  <div class="batch-header">
+    <span class="batch-badge is-p0" style="background: color-mix(in srgb, #FAAD14 18%, transparent); color: #AD6800;">Batch 4 · 🧪 实验功能</span>
+    <div>
+      <div class="batch-title">社交分享层 · 默认关闭,设置中可开</div>
+      <div class="batch-desc">心情打卡 + 科研人格图鉴 + 成就徽章 · 遵循 ADR-009 / ADR-011 · 不联动任务引擎</div>
+    </div>
+  </div>
+
+  <div class="screen-grid">
+
+    <a class="screen-card" href="screens/mood-check.html">
+      <div class="thumb" style="background:radial-gradient(circle at 30% 30%, rgba(255,214,102,0.22), transparent 55%), radial-gradient(circle at 80% 70%, rgba(79,140,255,0.18), transparent 60%), var(--color-bg-subtle);">
+        <div style="position:absolute;z-index:1;display:flex;gap:8px;font-size:28px;line-height:1">
+          <span style="filter:grayscale(1);opacity:0.5">😔</span>
+          <span style="filter:grayscale(0.5);opacity:0.7">😕</span>
+          <span>😐</span>
+          <span style="transform:scale(1.15)">🙂</span>
+          <span style="filter:grayscale(1);opacity:0.5">😍</span>
+        </div>
+        <span class="thumb-label" style="margin-top:60px">morning · evening</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">每日心情打卡</div>
+        <div class="screen-sub">早晨意图档位 🌙→🔥 · 晚间真实情绪 😔→😍 · 三段式结算</div>
+        <div class="screen-path">screens/mood-check.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="screens/persona-card.html">
+      <div class="thumb" style="background:linear-gradient(135deg, #1a0a2e 0%, #6C5CE7 100%);">
+        <div style="position:absolute;z-index:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:36px;line-height:1;filter:drop-shadow(0 2px 6px rgba(255,255,255,0.25))">🦇</span>
+          <span style="color:#fff;font-size:11px;font-weight:600;letter-spacing:0.04em">实验室蝙蝠</span>
+          <span style="color:rgba(255,255,255,0.7);font-size:9px">BATS · 夜型生物门</span>
+        </div>
+        <span class="thumb-label" style="margin-top:90px;color:rgba(255,255,255,0.85)">30 types · 9 gates</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">科研人格图鉴</div>
+        <div class="screen-sub">30 型 · 9 门 · 16 组合称号 · 社交分享优先的 SBTI 式人格系统</div>
+        <div class="screen-path">screens/persona-card.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="screens/persona-hatch.html">
+      <div class="thumb" style="background:radial-gradient(circle at 50% 45%, rgba(250,173,20,0.2), transparent 60%), var(--color-bg-subtle);">
+        <div style="position:absolute;z-index:1;display:flex;align-items:center;gap:10px">
+          <span style="font-size:32px;opacity:0.35">🥚</span>
+          <span style="color:var(--color-text-muted);font-size:14px">→</span>
+          <span style="font-size:32px;opacity:0.65">🐣</span>
+          <span style="color:var(--color-text-muted);font-size:14px">→</span>
+          <span style="font-size:32px;filter:drop-shadow(0 4px 8px rgba(250,173,20,0.4))">🦇</span>
+        </div>
+        <span class="thumb-label" style="margin-top:70px">day 1 → day 7</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">7 天人格孵化</div>
+        <div class="screen-sub">冷启动叙事 · 把"数据不足期"变成"期待揭晓" · Day 7 解锁</div>
+        <div class="screen-path">screens/persona-hatch.html</div>
+      </div>
+    </a>
+
+    <a class="screen-card" href="screens/persona-badges.html">
+      <div class="thumb">
+        <div style="position:absolute;z-index:1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;place-items:center">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--color-bg-elevated);border:2px solid #CD7F32;display:grid;place-items:center;font-size:14px">🌱</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--color-bg-elevated);border:2px solid #C0C0C0;display:grid;place-items:center;font-size:14px">💯</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--color-bg-elevated);border:2px solid #FFD700;box-shadow:0 0 8px rgba(255,215,0,0.4);display:grid;place-items:center;font-size:14px">👑</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--color-bg-hover);display:grid;place-items:center;color:var(--color-text-muted);font-size:12px">🔒</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--color-bg-elevated);border:2px solid #B87FFF;box-shadow:0 0 10px rgba(184,127,255,0.5);display:grid;place-items:center;font-size:14px">🏔️</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:#1A1A2E;display:grid;place-items:center;color:#666;font-size:12px">❓</div>
+        </div>
+        <span class="thumb-label" style="margin-top:90px">45 badges · 6 类</span>
+      </div>
+      <div class="screen-info">
+        <div class="screen-name">成就徽章墙</div>
+        <div class="screen-sub">铜/银/金/钻 4 级稀有度 · 番茄/打卡/结算/目标/时段/彩蛋 6 类</div>
+        <div class="screen-path">screens/persona-badges.html</div>
+      </div>
+    </a>
+
+  </div>
+</section>
+
+<section class="spec">
+  <div class="spec-title">设计规范小抄</div>
+  <div class="spec-grid">
+    <div class="card spec-card">
+      <h4>主色</h4>
+      <div class="color-row"><span class="color-swatch" style="background:#4F8CFF"></span><span>Primary · #4F8CFF</span></div>
+      <div class="color-row"><span class="color-swatch" style="background:#7AABFF"></span><span>Light · #7AABFF</span></div>
+      <div class="color-row"><span class="color-swatch" style="background:#3366CC"></span><span>Dark · #3366CC</span></div>
+      <div class="color-row"><span class="color-swatch" style="background:#52C41A"></span><span>Success · #52C41A</span></div>
+      <div class="color-row"><span class="color-swatch" style="background:#FAAD14"></span><span>Gold · #FAAD14</span></div>
+      <div class="color-row"><span class="color-swatch" style="background:#8C8C8C"></span><span>Neutral · #8C8C8C</span></div>
+    </div>
+
+    <div class="card spec-card">
+      <h4>字号体系</h4>
+      <div class="scale-list">
+        <div class="row"><span>12</span><span class="sample" style="font-size:12px">Caption</span></div>
+        <div class="row"><span>14</span><span class="sample" style="font-size:14px">Body</span></div>
+        <div class="row"><span>16</span><span class="sample" style="font-size:16px">Body Lg</span></div>
+        <div class="row"><span>20</span><span class="sample" style="font-size:20px">Heading</span></div>
+        <div class="row"><span>24</span><span class="sample" style="font-size:24px">Page Title</span></div>
+        <div class="row"><span>32</span><span class="sample" style="font-size:32px;font-weight:600">Display</span></div>
+      </div>
+    </div>
+
+    <div class="card spec-card">
+      <h4>圆角</h4>
+      <div class="radius-demo" style="margin-bottom:8px">
+        <div class="box" style="border-radius:6px"></div>
+        <span class="text-xs text-secondary">6 · 按钮 / 标签</span>
+      </div>
+      <div class="radius-demo" style="margin-bottom:8px">
+        <div class="box" style="border-radius:10px"></div>
+        <span class="text-xs text-secondary">10 · 卡片 / 输入</span>
+      </div>
+      <div class="radius-demo" style="margin-bottom:8px">
+        <div class="box" style="border-radius:16px"></div>
+        <span class="text-xs text-secondary">16 · 弹窗 / 面板</span>
+      </div>
+      <div class="radius-demo">
+        <div class="box" style="border-radius:999px"></div>
+        <span class="text-xs text-secondary">pill · 悬浮球</span>
+      </div>
+    </div>
+
+    <div class="card spec-card">
+      <h4>阴影</h4>
+      <div class="shadow-demo">
+        <div class="tile" style="box-shadow: 0 1px 4px rgba(20,28,48,.06), 0 1px 2px rgba(20,28,48,.04)">card · 卡片</div>
+        <div class="tile" style="box-shadow: 0 2px 8px rgba(20,28,48,.12)">float · 悬浮</div>
+        <div class="tile" style="box-shadow: 0 12px 32px rgba(20,28,48,.14), 0 2px 8px rgba(20,28,48,.06)">modal · 弹窗</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="assets/icons.js"></script>
+<script>
+  const toggle = document.getElementById('themeToggle');
+  const html = document.documentElement;
+  toggle.addEventListener('click', () => {
+    const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+    html.dataset.theme = next;
+    try { localStorage.setItem('fl-theme', next); } catch (e) {}
+  });
+  try {
+    const saved = localStorage.getItem('fl-theme');
+    if (saved) html.dataset.theme = saved;
+  } catch (e) {}
+</script>
+
+</body>
+</html>

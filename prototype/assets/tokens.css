@@ -1,0 +1,168 @@
+/* =========================================================
+   FocusLab · Design Tokens
+   -----
+   参考: docs/05-交互设计与界面规范.md §1
+   浅色为默认,深色通过 [data-theme="dark"] 覆盖
+   ========================================================= */
+
+:root {
+  /* ---------- 品牌色 ---------- */
+  --color-primary: #4F8CFF;         /* 宁静蓝 · 主色 */
+  --color-primary-light: #7AABFF;   /* 悬浮球、轻量元素 */
+  --color-primary-dark: #3366CC;    /* 按钮 hover / 强调 */
+  --color-primary-soft: #EAF1FF;    /* 主色低饱和填充 (浅色底) */
+
+  /* ---------- 功能色 ---------- */
+  --color-success: #52C41A;         /* 完成 / A 级 */
+  --color-success-soft: #E8F8DB;
+  --color-gold: #FAAD14;            /* 成就金 / S 级 */
+  --color-gold-soft: #FFF4D1;
+  --color-warning: #FF8C00;         /* 提醒 / 即将到期 */
+  --color-warning-soft: #FFEFD9;
+  --color-neutral: #8C8C8C;         /* 搁置灰 · 非红色 */
+
+  /* ---------- 象限标识色 (与紧急重要体系一一对应) ---------- */
+  --color-q1: #F56C6C; /* 紧急重要 */
+  --color-q1-soft: #FEECEC;
+  --color-q2: #FAAD14; /* 计划执行 */
+  --color-q2-soft: #FFF4D1;
+  --color-q3: #FF8C00; /* 快速处理 */
+  --color-q3-soft: #FFEFD9;
+  --color-q4: #52C41A; /* 减少搁置 */
+  --color-q4-soft: #E8F8DB;
+
+  /* ---------- 背景 / 表面 ---------- */
+  --color-bg: #F5F7FA;              /* 应用主背景 */
+  --color-bg-elevated: #FFFFFF;     /* 卡片 / 弹窗背景 */
+  --color-bg-subtle: #FAFBFD;       /* 次级分组背景 */
+  --color-bg-hover: #F0F3F8;        /* 可点击元素悬停 */
+
+  /* ---------- 文本 ---------- */
+  --color-text-primary: #1F2430;    /* 主文字 */
+  --color-text-secondary: #595E6B;  /* 次要文字 */
+  --color-text-muted: #8C8C8C;      /* 提示/占位文字 */
+  --color-text-on-primary: #FFFFFF; /* 主色按钮上的文字 */
+
+  /* ---------- 描边 / 分割 ---------- */
+  --color-border: #E5E8EE;
+  --color-border-strong: #CED3DC;
+  --color-divider: #EEF1F6;
+
+  /* ---------- 字号 ---------- */
+  --fs-12: 12px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+  --fs-24: 24px;
+  --fs-32: 32px;
+
+  /* ---------- 行高 ---------- */
+  --lh-tight: 1.3;   /* 标题 */
+  --lh-base: 1.5;    /* 正文 */
+
+  /* ---------- 字重 ---------- */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ---------- 字体族 (系统字体栈优先, 无 CDN 依赖) ---------- */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", "PingFang SC", "Microsoft YaHei",
+               "Source Han Sans CN", "Hiragino Sans GB",
+               system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Menlo", "Consolas", monospace;
+
+  /* ---------- 圆角 ---------- */
+  --r-xs: 4px;
+  --r-sm: 6px;      /* 小按钮、标签 */
+  --r-md: 10px;     /* 卡片、输入框 */
+  --r-lg: 16px;     /* 弹窗、面板 */
+  --r-pill: 999px;  /* 胶囊、悬浮球 */
+
+  /* ---------- 阴影 ---------- */
+  --shadow-card: 0 1px 4px rgba(20, 28, 48, 0.06),
+                 0 1px 2px rgba(20, 28, 48, 0.04);
+  --shadow-float: 0 2px 8px rgba(20, 28, 48, 0.12);
+  --shadow-modal: 0 12px 32px rgba(20, 28, 48, 0.14),
+                  0 2px 8px rgba(20, 28, 48, 0.06);
+  --shadow-focus: 0 0 0 3px rgba(79, 140, 255, 0.24);
+
+  /* ---------- 间距基准 (4 的倍数) ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* ---------- 动效 ---------- */
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-slow: 300ms;
+  --dur-emph: 500ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---------- Z 轴 ---------- */
+  --z-sidebar: 10;
+  --z-sticky: 20;
+  --z-dropdown: 30;
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
+}
+
+/* =========================================================
+   深色模式 — docs/05 §1.1
+   降低饱和度, 不改色相
+   ========================================================= */
+[data-theme="dark"] {
+  --color-primary: #6EA0FF;
+  --color-primary-light: #8FB5FF;
+  --color-primary-dark: #4F8CFF;
+  --color-primary-soft: rgba(110, 160, 255, 0.12);
+
+  --color-success: #73D13D;
+  --color-success-soft: rgba(115, 209, 61, 0.15);
+  --color-gold: #FFC53D;
+  --color-gold-soft: rgba(255, 197, 61, 0.15);
+  --color-warning: #FFA940;
+  --color-warning-soft: rgba(255, 169, 64, 0.15);
+  --color-neutral: #8C8C8C;
+
+  --color-q1: #FF7875;
+  --color-q1-soft: rgba(255, 120, 117, 0.14);
+  --color-q2: #FFC53D;
+  --color-q2-soft: rgba(255, 197, 61, 0.14);
+  --color-q3: #FFA940;
+  --color-q3-soft: rgba(255, 169, 64, 0.14);
+  --color-q4: #73D13D;
+  --color-q4-soft: rgba(115, 209, 61, 0.14);
+
+  --color-bg: #1A1A2E;
+  --color-bg-elevated: #16213E;
+  --color-bg-subtle: #1F2A48;
+  --color-bg-hover: #263459;
+
+  --color-text-primary: #E6E8EE;
+  --color-text-secondary: #B2B6C2;
+  --color-text-muted: #8C8C8C;
+  --color-text-on-primary: #0F1424;
+
+  --color-border: #2C3858;
+  --color-border-strong: #3F4D75;
+  --color-divider: #243055;
+
+  --shadow-card: 0 0 0 1px rgba(110, 160, 255, 0.06),
+                 0 1px 4px rgba(0, 0, 0, 0.25);
+  --shadow-float: 0 0 16px rgba(110, 160, 255, 0.12),
+                  0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-modal: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-focus: 0 0 0 3px rgba(110, 160, 255, 0.4);
+}

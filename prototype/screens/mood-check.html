@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 每日主观信号 · 早意图/晚情绪</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { background: var(--color-bg); padding: 0; }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: var(--sp-8) var(--sp-6) var(--sp-12);
+  }
+
+  .page-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: var(--sp-4); margin-bottom: var(--sp-6); flex-wrap: wrap;
+  }
+  .page-head h1 {
+    font-size: var(--fs-24); font-weight: var(--fw-semibold);
+    letter-spacing: -0.3px;
+  }
+  .page-head .sub {
+    color: var(--color-text-secondary);
+    font-size: var(--fs-14);
+    margin-top: 4px;
+  }
+  .nav-back {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .nav-back:hover { color: var(--color-primary); }
+
+  .section-title {
+    font-size: var(--fs-12);
+    color: var(--color-text-muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: var(--fw-medium);
+    margin-bottom: var(--sp-3);
+  }
+
+  /* ============================================================
+     核心组件: .mood-rating
+     emoji 槽位 · grayscale → 彩色 · 标签模糊切换
+     ============================================================ */
+  .mood-rating { display: flex; flex-direction: column; align-items: center; gap: var(--sp-5); }
+  .mood-rating__row { display: flex; align-items: center; gap: var(--sp-3); }
+  .mood-rating__btn {
+    appearance: none; background: transparent; border: 0; padding: 0;
+    cursor: pointer; outline: none; position: relative;
+  }
+  .mood-rating__btn:focus-visible .mood-rating__slot { box-shadow: var(--shadow-focus); }
+  .mood-rating__slot {
+    position: relative; display: grid; place-items: center;
+    width: 56px; height: 56px; border-radius: var(--r-lg);
+    transition: transform var(--dur-slow) var(--ease-out);
+  }
+  .mood-rating__btn:hover .mood-rating__slot { transform: scale(1.05); }
+  .mood-rating__emoji {
+    font-size: 30px; line-height: 1; user-select: none;
+    filter: grayscale(1); opacity: 0.4;
+    transition:
+      filter var(--dur-slow) var(--ease-out),
+      opacity var(--dur-slow) var(--ease-out),
+      transform var(--dur-slow) var(--ease-out);
+  }
+  .mood-rating__btn:hover .mood-rating__emoji { filter: grayscale(0.3); opacity: 0.75; }
+  .mood-rating__btn.is-active .mood-rating__slot { transform: scale(1.10); }
+  .mood-rating__btn.is-active .mood-rating__emoji {
+    filter: grayscale(0) drop-shadow(0 6px 10px rgba(20, 28, 48, 0.18));
+    opacity: 1;
+  }
+
+  .mood-rating__labels { position: relative; height: 28px; width: 180px; }
+  .mood-rating__label,
+  .mood-rating__placeholder {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    transition:
+      opacity var(--dur-slow) var(--ease-out),
+      filter var(--dur-slow) var(--ease-out),
+      transform var(--dur-slow) var(--ease-out);
+    opacity: 0; filter: blur(6px); transform: scale(1.05);
+  }
+  .mood-rating__placeholder {
+    font-size: var(--fs-14); color: var(--color-text-muted);
+    font-weight: var(--fw-medium); opacity: 1; filter: none; transform: none;
+  }
+  .mood-rating.has-value .mood-rating__placeholder {
+    opacity: 0; filter: blur(6px); transform: scale(0.95);
+  }
+  .mood-rating__label.is-current {
+    opacity: 1; filter: none; transform: none;
+    font-size: var(--fs-14); color: var(--color-text-primary);
+    font-weight: var(--fw-semibold); letter-spacing: 0.04em;
+  }
+
+  /* ============================================================
+     卡片壳
+     ============================================================ */
+  .mood-card {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-lg);
+    padding: var(--sp-8) var(--sp-6);
+    box-shadow: var(--shadow-card);
+    margin-bottom: var(--sp-6);
+  }
+  .mood-card__kicker {
+    font-size: var(--fs-12); font-weight: var(--fw-medium);
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--color-text-muted);
+    text-align: center; margin-bottom: var(--sp-5);
+  }
+  .mood-card__hairline {
+    margin: var(--sp-6) auto 0;
+    height: 1px; width: 96px;
+    background: linear-gradient(90deg, transparent, var(--color-border), transparent);
+  }
+
+  /* ---------- 早晨 · 意图档位 ---------- */
+  .morning-card {
+    background:
+      radial-gradient(circle at 20% 0%, rgba(255, 214, 102, 0.18), transparent 55%),
+      radial-gradient(circle at 90% 10%, rgba(255, 173, 20, 0.14), transparent 60%),
+      var(--color-bg-elevated);
+    border-color: color-mix(in srgb, var(--color-gold) 25%, var(--color-border));
+  }
+  .morning-card .mood-card__kicker { color: var(--color-warning); }
+
+  /* 承诺话术条 · 只展示,不影响任何下游 */
+  .intent-affirm {
+    margin-top: var(--sp-6);
+    padding: var(--sp-4) var(--sp-5);
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    text-align: center;
+    display: flex; flex-direction: column; gap: 4px;
+    min-height: 80px;
+    justify-content: center;
+  }
+  .intent-affirm__line {
+    font-size: var(--fs-16);
+    color: var(--color-text-primary);
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.02em;
+  }
+  .intent-affirm__sub {
+    font-size: var(--fs-12);
+    color: var(--color-text-muted);
+  }
+  .intent-affirm__saved {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: var(--fs-12); color: var(--color-success);
+    opacity: 0;
+    transition: opacity var(--dur-base) var(--ease-smooth);
+  }
+  .intent-affirm.is-saved .intent-affirm__saved { opacity: 1; }
+
+  /* ---------- 晚上 · 摘要 → 心情 → 评级 ---------- */
+  .evening-card {
+    background:
+      radial-gradient(circle at 80% 0%, rgba(79, 140, 255, 0.14), transparent 55%),
+      radial-gradient(circle at 10% 100%, rgba(79, 140, 255, 0.08), transparent 60%),
+      var(--color-bg-elevated);
+    border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
+  }
+  .evening-card .mood-card__kicker { color: var(--color-primary-dark); }
+
+  .eve-step {
+    position: relative;
+    padding-top: var(--sp-6);
+  }
+  .eve-step + .eve-step { margin-top: var(--sp-6); border-top: 1px dashed var(--color-divider); }
+  .eve-step__num {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: var(--fs-12); color: var(--color-text-muted);
+    letter-spacing: 0.15em; text-transform: uppercase;
+    font-weight: var(--fw-medium);
+    margin-bottom: var(--sp-3);
+  }
+  .eve-step__num .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--color-primary);
+  }
+
+  /* Step 1: 数字摘要 */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--sp-3);
+  }
+  .summary-tile {
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    padding: var(--sp-3) var(--sp-4);
+    text-align: center;
+  }
+  .summary-tile .v {
+    font-size: var(--fs-24);
+    font-weight: var(--fw-semibold);
+    color: var(--color-text-primary);
+    letter-spacing: -0.3px;
+    line-height: var(--lh-tight);
+  }
+  .summary-tile .l {
+    font-size: var(--fs-12);
+    color: var(--color-text-muted);
+    margin-top: 2px;
+  }
+  .summary-tile.accent { border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border)); }
+  .summary-tile.accent .v { color: var(--color-primary-dark); }
+
+  /* Step 3: S/A/B/C 单卡(真实产品只显示一档) */
+  .lvl-single {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    color: #fff;
+    border-radius: var(--r-md);
+    padding: var(--sp-5) var(--sp-4);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--sp-4);
+    box-shadow: var(--shadow-card);
+  }
+  .lvl-single__grade { font-size: 40px; font-weight: var(--fw-bold); letter-spacing: -1px; line-height: 1; }
+  .lvl-single__body .t { font-size: var(--fs-16); font-weight: var(--fw-semibold); }
+  .lvl-single__body .s { font-size: var(--fs-12); opacity: 0.9; margin-top: 2px; }
+  .lvl-single__meta {
+    font-size: var(--fs-12); opacity: 0.85;
+    text-align: right;
+  }
+  .lvl-note {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: var(--fs-12);
+    margin-top: var(--sp-3);
+    letter-spacing: 0.04em;
+  }
+
+  /* 早/晚并列信号(无好坏判断) */
+  .signal-duo {
+    margin-top: var(--sp-5);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: var(--sp-3);
+  }
+  .signal-duo__col {
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    padding: var(--sp-3) var(--sp-4);
+    text-align: center;
+  }
+  .signal-duo__col .k {
+    font-size: var(--fs-12); color: var(--color-text-muted);
+    letter-spacing: 0.15em; text-transform: uppercase;
+    font-weight: var(--fw-medium);
+  }
+  .signal-duo__col .v {
+    font-size: var(--fs-16); font-weight: var(--fw-semibold);
+    color: var(--color-text-primary); margin-top: 2px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .signal-duo__dash {
+    color: var(--color-text-muted); font-size: var(--fs-16);
+  }
+
+  /* 组件说明小节 */
+  .meta-note {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--sp-3);
+    margin-top: var(--sp-8);
+  }
+  .meta-chip {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .meta-chip__k {
+    font-size: var(--fs-12); color: var(--color-text-muted);
+    letter-spacing: 0.1em; text-transform: uppercase; font-weight: var(--fw-medium);
+  }
+  .meta-chip__v {
+    font-size: var(--fs-14); color: var(--color-text-primary);
+    margin-top: 4px; font-weight: var(--fw-medium);
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>每日主观信号 · 早意图 / 晚情绪</h1>
+      <div class="sub">早晨定调 · 晚间真实 · 归入"主观信号"体系,不联动任务引擎</div>
+    </div>
+    <a class="nav-back" href="../index.html">← 返回导航</a>
+  </div>
+
+  <!-- =====================================================
+       1. 组件 Showcase
+       ===================================================== -->
+  <div class="section-title">01 · Component · 五档 emoji 评分</div>
+  <div class="mood-card">
+    <div class="mood-card__kicker">How was your experience?</div>
+
+    <div class="mood-rating" data-mood="showcase">
+      <div class="mood-rating__row" role="radiogroup" aria-label="心情评分">
+        <button type="button" class="mood-rating__btn" data-value="1" aria-label="1 分: Terrible">
+          <div class="mood-rating__slot"><span class="mood-rating__emoji">😔</span></div>
+        </button>
+        <button type="button" class="mood-rating__btn" data-value="2" aria-label="2 分: Poor">
+          <div class="mood-rating__slot"><span class="mood-rating__emoji">😕</span></div>
+        </button>
+        <button type="button" class="mood-rating__btn" data-value="3" aria-label="3 分: Okay">
+          <div class="mood-rating__slot"><span class="mood-rating__emoji">😐</span></div>
+        </button>
+        <button type="button" class="mood-rating__btn" data-value="4" aria-label="4 分: Good">
+          <div class="mood-rating__slot"><span class="mood-rating__emoji">🙂</span></div>
+        </button>
+        <button type="button" class="mood-rating__btn" data-value="5" aria-label="5 分: Amazing">
+          <div class="mood-rating__slot"><span class="mood-rating__emoji">😍</span></div>
+        </button>
+      </div>
+      <div class="mood-rating__labels">
+        <span class="mood-rating__placeholder">Rate us</span>
+        <span class="mood-rating__label" data-label="1">Terrible</span>
+        <span class="mood-rating__label" data-label="2">Poor</span>
+        <span class="mood-rating__label" data-label="3">Okay</span>
+        <span class="mood-rating__label" data-label="4">Good</span>
+        <span class="mood-rating__label" data-label="5">Amazing</span>
+      </div>
+    </div>
+
+    <div class="mood-card__hairline"></div>
+
+    <div class="meta-note">
+      <div class="meta-chip">
+        <div class="meta-chip__k">状态</div>
+        <div class="meta-chip__v">rating: <span data-bind="showcase-value">0</span> · hover: <span data-bind="showcase-hover">0</span></div>
+      </div>
+      <div class="meta-chip">
+        <div class="meta-chip__k">依赖</div>
+        <div class="meta-chip__v">仅 tokens.css · 零外部 JS 库</div>
+      </div>
+      <div class="meta-chip">
+        <div class="meta-chip__k">产品原则</div>
+        <div class="meta-chip__v">只记录 · 不联动任务引擎(ADR-005)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       2. 早晨 · 意图档位(commitment)
+       ===================================================== -->
+  <div class="section-title">02 · Morning · 今天想成为哪一档能量?</div>
+  <div class="mood-card morning-card">
+    <div class="mood-card__kicker">今日定调 · 是承诺,不是评估</div>
+
+    <div class="mood-rating" data-mood="morning">
+      <div class="mood-rating__row" role="radiogroup" aria-label="早晨意图档位">
+        <button type="button" class="mood-rating__btn" data-value="1" aria-label="保养档">
+          <div class="mood-rating__slot"><span class="mood-rating__emoji">🌙</span></div>
+        </button>
+        <button type="button" class="mood-rating__btn" data-value="2" aria-label="温和档">
+          <div class="mood-rating__slot"><span class="mood-rating__emoji">🌤</span></div>
+        </button>
+        <button type="button" class="mood-rating__btn" data-value="3" aria-label="常规档">
+          <div class="mood-rating__slot"><span class="mood-rating__emoji">☀️</span></div>
+        </button>
+        <button type="button" class="mood-rating__btn" data-value="4" aria-label="进阶档">
+          <div class="mood-rating__slot"><span class="mood-rating__emoji">⚡</span></div>
+        </button>
+        <button type="button" class="mood-rating__btn" data-value="5" aria-label="冲刺档">
+          <div class="mood-rating__slot"><span class="mood-rating__emoji">🔥</span></div>
+        </button>
+      </div>
+      <div class="mood-rating__labels">
+        <span class="mood-rating__placeholder">选一档作为今天的定调</span>
+        <span class="mood-rating__label" data-label="1">保养档</span>
+        <span class="mood-rating__label" data-label="2">温和档</span>
+        <span class="mood-rating__label" data-label="3">常规档</span>
+        <span class="mood-rating__label" data-label="4">进阶档</span>
+        <span class="mood-rating__label" data-label="5">冲刺档</span>
+      </div>
+    </div>
+
+    <div class="intent-affirm" data-slot="intent">
+      <span class="intent-affirm__line" data-bind="intent-line">点一下,定调今天</span>
+      <span class="intent-affirm__sub" data-bind="intent-sub">五档都很好,没有"正确答案"</span>
+      <span class="intent-affirm__saved">✓ 已记录今日意图,不影响任务推荐</span>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       3. 晚上 · 摘要 → 心情 → 评级 三段式
+       ===================================================== -->
+  <div class="section-title">03 · Evening · 三段式结算</div>
+  <div class="mood-card evening-card">
+    <div class="mood-card__kicker">今日收工 · 先看事实,再谈感受,最后给评级</div>
+
+    <!-- Step 1: 数字摘要(不分级) -->
+    <div class="eve-step">
+      <div class="eve-step__num"><span class="dot"></span> STEP 1 · 今日摘要 · 不分级</div>
+      <div class="summary-grid">
+        <div class="summary-tile accent">
+          <div class="v">7<span style="font-size:14px;font-weight:500;color:var(--color-text-muted);">/8</span></div>
+          <div class="l">已完成任务</div>
+        </div>
+        <div class="summary-tile accent">
+          <div class="v">4h 12m</div>
+          <div class="l">专注时长</div>
+        </div>
+        <div class="summary-tile">
+          <div class="v">6</div>
+          <div class="l">番茄次数</div>
+        </div>
+        <div class="summary-tile">
+          <div class="v">1</div>
+          <div class="l">已搁置</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: 心情自评 -->
+    <div class="eve-step">
+      <div class="eve-step__num"><span class="dot"></span> STEP 2 · 真实情绪 · 对今天的直觉感受</div>
+
+      <div class="mood-rating" data-mood="evening" style="margin-top: var(--sp-2);">
+        <div class="mood-rating__row" role="radiogroup" aria-label="晚上真实情绪">
+          <button type="button" class="mood-rating__btn" data-value="1" aria-label="糟糕">
+            <div class="mood-rating__slot"><span class="mood-rating__emoji">😔</span></div>
+          </button>
+          <button type="button" class="mood-rating__btn" data-value="2" aria-label="不太好">
+            <div class="mood-rating__slot"><span class="mood-rating__emoji">😕</span></div>
+          </button>
+          <button type="button" class="mood-rating__btn" data-value="3" aria-label="一般">
+            <div class="mood-rating__slot"><span class="mood-rating__emoji">😐</span></div>
+          </button>
+          <button type="button" class="mood-rating__btn" data-value="4" aria-label="不错">
+            <div class="mood-rating__slot"><span class="mood-rating__emoji">🙂</span></div>
+          </button>
+          <button type="button" class="mood-rating__btn" data-value="5" aria-label="很棒">
+            <div class="mood-rating__slot"><span class="mood-rating__emoji">😍</span></div>
+          </button>
+        </div>
+        <div class="mood-rating__labels">
+          <span class="mood-rating__placeholder">诚实地选一个</span>
+          <span class="mood-rating__label" data-label="1">糟糕</span>
+          <span class="mood-rating__label" data-label="2">不太好</span>
+          <span class="mood-rating__label" data-label="3">一般</span>
+          <span class="mood-rating__label" data-label="4">不错</span>
+          <span class="mood-rating__label" data-label="5">很棒</span>
+        </div>
+      </div>
+
+      <!-- 早/晚并列信号 · 不做 up/down 好坏判断 -->
+      <div class="signal-duo" data-slot="signal-duo">
+        <div class="signal-duo__col">
+          <div class="k">今晨意图</div>
+          <div class="v"><span data-bind="duo-morning-emoji">—</span> <span data-bind="duo-morning-label">尚未定调</span></div>
+        </div>
+        <div class="signal-duo__dash">/</div>
+        <div class="signal-duo__col">
+          <div class="k">今夜真实</div>
+          <div class="v"><span data-bind="duo-evening-emoji">—</span> <span data-bind="duo-evening-label">尚未打卡</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: 客观评级(只显示一档,基于完成率) -->
+    <div class="eve-step">
+      <div class="eve-step__num"><span class="dot"></span> STEP 3 · 客观评级 · 基于完成率 87.5%</div>
+
+      <div class="lvl-single">
+        <div class="lvl-single__grade">A</div>
+        <div class="lvl-single__body">
+          <div class="t">优秀 · 基本完成今日计划</div>
+          <div class="s">AI 寄语将在用户点击"查看寄语"后生成</div>
+        </div>
+        <div class="lvl-single__meta">
+          7 / 8 任务<br/>
+          完成率 87.5%
+        </div>
+      </div>
+      <div class="lvl-note">等级仅反映完成率 · 与心情解耦 · 心情不影响评级</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // =========================================================
+  // 通用绑定: 让一个 .mood-rating 变为可交互的五档评分
+  // =========================================================
+  function bindRating(root, { onChange, onHover } = {}) {
+    const btns   = root.querySelectorAll('.mood-rating__btn');
+    const labels = root.querySelectorAll('.mood-rating__label');
+
+    let value = 0, hover = 0;
+
+    function render() {
+      const display = hover || value;
+      root.classList.toggle('has-value', display > 0);
+      btns.forEach((btn) => {
+        const v = Number(btn.dataset.value);
+        btn.classList.toggle('is-active', v <= display && display > 0);
+        btn.setAttribute('aria-checked', String(v === value));
+      });
+      labels.forEach((el) => {
+        el.classList.toggle('is-current', Number(el.dataset.label) === display);
+      });
+    }
+
+    btns.forEach((btn) => {
+      const v = Number(btn.dataset.value);
+      btn.addEventListener('click', () => {
+        value = v; render(); onChange && onChange(value);
+      });
+      btn.addEventListener('mouseenter', () => { hover = v; render(); onHover && onHover(hover); });
+      btn.addEventListener('mouseleave', () => { hover = 0; render(); onHover && onHover(value); });
+      btn.addEventListener('focus', () => { hover = v; render(); });
+      btn.addEventListener('blur',  () => { hover = 0; render(); });
+    });
+
+    render();
+    return {
+      get value() { return value; },
+      getEmoji() {
+        const btn = root.querySelector(`.mood-rating__btn[data-value="${value}"]`);
+        return btn ? btn.querySelector('.mood-rating__emoji').textContent : '';
+      },
+      getLabel() {
+        const el = root.querySelector(`.mood-rating__label[data-label="${value}"]`);
+        return el ? el.textContent : '';
+      },
+    };
+  }
+
+  // =========================================================
+  // 1. Showcase · 纯组件状态回显
+  // =========================================================
+  const showcaseRoot = document.querySelector('[data-mood="showcase"]');
+  const showcaseVal  = document.querySelector('[data-bind="showcase-value"]');
+  const showcaseHov  = document.querySelector('[data-bind="showcase-hover"]');
+  bindRating(showcaseRoot, {
+    onChange: (v) => { showcaseVal.textContent = v; },
+    onHover:  (v) => { showcaseHov.textContent = v; },
+  });
+
+  // =========================================================
+  // 2. Morning · 意图档位 · 五档都是正向定调,只展示承诺话术
+  //    绝不联动任务引擎(不改难度/不改番茄时长)
+  // =========================================================
+  const INTENT_COPY = {
+    1: { line: '今天给自己留余地,把基本功做好。',          sub: '保养日 · 维持状态也是一种推进' },
+    2: { line: '今天稳一点,挑一件轻的事先启动。',          sub: '温和档 · 启动比速度重要' },
+    3: { line: '今天按计划稳稳推进。',                       sub: '常规档 · 熟练节奏,不抢不拖' },
+    4: { line: '今天多推一步,攻一个稍难的目标。',          sub: '进阶档 · 抓住高效时段' },
+    5: { line: '今天,全力以赴。',                           sub: '冲刺档 · 值得被标记的一天' },
+  };
+
+  const morningRoot  = document.querySelector('[data-mood="morning"]');
+  const intentBox    = document.querySelector('[data-slot="intent"]');
+  const intentLine   = document.querySelector('[data-bind="intent-line"]');
+  const intentSub    = document.querySelector('[data-bind="intent-sub"]');
+
+  const morning = bindRating(morningRoot, {
+    onChange: (v) => {
+      if (!v) return;
+      const copy = INTENT_COPY[v];
+      intentLine.textContent = copy.line;
+      intentSub.textContent  = copy.sub;
+      intentBox.classList.add('is-saved');
+      updateDuo();
+    },
+  });
+
+  // =========================================================
+  // 3. Evening · 真实情绪 · 与今晨意图并列展示(不做好坏判断)
+  // =========================================================
+  const eveningRoot = document.querySelector('[data-mood="evening"]');
+  const duoMornE    = document.querySelector('[data-bind="duo-morning-emoji"]');
+  const duoMornL    = document.querySelector('[data-bind="duo-morning-label"]');
+  const duoEveE     = document.querySelector('[data-bind="duo-evening-emoji"]');
+  const duoEveL     = document.querySelector('[data-bind="duo-evening-label"]');
+
+  const evening = bindRating(eveningRoot, {
+    onChange: () => updateDuo(),
+  });
+
+  function updateDuo() {
+    if (morning.value) {
+      duoMornE.textContent = morning.getEmoji();
+      duoMornL.textContent = morning.getLabel();
+    }
+    if (evening.value) {
+      duoEveE.textContent = evening.getEmoji();
+      duoEveL.textContent = evening.getLabel();
+    }
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 任务列表 · 四象限</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { padding: 0; }
+  .page-shell { display: flex; min-height: 100vh; max-width: 1440px; margin: 0 auto; background: var(--color-bg-elevated); box-shadow: 0 0 0 1px var(--color-border); }
+  .main-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  .titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 40px; padding: 0 var(--sp-4);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+  }
+  .titlebar .left { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-12); color: var(--color-text-secondary); }
+  .titlebar .right { display: flex; align-items: center; gap: var(--sp-2); }
+
+  .content {
+    flex: 1;
+    padding: var(--sp-6);
+    background: var(--color-bg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+    overflow-y: auto;
+  }
+
+  /* page head */
+  .page-head {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .page-head h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .head-sub { color: var(--color-text-secondary); font-size: var(--fs-14); margin-top: 4px; }
+  .head-actions { display: flex; gap: var(--sp-2); align-items: center; }
+  .view-tabs { display: flex; gap: 2px; padding: 2px; background: var(--color-bg-hover); border-radius: var(--r-sm); }
+  .view-tabs .tab {
+    padding: 6px 12px; font-size: var(--fs-12);
+    border-radius: var(--r-xs);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .view-tabs .tab svg { width: 14px; height: 14px; }
+  .view-tabs .tab.is-active { background: var(--color-bg-elevated); color: var(--color-primary); box-shadow: var(--shadow-card); }
+
+  /* AI banner with dismiss */
+  .ai-banner-full {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    background: linear-gradient(90deg, var(--color-primary-soft), color-mix(in srgb, #B87FFF 10%, transparent));
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, transparent);
+    border-radius: var(--r-md);
+  }
+  .ai-banner-full .ai-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-primary), #B87FFF);
+    display: grid; place-items: center;
+    color: #fff; flex-shrink: 0;
+  }
+  .ai-banner-full .body { flex: 1; }
+  .ai-banner-full .title { font-weight: var(--fw-medium); font-size: var(--fs-14); margin-bottom: 2px; }
+  .ai-banner-full .desc { font-size: var(--fs-13, 13px); color: var(--color-text-secondary); line-height: 1.5; }
+
+  /* Quadrant grid */
+  .q-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: var(--sp-4);
+    min-height: 620px;
+  }
+  .q-box {
+    background: var(--color-bg-elevated);
+    border: 1.5px solid var(--q-border, var(--color-border));
+    border-radius: var(--r-md);
+    padding: var(--sp-4);
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow var(--dur-base) var(--ease-smooth);
+    min-height: 0;
+  }
+  .q-box:hover { box-shadow: var(--shadow-card); }
+  .q-box.q1 { --q-border: color-mix(in srgb, var(--color-q1) 30%, var(--color-border)); background: linear-gradient(180deg, var(--color-q1-soft), var(--color-bg-elevated) 50%); }
+  .q-box.q2 { --q-border: color-mix(in srgb, var(--color-q2) 30%, var(--color-border)); background: linear-gradient(180deg, var(--color-q2-soft), var(--color-bg-elevated) 50%); }
+  .q-box.q3 { --q-border: color-mix(in srgb, var(--color-q3) 30%, var(--color-border)); background: linear-gradient(180deg, var(--color-q3-soft), var(--color-bg-elevated) 50%); }
+  .q-box.q4 { --q-border: color-mix(in srgb, var(--color-q4) 30%, var(--color-border)); background: linear-gradient(180deg, var(--color-q4-soft), var(--color-bg-elevated) 50%); }
+
+  .q-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--sp-3);
+    padding-bottom: var(--sp-3);
+    border-bottom: 1px dashed color-mix(in srgb, var(--q-border) 60%, transparent);
+  }
+  .q-head .title-row {
+    display: flex; align-items: center; gap: var(--sp-2);
+  }
+  .q-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .q1 .q-dot { background: var(--color-q1); }
+  .q2 .q-dot { background: var(--color-q2); }
+  .q3 .q-dot { background: var(--color-q3); }
+  .q4 .q-dot { background: var(--color-q4); }
+  .q-title { font-size: var(--fs-16); font-weight: var(--fw-semibold); }
+  .q-strategy { font-size: var(--fs-12); color: var(--color-text-muted); margin-left: var(--sp-1); }
+  .q-count {
+    display: inline-flex; align-items: center;
+    min-width: 22px; height: 22px; padding: 0 7px;
+    border-radius: var(--r-pill);
+    background: var(--color-bg-hover);
+    font-size: var(--fs-12); font-weight: var(--fw-semibold);
+    color: var(--color-text-secondary);
+  }
+  .q1 .q-count { background: var(--color-q1-soft); color: var(--color-q1); }
+  .q2 .q-count { background: var(--color-q2-soft); color: #B8860B; }
+  .q3 .q-count { background: var(--color-q3-soft); color: #D2691E; }
+  .q4 .q-count { background: var(--color-q4-soft); color: #389E0D; }
+
+  .q-tasks { flex: 1; display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow-y: auto; }
+
+  .qt-card {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-sm);
+    cursor: grab;
+    transition: all var(--dur-base);
+  }
+  .qt-card:hover { border-color: var(--q-border); box-shadow: var(--shadow-card); transform: translateY(-1px); }
+  .qt-card:active { cursor: grabbing; }
+  .qt-card.is-done { opacity: 0.55; }
+  .qt-card.is-done .qt-title { text-decoration: line-through; color: var(--color-text-muted); }
+  .qt-card.is-active { background: var(--color-primary-soft); border-color: var(--color-primary); }
+
+  .qt-drag {
+    color: var(--color-text-muted);
+    opacity: 0;
+    transition: opacity var(--dur-base);
+    cursor: grab;
+  }
+  .qt-card:hover .qt-drag { opacity: 1; }
+
+  .qt-body { flex: 1; min-width: 0; }
+  .qt-title { font-size: var(--fs-14); font-weight: var(--fw-medium); color: var(--color-text-primary); }
+  .qt-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: var(--fs-12); color: var(--color-text-muted); flex-wrap: wrap; }
+  .qt-action { opacity: 0; transition: opacity var(--dur-base); }
+  .qt-card:hover .qt-action { opacity: 1; }
+  .qt-card.is-active .qt-action { opacity: 1; }
+
+  .qt-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex: 1;
+    padding: var(--sp-6);
+    text-align: center;
+    color: var(--color-text-muted);
+    border: 1px dashed color-mix(in srgb, var(--q-border) 50%, transparent);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-13, 13px);
+  }
+  .qt-empty .hint { font-size: var(--fs-12); margin-top: 4px; }
+
+  .q-add {
+    margin-top: var(--sp-3);
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 10px;
+    font-size: var(--fs-12);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-radius: var(--r-xs);
+    transition: all var(--dur-base);
+  }
+  .q-add:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+  .q-add svg { width: 14px; height: 14px; }
+
+  /* Tiny chip */
+  .pill-tag {
+    display: inline-flex; align-items: center;
+    padding: 1px 6px;
+    border-radius: var(--r-xs);
+    font-size: 11px;
+    background: var(--color-bg-hover);
+    color: var(--color-text-secondary);
+  }
+  .pill-goal { background: var(--color-primary-soft); color: var(--color-primary-dark); }
+
+  .q-legend {
+    display: flex; align-items: center; gap: var(--sp-4);
+    font-size: var(--fs-12);
+    color: var(--color-text-secondary);
+  }
+  .q-legend .axis-x, .q-legend .axis-y { display: flex; align-items: center; gap: 6px; }
+  .q-legend .arrow { color: var(--color-text-muted); font-family: var(--font-mono); }
+
+  /* ================== Nested List View ================== */
+  .list-view { display: none; flex-direction: column; gap: var(--sp-3); }
+  .list-view.is-active { display: flex; }
+  .q-grid.is-hidden { display: none; }
+  .q-legend.is-hidden { display: none; }
+
+  .list-panel {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    padding: var(--sp-3);
+    box-shadow: var(--shadow-card);
+  }
+  .list-panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-2) var(--sp-3);
+    margin-bottom: var(--sp-2);
+  }
+  .list-panel-title {
+    font-size: var(--fs-12);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-muted);
+    font-weight: var(--fw-medium);
+  }
+  .list-filter { display: flex; gap: 4px; font-size: var(--fs-12); color: var(--color-text-muted); }
+
+  /* Task list root */
+  .nested-list { display: flex; flex-direction: column; gap: 2px; }
+
+  /* Task row (主任务) */
+  .nested-task { position: relative; }
+  .nt-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: 8px 12px;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: background var(--dur-base) var(--ease-smooth);
+  }
+  .nt-row:hover { background: var(--color-bg-hover); }
+  .nt-row.is-open { background: var(--color-bg-subtle); }
+
+  /* Status icon 5 态 */
+  .status-icon {
+    width: 18px; height: 18px;
+    display: inline-grid; place-items: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform var(--dur-base) var(--ease-smooth);
+  }
+  .status-icon:hover { transform: scale(1.1); }
+  .status-icon:active { transform: scale(0.9); }
+  .status-icon svg { width: 16px; height: 16px; }
+  .status-icon.s-done { color: var(--color-success); }
+  .status-icon.s-doing { color: var(--color-primary); animation: rotate-slow 8s linear infinite; }
+  .status-icon.s-help { color: var(--color-gold); }
+  .status-icon.s-parked { color: var(--color-neutral); }
+  .status-icon.s-pending { color: var(--color-text-muted); }
+  @keyframes rotate-slow {
+    to { transform: rotate(360deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .status-icon.s-doing { animation: none; }
+  }
+
+  .nt-title {
+    flex: 1;
+    font-size: var(--fs-14);
+    font-weight: var(--fw-medium);
+    color: var(--color-text-primary);
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .nt-row.is-done .nt-title { text-decoration: line-through; color: var(--color-text-muted); }
+
+  .nt-meta {
+    display: flex; align-items: center; gap: 6px;
+    flex-shrink: 0;
+  }
+  .dep-chip {
+    display: inline-flex; align-items: center;
+    padding: 2px 7px;
+    background: color-mix(in srgb, var(--color-neutral) 12%, transparent);
+    color: var(--color-text-secondary);
+    border-radius: var(--r-xs);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    transition: all var(--dur-base);
+  }
+  .dep-chip:hover { background: color-mix(in srgb, var(--color-neutral) 20%, transparent); transform: translateY(-1px); }
+  .dep-chip.dep-goal { background: var(--color-primary-soft); color: var(--color-primary-dark); }
+
+  .status-badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: var(--r-xs);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.2px;
+    transition: transform var(--dur-base) var(--ease-out);
+  }
+  .status-badge.s-done { background: var(--color-success-soft); color: #389E0D; }
+  .status-badge.s-doing { background: var(--color-primary-soft); color: var(--color-primary-dark); }
+  .status-badge.s-help { background: var(--color-gold-soft); color: #AD6800; }
+  .status-badge.s-parked { background: var(--color-bg-hover); color: var(--color-text-muted); }
+  .status-badge.s-pending { background: var(--color-bg-hover); color: var(--color-text-secondary); }
+
+  /* Caret (expand indicator) */
+  .nt-caret {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px;
+    color: var(--color-text-muted);
+    transition: transform var(--dur-base) var(--ease-smooth);
+  }
+  .nt-row.is-open .nt-caret { transform: rotate(90deg); }
+
+  /* Subtask panel */
+  .nt-children {
+    position: relative;
+    margin-left: 22px;
+    padding-left: 16px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--dur-slow) var(--ease-out);
+  }
+  .nested-task.is-open > .nt-children { max-height: 2000px; }
+  .nt-children::before {
+    content: "";
+    position: absolute;
+    top: 8px; bottom: 8px;
+    left: 0;
+    width: 0;
+    border-left: 1.5px dashed color-mix(in srgb, var(--color-neutral) 35%, transparent);
+  }
+
+  .subtask { position: relative; }
+  .sub-row {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 6px 10px;
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    transition: background var(--dur-base);
+  }
+  .sub-row:hover { background: var(--color-bg-hover); }
+  .sub-row.is-open { background: var(--color-bg-subtle); }
+  .sub-row::before {
+    content: "";
+    position: absolute;
+    left: -16px;
+    top: 50%;
+    width: 12px;
+    border-top: 1.5px dashed color-mix(in srgb, var(--color-neutral) 35%, transparent);
+  }
+  .subtask.is-open > .sub-row::before { top: 19px; }
+  .sub-title {
+    flex: 1;
+    font-size: var(--fs-13, 13px);
+    color: var(--color-text-primary);
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sub-row.is-done .sub-title { text-decoration: line-through; color: var(--color-text-muted); }
+  .sub-row .status-icon { width: 14px; height: 14px; }
+  .sub-row .status-icon svg { width: 13px; height: 13px; }
+
+  /* Subtask details */
+  .sub-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--dur-slow) var(--ease-out);
+    margin-left: 28px;
+    padding-left: 12px;
+    position: relative;
+  }
+  .sub-details::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 8px;
+    border-left: 1px dashed color-mix(in srgb, var(--color-neutral) 30%, transparent);
+  }
+  .subtask.is-open > .sub-details { max-height: 400px; }
+  .sub-desc {
+    font-size: var(--fs-12);
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    padding: 6px 4px 8px;
+  }
+  .resources {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    padding: 0 4px 8px;
+    font-size: 11px;
+  }
+  .resources .r-label {
+    color: var(--color-text-muted);
+    font-weight: var(--fw-medium);
+    margin-right: 4px;
+  }
+  .resource-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 6px;
+    background: var(--color-bg-hover);
+    color: var(--color-text-secondary);
+    border-radius: var(--r-xs);
+    transition: all var(--dur-base);
+  }
+  .resource-chip:hover { background: var(--color-primary-soft); color: var(--color-primary-dark); transform: translateY(-1px); }
+  .resource-chip svg { width: 11px; height: 11px; }
+
+  /* Hint bar above the first task */
+  .list-hint {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 12px;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-12);
+    margin-bottom: var(--sp-2);
+  }
+
+  @media (max-width: 1080px) {
+    .q-grid { grid-template-columns: 1fr; grid-template-rows: auto; min-height: 0; }
+    .nt-meta { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-shell">
+  <aside class="sidebar" aria-label="主导航">
+    <div class="logo">F</div>
+    <div class="nav-item" data-tip="今日" role="button" tabindex="0"><span data-icon="home"></span></div>
+    <div class="nav-item is-active" data-tip="任务" role="button" tabindex="0"><span data-icon="list"></span></div>
+    <div class="nav-item" data-tip="长线目标" role="button" tabindex="0"><span data-icon="target"></span></div>
+    <div class="nav-item" data-tip="数据分析" role="button" tabindex="0"><span data-icon="bar-chart"></span></div>
+    <div class="nav-item" data-tip="日历" role="button" tabindex="0"><span data-icon="calendar"></span></div>
+    <div class="nav-spacer"></div>
+    <div class="nav-item" data-tip="设置" role="button" tabindex="0"><span data-icon="settings"></span></div>
+  </aside>
+
+  <div class="main-col">
+    <div class="titlebar">
+      <div class="left">
+        <span style="width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));display:inline-grid;place-items:center;color:#fff;font-weight:700;font-size:10px">F</span>
+        FocusLab · 任务 · 四象限视图
+      </div>
+      <div class="right">
+        <a class="btn btn-ghost btn-sm" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回导航</a>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Page head -->
+      <div class="page-head">
+        <div>
+          <h1>任务规划</h1>
+          <div class="head-sub">紧急重要矩阵 · 将事情放到对的象限,而不是全塞进"紧急"</div>
+        </div>
+        <div class="head-actions">
+          <div class="view-tabs" role="tablist">
+            <span class="tab" role="tab" data-view="list"><span data-icon="list"></span> 列表</span>
+            <span class="tab is-active" role="tab" data-view="quadrant"><span data-icon="grid"></span> 四象限</span>
+          </div>
+          <button class="btn btn-secondary btn-sm"><span data-icon="calendar" data-size="14"></span> 今天</button>
+          <button class="btn btn-primary btn-sm"><span data-icon="plus" data-size="14"></span> 添加任务</button>
+        </div>
+      </div>
+
+      <!-- AI suggestion banner -->
+      <div class="ai-banner-full">
+        <div class="ai-avatar"><span data-icon="sparkles" data-size="16"></span></div>
+        <div class="body">
+          <div class="title">AI 建议 · 今日优先级</div>
+          <div class="desc">你有 2 个紧急重要任务,建议上午先把它们清空,再处理第二象限的长线任务。第四象限今天没有任务,很好。</div>
+        </div>
+        <button class="btn btn-ghost btn-sm"><span data-icon="x" data-size="14"></span></button>
+      </div>
+
+      <!-- Quadrant legend -->
+      <div class="q-legend" data-view-content="quadrant">
+        <div class="axis-y">重要性 <span class="arrow">↑</span></div>
+        <div style="flex:1;border-top:1px dashed var(--color-border);"></div>
+        <div class="axis-x"><span class="arrow">→</span> 紧急性</div>
+      </div>
+
+      <!-- ============ List View (nested) ============ -->
+      <div class="list-view" data-view-content="list">
+        <div class="list-hint">
+          <span data-icon="sparkles" data-size="14"></span>
+          点击标题展开子任务 · 点击状态图标切换进度 · 子任务再次点击可看资源关联
+        </div>
+
+        <!-- Panel: 今日任务 -->
+        <div class="list-panel">
+          <div class="list-panel-head">
+            <span class="list-panel-title">今日任务 · 5</span>
+            <div class="list-filter">
+              <span class="chip chip-brand" style="height:20px;font-size:11px">全部</span>
+              <span class="chip" style="height:20px;font-size:11px">进行中</span>
+              <span class="chip" style="height:20px;font-size:11px">待启动</span>
+            </div>
+          </div>
+
+          <div class="nested-list">
+
+            <!-- Task 1 · in-progress · 已展开 -->
+            <div class="nested-task is-open">
+              <div class="nt-row is-open" data-toggle="task">
+                <span class="status-icon s-doing" data-status="doing" title="进行中">
+                  <span data-icon="circle-dashed"></span>
+                </span>
+                <span class="nt-title">复现 baseline 代码</span>
+                <span class="nt-meta">
+                  <span class="dep-chip dep-goal">🎯 论文A · M3</span>
+                  <span class="dep-chip">预估 2h</span>
+                  <span class="chip chip-due is-today" title="今日到期">⏰ 今日到期</span>
+                  <span class="status-badge s-doing">进行中</span>
+                  <span class="nt-caret"><span data-icon="chevron-right" data-size="14"></span></span>
+                </span>
+              </div>
+              <div class="nt-children">
+                <!-- subtask 1.1 completed -->
+                <div class="subtask">
+                  <div class="sub-row is-done">
+                    <span class="status-icon s-done" data-status="done">
+                      <span data-icon="circle-check"></span>
+                    </span>
+                    <span class="sub-title">读懂模型架构与关键 loss</span>
+                    <span class="status-badge s-done">已完成</span>
+                  </div>
+                </div>
+                <!-- subtask 1.2 expandable -->
+                <div class="subtask is-open">
+                  <div class="sub-row is-open" data-toggle="sub">
+                    <span class="status-icon s-doing" data-status="doing">
+                      <span data-icon="circle-dashed"></span>
+                    </span>
+                    <span class="sub-title">搭建数据加载 pipeline</span>
+                    <span class="status-badge s-doing">进行中</span>
+                  </div>
+                  <div class="sub-details">
+                    <div class="sub-desc">
+                      主要卡在 tokenizer 的 padding 策略上,原作者没写清楚。已尝试 left-pad,但 batch 内长度差异大,影响吞吐。
+                    </div>
+                    <div class="resources">
+                      <span class="r-label">关联资源</span>
+                      <span class="resource-chip"><span data-icon="clock" data-size="11"></span> 不打扰 · 2h</span>
+                      <span class="resource-chip"><span data-icon="target" data-size="11"></span> 里程碑 3</span>
+                      <span class="resource-chip"><span data-icon="home" data-size="11"></span> 实验室工位</span>
+                    </div>
+                  </div>
+                </div>
+                <!-- subtask 1.3 need help -->
+                <div class="subtask">
+                  <div class="sub-row" data-toggle="sub">
+                    <span class="status-icon s-help" data-status="help">
+                      <span data-icon="circle-alert"></span>
+                    </span>
+                    <span class="sub-title">跑通前向传播验证</span>
+                    <span class="status-badge s-help">需要帮助</span>
+                  </div>
+                  <div class="sub-details">
+                    <div class="sub-desc">
+                      模型在 batch 推理时 logits 对不上论文数据,差距 3-4%。可能是 weight 初始化或 LayerNorm 位置差异。
+                    </div>
+                    <div class="resources">
+                      <span class="r-label">关联资源</span>
+                      <span class="resource-chip"><span data-icon="sparkles" data-size="11"></span> 找 AI 对比实现</span>
+                      <span class="resource-chip"><span data-icon="bell" data-size="11"></span> 明天问学长</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Task 2 · completed · collapsed -->
+            <div class="nested-task">
+              <div class="nt-row is-done" data-toggle="task">
+                <span class="status-icon s-done" data-status="done">
+                  <span data-icon="circle-check"></span>
+                </span>
+                <span class="nt-title">回复导师邮件</span>
+                <span class="nt-meta">
+                  <span class="dep-chip">30m · 事务</span>
+                  <span class="status-badge s-done">已完成</span>
+                  <span class="nt-caret"><span data-icon="chevron-right" data-size="14"></span></span>
+                </span>
+              </div>
+              <div class="nt-children">
+                <div class="subtask">
+                  <div class="sub-row is-done">
+                    <span class="status-icon s-done" data-status="done"><span data-icon="circle-check"></span></span>
+                    <span class="sub-title">确认下周组会 topic</span>
+                  </div>
+                </div>
+                <div class="subtask">
+                  <div class="sub-row is-done">
+                    <span class="status-icon s-done" data-status="done"><span data-icon="circle-check"></span></span>
+                    <span class="sub-title">发送实验进度简报</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Task 3 · pending with dependencies -->
+            <div class="nested-task">
+              <div class="nt-row" data-toggle="task">
+                <span class="status-icon s-pending" data-status="pending">
+                  <span data-icon="circle"></span>
+                </span>
+                <span class="nt-title">设计改进方案</span>
+                <span class="nt-meta">
+                  <span class="dep-chip dep-goal">🎯 论文A · M3</span>
+                  <span class="dep-chip">依赖 · 复现 baseline</span>
+                  <span class="dep-chip">预估 2h</span>
+                  <span class="chip chip-due is-soon" title="3 天后到期">📅 4/21 · 3 天后</span>
+                  <span class="status-badge s-pending">待启动</span>
+                  <span class="nt-caret"><span data-icon="chevron-right" data-size="14"></span></span>
+                </span>
+              </div>
+              <div class="nt-children">
+                <div class="subtask">
+                  <div class="sub-row" data-toggle="sub">
+                    <span class="status-icon s-pending" data-status="pending"><span data-icon="circle"></span></span>
+                    <span class="sub-title">整理 baseline 实验结果观察</span>
+                  </div>
+                  <div class="sub-details">
+                    <div class="sub-desc">列出 baseline 在哪些 case 上失效,找出共性模式作为改进切入点。</div>
+                    <div class="resources">
+                      <span class="r-label">关联资源</span>
+                      <span class="resource-chip"><span data-icon="clock" data-size="11"></span> 30m</span>
+                      <span class="resource-chip"><span data-icon="bar-chart" data-size="11"></span> error analysis</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="subtask">
+                  <div class="sub-row" data-toggle="sub">
+                    <span class="status-icon s-pending" data-status="pending"><span data-icon="circle"></span></span>
+                    <span class="sub-title">写 2-3 个改进假设</span>
+                  </div>
+                  <div class="sub-details">
+                    <div class="sub-desc">每个假设标注"预期收益 / 实现复杂度 / 验证周期",优先挑高 ROI 的 1-2 个先做。</div>
+                    <div class="resources">
+                      <span class="r-label">关联资源</span>
+                      <span class="resource-chip"><span data-icon="clock" data-size="11"></span> 45m</span>
+                      <span class="resource-chip"><span data-icon="edit" data-size="11"></span> 写入研究日志</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="subtask">
+                  <div class="sub-row">
+                    <span class="status-icon s-pending" data-status="pending"><span data-icon="circle"></span></span>
+                    <span class="sub-title">与导师讨论方向</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Task 4 · pending simple -->
+            <div class="nested-task">
+              <div class="nt-row" data-toggle="task">
+                <span class="status-icon s-pending" data-status="pending">
+                  <span data-icon="circle"></span>
+                </span>
+                <span class="nt-title">阅读文献 2 篇</span>
+                <span class="nt-meta">
+                  <span class="dep-chip dep-goal">🎯 论文A</span>
+                  <span class="dep-chip">预估 1.5h</span>
+                  <span class="chip chip-due" title="截止 4/25">📅 4/25</span>
+                  <span class="status-badge s-pending">待启动</span>
+                  <span class="nt-caret"><span data-icon="chevron-right" data-size="14"></span></span>
+                </span>
+              </div>
+              <div class="nt-children">
+                <div class="subtask">
+                  <div class="sub-row">
+                    <span class="status-icon s-pending" data-status="pending"><span data-icon="circle"></span></span>
+                    <span class="sub-title">AAAI 24 · Efficient Attention for Long Context</span>
+                  </div>
+                </div>
+                <div class="subtask">
+                  <div class="sub-row">
+                    <span class="status-icon s-pending" data-status="pending"><span data-icon="circle"></span></span>
+                    <span class="sub-title">NeurIPS 23 · Scaling Laws Revisited</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Task 5 · parked (替代原 failed/红色) -->
+            <div class="nested-task">
+              <div class="nt-row" data-toggle="task">
+                <span class="status-icon s-parked" data-status="parked">
+                  <span data-icon="circle-pause"></span>
+                </span>
+                <span class="nt-title">学习 PyTorch 2.0 新特性</span>
+                <span class="nt-meta">
+                  <span class="dep-chip">技能积累</span>
+                  <span class="dep-chip">搁置 2 天</span>
+                  <span class="status-badge s-parked">搁置中</span>
+                  <span class="nt-caret"><span data-icon="chevron-right" data-size="14"></span></span>
+                </span>
+              </div>
+              <div class="nt-children">
+                <div class="subtask">
+                  <div class="sub-row" data-toggle="sub">
+                    <span class="status-icon s-parked" data-status="parked"><span data-icon="circle-pause"></span></span>
+                    <span class="sub-title">torch.compile 性能测试</span>
+                  </div>
+                  <div class="sub-details">
+                    <div class="sub-desc">本周重点是论文 A 里程碑 3,这个可以放到下周。搁置 ≠ 失败,是策略性选择。</div>
+                    <div class="resources">
+                      <span class="r-label">下次提醒</span>
+                      <span class="resource-chip"><span data-icon="calendar" data-size="11"></span> 下周一</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 状态语义说明 -->
+        <div class="list-panel" style="background:var(--color-bg-subtle)">
+          <div class="list-panel-head">
+            <span class="list-panel-title">状态语义</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:var(--sp-3);padding:0 var(--sp-3) var(--sp-3);">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:var(--fs-12);color:var(--color-text-secondary)">
+              <span class="status-icon s-pending" style="width:22px;height:22px"><span data-icon="circle"></span></span>
+              <strong style="color:var(--color-text-primary)">待启动</strong>
+              <span style="font-size:11px;color:var(--color-text-muted)">还没开始,慢慢来</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:var(--fs-12);color:var(--color-text-secondary)">
+              <span class="status-icon s-doing" style="width:22px;height:22px"><span data-icon="circle-dashed"></span></span>
+              <strong style="color:var(--color-text-primary)">进行中</strong>
+              <span style="font-size:11px;color:var(--color-text-muted)">专注中或已启动</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:var(--fs-12);color:var(--color-text-secondary)">
+              <span class="status-icon s-help" style="width:22px;height:22px"><span data-icon="circle-alert"></span></span>
+              <strong style="color:var(--color-text-primary)">需要帮助</strong>
+              <span style="font-size:11px;color:var(--color-text-muted)">卡住了,可问 AI/导师</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:var(--fs-12);color:var(--color-text-secondary)">
+              <span class="status-icon s-done" style="width:22px;height:22px"><span data-icon="circle-check"></span></span>
+              <strong style="color:var(--color-text-primary)">已完成</strong>
+              <span style="font-size:11px;color:var(--color-text-muted)">扎实完成,记一笔</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:var(--fs-12);color:var(--color-text-secondary)">
+              <span class="status-icon s-parked" style="width:22px;height:22px"><span data-icon="circle-pause"></span></span>
+              <strong style="color:var(--color-text-primary)">搁置中</strong>
+              <span style="font-size:11px;color:var(--color-text-muted)">策略性暂停 · 不用红色</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2x2 Grid -->
+      <div class="q-grid" data-view-content="quadrant">
+        <!-- Q1 紧急重要 -->
+        <div class="q-box q1">
+          <div class="q-head">
+            <div class="title-row">
+              <span class="q-dot"></span>
+              <div>
+                <div class="q-title">紧急 &amp; 重要</div>
+                <div class="q-strategy">立即执行 · Do Now</div>
+              </div>
+            </div>
+            <span class="q-count">2</span>
+          </div>
+          <div class="q-tasks">
+            <div class="qt-card is-done">
+              <span data-icon="drag" data-size="12" class="qt-drag"></span>
+              <span class="fl-check is-checked"><span data-icon="check" data-size="12"></span></span>
+              <div class="qt-body">
+                <div class="qt-title">回复导师邮件</div>
+                <div class="qt-meta"><span>30m</span> · <span>10:05 完成</span></div>
+              </div>
+            </div>
+            <div class="qt-card is-active">
+              <span data-icon="drag" data-size="12" class="qt-drag"></span>
+              <span class="fl-check"></span>
+              <div class="qt-body">
+                <div class="qt-title">复现 baseline 代码</div>
+                <div class="qt-meta">
+                  <span>预估 2h · 已 1h20m</span>
+                  <span class="pill-tag pill-goal">🎯 论文A · M3</span>
+                  <span class="chip chip-due is-today" title="今日到期">⏰ 今日到期</span>
+                </div>
+              </div>
+              <div class="qt-action">
+                <button class="btn btn-primary btn-sm"><span data-icon="pause" data-size="12"></span> 暂停</button>
+              </div>
+            </div>
+          </div>
+          <div class="q-add"><span data-icon="plus"></span> 添加到 紧急重要</div>
+        </div>
+
+        <!-- Q2 计划执行 -->
+        <div class="q-box q2">
+          <div class="q-head">
+            <div class="title-row">
+              <span class="q-dot"></span>
+              <div>
+                <div class="q-title">不紧急 &amp; 重要</div>
+                <div class="q-strategy">计划执行 · Schedule</div>
+              </div>
+            </div>
+            <span class="q-count">3</span>
+          </div>
+          <div class="q-tasks">
+            <div class="qt-card">
+              <span data-icon="drag" data-size="12" class="qt-drag"></span>
+              <span class="fl-check"></span>
+              <div class="qt-body">
+                <div class="qt-title">阅读文献 2 篇</div>
+                <div class="qt-meta">
+                  <span>预估 1.5h</span>
+                  <span class="pill-tag pill-goal">🎯 论文A</span>
+                  <span class="chip chip-due" title="截止 4/25">📅 4/25</span>
+                </div>
+              </div>
+              <div class="qt-action">
+                <button class="btn btn-soft btn-sm"><span data-icon="play" data-size="12"></span> 开始</button>
+              </div>
+            </div>
+            <div class="qt-card">
+              <span data-icon="drag" data-size="12" class="qt-drag"></span>
+              <span class="fl-check"></span>
+              <div class="qt-body">
+                <div class="qt-title">设计改进方案</div>
+                <div class="qt-meta">
+                  <span>预估 2h</span>
+                  <span class="pill-tag pill-goal">🎯 论文A · M3</span>
+                  <span class="pill-tag">昨日遗留</span>
+                  <span class="chip chip-due is-soon" title="3 天后到期">📅 4/21 · 3 天后</span>
+                </div>
+              </div>
+              <div class="qt-action">
+                <button class="btn btn-soft btn-sm"><span data-icon="play" data-size="12"></span> 开始</button>
+              </div>
+            </div>
+            <div class="qt-card">
+              <span data-icon="drag" data-size="12" class="qt-drag"></span>
+              <span class="fl-check"></span>
+              <div class="qt-body">
+                <div class="qt-title">学习 PyTorch 2.0 新特性</div>
+                <div class="qt-meta">
+                  <span>预估 1h</span>
+                  <span class="pill-tag pill-goal">🎯 技能积累</span>
+                </div>
+              </div>
+              <div class="qt-action">
+                <button class="btn btn-soft btn-sm"><span data-icon="play" data-size="12"></span> 开始</button>
+              </div>
+            </div>
+          </div>
+          <div class="q-add"><span data-icon="plus"></span> 添加到 计划执行</div>
+        </div>
+
+        <!-- Q3 快速处理 -->
+        <div class="q-box q3">
+          <div class="q-head">
+            <div class="title-row">
+              <span class="q-dot"></span>
+              <div>
+                <div class="q-title">紧急 &amp; 不重要</div>
+                <div class="q-strategy">快速处理 · Delegate</div>
+              </div>
+            </div>
+            <span class="q-count">1</span>
+          </div>
+          <div class="q-tasks">
+            <div class="qt-card">
+              <span data-icon="drag" data-size="12" class="qt-drag"></span>
+              <span class="fl-check"></span>
+              <div class="qt-body">
+                <div class="qt-title">提交报销单</div>
+                <div class="qt-meta">
+                  <span>预估 20m</span>
+                  <span class="pill-tag">事务性</span>
+                  <span class="chip chip-due is-today" title="今日到期">⏰ 今日到期</span>
+                </div>
+              </div>
+              <div class="qt-action">
+                <button class="btn btn-secondary btn-sm">批量处理</button>
+              </div>
+            </div>
+          </div>
+          <div class="q-add"><span data-icon="plus"></span> 添加到 快速处理</div>
+        </div>
+
+        <!-- Q4 减少搁置 -->
+        <div class="q-box q4">
+          <div class="q-head">
+            <div class="title-row">
+              <span class="q-dot"></span>
+              <div>
+                <div class="q-title">不紧急 &amp; 不重要</div>
+                <div class="q-strategy">减少或搁置 · Eliminate</div>
+              </div>
+            </div>
+            <span class="q-count">0</span>
+          </div>
+          <div class="q-tasks">
+            <div class="qt-empty">
+              <span data-icon="smile" data-size="24"></span>
+              <div style="margin-top:var(--sp-2)">这里空着最好</div>
+              <div class="hint">清晰的象限四,说明你今天没有在做不该做的事</div>
+            </div>
+          </div>
+          <div class="q-add"><span data-icon="plus"></span> 添加到 减少搁置</div>
+        </div>
+      </div>
+
+      <!-- 底部:搁置区折叠 -->
+      <div class="card" style="padding: var(--sp-4) var(--sp-5); display:flex; align-items:center; justify-content:space-between; background:var(--color-bg-subtle);">
+        <div style="display:flex;align-items:center;gap:var(--sp-3)">
+          <div style="width:32px;height:32px;border-radius:var(--r-sm);background:var(--color-bg-hover);color:var(--color-text-muted);display:grid;place-items:center">
+            <span data-icon="coffee" data-size="16"></span>
+          </div>
+          <div>
+            <div style="font-size:var(--fs-14);font-weight:var(--fw-medium)">搁置区 · 2 个任务</div>
+            <div style="font-size:var(--fs-12);color:var(--color-text-muted)">暂时放一放,不是失败,是策略。</div>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm">展开 <span data-icon="chevron-down" data-size="14"></span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  try {
+    const saved = localStorage.getItem('fl-theme');
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+
+  // ---------- View switcher (list vs quadrant) ----------
+  const tabs = document.querySelectorAll('.view-tabs .tab[data-view]');
+  const views = document.querySelectorAll('[data-view-content]');
+  function setView(view) {
+    tabs.forEach(t => t.classList.toggle('is-active', t.dataset.view === view));
+    views.forEach(v => {
+      const match = v.dataset.viewContent === view;
+      if (v.classList.contains('list-view')) {
+        v.classList.toggle('is-active', match);
+      } else if (v.classList.contains('q-grid')) {
+        v.classList.toggle('is-hidden', !match);
+      } else if (v.classList.contains('q-legend')) {
+        v.classList.toggle('is-hidden', !match);
+      }
+    });
+  }
+  tabs.forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
+
+  // ---------- Nested task expand ----------
+  document.querySelectorAll('.nt-row[data-toggle="task"]').forEach(row => {
+    row.addEventListener('click', (e) => {
+      // 不在点 status icon 时触发
+      if (e.target.closest('.status-icon')) return;
+      row.classList.toggle('is-open');
+      row.parentElement.classList.toggle('is-open');
+    });
+  });
+
+  // ---------- Subtask expand ----------
+  document.querySelectorAll('.sub-row[data-toggle="sub"]').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.status-icon')) return;
+      row.classList.toggle('is-open');
+      row.parentElement.classList.toggle('is-open');
+    });
+  });
+
+  // ---------- Status icon cycle ----------
+  // 顺序:pending → doing → help → done → parked → pending
+  const cycle = ['pending', 'doing', 'help', 'done', 'parked'];
+  const statusMap = {
+    pending: { icon: 'circle',        cls: 's-pending', label: '待启动',  badge: 's-pending' },
+    doing:   { icon: 'circle-dashed', cls: 's-doing',   label: '进行中',  badge: 's-doing' },
+    help:    { icon: 'circle-alert',  cls: 's-help',    label: '需要帮助', badge: 's-help' },
+    done:    { icon: 'circle-check',  cls: 's-done',    label: '已完成',  badge: 's-done' },
+    parked:  { icon: 'circle-pause',  cls: 's-parked',  label: '搁置中',  badge: 's-parked' }
+  };
+
+  function applyStatus(iconEl, status) {
+    const map = statusMap[status];
+    iconEl.className = 'status-icon ' + map.cls;
+    iconEl.dataset.status = status;
+    iconEl.innerHTML = window.Icon
+      ? window.Icon.create(map.icon, { size: iconEl.closest('.sub-row') ? 13 : 16 })
+      : '';
+    const row = iconEl.closest('.nt-row, .sub-row');
+    if (row) {
+      row.classList.toggle('is-done', status === 'done');
+      const badge = row.querySelector('.status-badge');
+      if (badge) {
+        badge.className = 'status-badge ' + map.badge;
+        badge.textContent = map.label;
+      }
+    }
+  }
+
+  document.querySelectorAll('.status-icon').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const current = el.dataset.status || 'pending';
+      const idx = cycle.indexOf(current);
+      const next = cycle[(idx + 1) % cycle.length];
+      applyStatus(el, next);
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Claude Code / AI assistant 本地设置 (含用户私有权限配置)
+.claude/settings.local.json
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node / 前端构建(暂未启用但预留)
+node_modules/
+dist/
+build/
+.cache/
+*.log
+
+# 临时文件
+tmp/
+temp/

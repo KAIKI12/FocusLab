@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 成就徽章墙</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { background: var(--color-bg); padding: 0; }
+
+  /* ---- 页面容器 ---- */
+  .page-wrap { max-width: 960px; margin: 0 auto; padding: var(--sp-8) var(--sp-6) var(--sp-16); }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: var(--sp-4); flex-wrap: wrap; gap: var(--sp-4); }
+  .page-head h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .page-subtitle { color: var(--color-text-secondary); font-size: var(--fs-14); margin-bottom: var(--sp-6); }
+  .nav-back { color: var(--color-text-secondary); font-size: 13px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+  .nav-back:hover { color: var(--color-primary); }
+
+  /* ---- 统计条 ---- */
+  .stat-bar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-3);
+    background: var(--color-bg-elevated); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4);
+    border: 1px solid var(--color-border); margin-bottom: var(--sp-6); box-shadow: var(--shadow-card);
+  }
+  .stat-unlocked { font-size: var(--fs-16); font-weight: var(--fw-semibold); color: var(--color-text-primary); }
+  .stat-unlocked span { color: var(--color-primary); }
+  .stat-rarity { display: flex; gap: var(--sp-3); font-size: var(--fs-14); color: var(--color-text-secondary); }
+  .stat-rarity i { font-style: normal; }
+
+  /* ---- 最近解锁 ---- */
+  .recent-section { margin-bottom: var(--sp-6); }
+  .section-label { font-size: var(--fs-14); font-weight: var(--fw-medium); color: var(--color-text-secondary); margin-bottom: var(--sp-3); }
+  .recent-list { display: flex; gap: var(--sp-3); overflow-x: auto; padding-bottom: var(--sp-2); scrollbar-width: none; }
+  .recent-list::-webkit-scrollbar { display: none; }
+  .recent-card {
+    flex-shrink: 0; display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4);
+    background: var(--color-bg-elevated); border-radius: var(--r-md); border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-gold); box-shadow: var(--shadow-card); min-width: 180px;
+  }
+  .recent-emoji { font-size: 28px; line-height: 1; }
+  .recent-info { display: flex; flex-direction: column; gap: 2px; }
+  .recent-name { font-size: var(--fs-14); font-weight: var(--fw-medium); color: var(--color-text-primary); }
+  .recent-date { font-size: var(--fs-12); color: var(--color-text-muted); }
+
+  /* ---- Tab 栏 ---- */
+  .cat-tabs { display: flex; gap: var(--sp-2); overflow-x: auto; padding-bottom: var(--sp-2); margin-bottom: var(--sp-6); scrollbar-width: none; }
+  .cat-tabs::-webkit-scrollbar { display: none; }
+  .cat-tab {
+    flex-shrink: 0; padding: 6px 14px; border-radius: var(--r-pill); font-size: var(--fs-14);
+    background: var(--color-bg-elevated); border: 1px solid var(--color-border); cursor: pointer;
+    transition: all var(--dur-base) var(--ease-smooth); white-space: nowrap; user-select: none;
+  }
+  .cat-tab:hover { border-color: var(--color-primary); color: var(--color-primary); }
+  .cat-tab.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+
+  /* ---- 徽章网格 ---- */
+  .badge-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-4); margin-bottom: var(--sp-4); }
+  @media (max-width: 600px) { .badge-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 400px) { .badge-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ---- 单个徽章 ---- */
+  .badge-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
+  .badge-circle {
+    width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    border: 3px solid var(--color-border); background: var(--color-bg-elevated);
+    transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+    position: relative; font-size: 32px; line-height: 1;
+  }
+  .badge-item:hover .badge-circle { transform: scale(1.1); }
+  .badge-label { font-size: 12px; color: var(--color-text-secondary); text-align: center; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 稀有度边框 */
+  .badge-circle.rarity-bronze { border-color: #CD7F32; }
+  .badge-circle.rarity-silver { border-color: #C0C0C0; }
+  .badge-circle.rarity-gold { border-color: #FFD700; box-shadow: 0 0 8px rgba(255, 215, 0, 0.35); }
+  .badge-circle.rarity-diamond { border-color: #B87FFF; box-shadow: 0 0 12px rgba(184, 127, 255, 0.5); animation: diamond-pulse 2s ease-in-out infinite; }
+  @keyframes diamond-pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(184, 127, 255, 0.4); filter: hue-rotate(0deg); }
+    50% { box-shadow: 0 0 18px rgba(184, 127, 255, 0.7); filter: hue-rotate(15deg); }
+  }
+
+  /* 未解锁 */
+  .badge-circle.locked { background: var(--color-bg-hover); border-color: var(--color-border); }
+  .badge-circle.locked .lock-icon { font-size: 20px; color: var(--color-text-muted); }
+  .badge-circle.hidden-locked { background: #2a2a2e; border-color: #444; }
+  .badge-circle.hidden-locked .lock-icon { font-size: 20px; }
+
+  /* ---- 详情条 ---- */
+  .badge-detail {
+    grid-column: 1 / -1; background: var(--color-bg-elevated); border-radius: var(--r-md);
+    border: 1px solid var(--color-border); padding: var(--sp-4); box-shadow: var(--shadow-card);
+    animation: detail-in var(--dur-slow) var(--ease-out);
+  }
+  @keyframes detail-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  .detail-head { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-2); flex-wrap: wrap; }
+  .detail-emoji { font-size: 36px; line-height: 1; }
+  .detail-name { font-size: var(--fs-16); font-weight: var(--fw-semibold); }
+  .detail-rarity {
+    font-size: 11px; padding: 2px 8px; border-radius: var(--r-pill); font-weight: var(--fw-medium);
+    display: inline-block;
+  }
+  .detail-rarity.r-bronze { background: #fdf0e0; color: #CD7F32; }
+  .detail-rarity.r-silver { background: #f0f0f0; color: #888; }
+  .detail-rarity.r-gold { background: #fff8e0; color: #b8860b; }
+  .detail-rarity.r-diamond { background: #f3eaff; color: #8a4fff; }
+  .detail-cond { font-size: var(--fs-14); color: var(--color-text-secondary); margin-bottom: var(--sp-1); }
+  .detail-quote { font-size: var(--fs-14); color: var(--color-text-primary); font-style: italic; margin-bottom: var(--sp-1); }
+  .detail-quote::before { content: '"'; }
+  .detail-quote::after { content: '"'; }
+  .detail-date { font-size: var(--fs-12); color: var(--color-text-muted); }
+  .detail-locked-msg { font-size: var(--fs-14); color: var(--color-text-muted); font-style: italic; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <!-- 页头 -->
+  <div class="page-head">
+    <h1>🏆 成就徽章墙</h1>
+    <a class="nav-back" href="persona-card.html">← 返回人格图鉴</a>
+  </div>
+  <div class="page-subtitle">人格是你是谁,成就是你做了什么</div>
+
+  <!-- 统计条 -->
+  <div class="stat-bar">
+    <div class="stat-unlocked">已解锁 <span id="statCount">0 / 0</span></div>
+    <div class="stat-rarity" id="statRarity"></div>
+  </div>
+
+  <!-- 最近解锁 -->
+  <div class="recent-section">
+    <div class="section-label">🕐 最近解锁</div>
+    <div class="recent-list" id="recentList"></div>
+  </div>
+
+  <!-- Tab 栏 -->
+  <div class="cat-tabs" id="catTabs"></div>
+
+  <!-- 徽章网格 -->
+  <div class="badge-grid" id="badgeGrid"></div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+const BADGE_CATS = [
+  { id:'pomodoro', name:'🍅 番茄修行', badges:[
+    { id:'b01',name:'初心',rarity:'bronze',emoji:'🌱',cond:'完成第 1 个番茄',quote:'万里长征第一步,你按下了开始',unlocked:true,date:'2026-04-12' },
+    { id:'b02',name:'十连斩',rarity:'bronze',emoji:'⚔️',cond:'单日 10 个番茄',quote:'今天的你,量产型学术武器',unlocked:true,date:'2026-04-15' },
+    { id:'b03',name:'百番壮士',rarity:'silver',emoji:'💯',cond:'累计 100 番茄',quote:'如果番茄能换学分,你已经毕业了',unlocked:true,date:'2026-04-18' },
+    { id:'b04',name:'千番大佬',rarity:'gold',emoji:'👑',cond:'累计 1000 番茄',quote:'已超越 99.2% 的科研打工人',unlocked:false },
+    { id:'b05',name:'万番传说',rarity:'diamond',emoji:'🏔️',cond:'累计 10000 番茄',quote:'你可能需要一个新的番茄品种来纪念你',unlocked:false },
+    { id:'b06',name:'番茄连击',rarity:'silver',emoji:'⚡',cond:'连续 5 番茄无中断',quote:'你的专注力比你的 WiFi 稳定多了',unlocked:true,date:'2026-04-14' },
+    { id:'b07',name:'心流猎人',rarity:'gold',emoji:'🌊',cond:'单次专注 >90min',quote:'时间在你这里失效了,欢迎回到现实',unlocked:false },
+  ]},
+  { id:'streak', name:'🔥 连续打卡', badges:[
+    { id:'b08',name:'三日坚持',rarity:'bronze',emoji:'🔥',cond:'连续 3 天',quote:'不是每段关系都能撑过第三天',unlocked:true,date:'2026-04-10' },
+    { id:'b09',name:'周周有我',rarity:'bronze',emoji:'📅',cond:'连续 7 天',quote:'你比大多数健身计划活得长',unlocked:true,date:'2026-04-14' },
+    { id:'b10',name:'半月谈',rarity:'silver',emoji:'🌓',cond:'连续 14 天',quote:'你的坚持已经比很多 App 的热度持久了',unlocked:false },
+    { id:'b11',name:'铁人月',rarity:'silver',emoji:'🦾',cond:'连续 30 天',quote:'这个月的你,可以写进简历了',unlocked:false },
+    { id:'b12',name:'百日马拉松',rarity:'gold',emoji:'🏃',cond:'连续 100 天',quote:'100 天,你已经从习惯变成了信仰',unlocked:false },
+    { id:'b13',name:'全勤战士',rarity:'diamond',emoji:'🛡️',cond:'连续 365 天',quote:'你的毅力让 FocusLab 的服务器都感到敬畏',unlocked:false },
+    { id:'b14',name:'打不死的',rarity:'gold',emoji:'🧱',cond:'断后 24h 重开×3',quote:'摔倒不丢人,爬起来的速度才是你的天赋',unlocked:true,date:'2026-04-17' },
+  ]},
+  { id:'settlement', name:'📊 结算荣耀', badges:[
+    { id:'b15',name:'首个A级',rarity:'bronze',emoji:'🅰️',cond:'第一次 A 级',quote:'系统认证:今天的你不是在摸鱼',unlocked:true,date:'2026-04-11' },
+    { id:'b16',name:'首个S级',rarity:'silver',emoji:'⭐',cond:'第一次 S 级',quote:'S 级达成,这个成就比你的论文还难拿',unlocked:true,date:'2026-04-16' },
+    { id:'b17',name:'三连S',rarity:'gold',emoji:'🔥',cond:'连续 3 天 S 级',quote:'S-S-S,你的学术等级:SSS',unlocked:false },
+    { id:'b18',name:'完美一周',rarity:'gold',emoji:'🏆',cond:'一周全≥A',quote:'这周你就是自己的奖学金',unlocked:false },
+    { id:'b19',name:'凤凰涅槃',rarity:'silver',emoji:'🔥',cond:'C 后次日 A/S',quote:'昨天的灰烬是今天的燃料',unlocked:true,date:'2026-04-13' },
+    { id:'b20',name:'不倒翁',rarity:'gold',emoji:'🎯',cond:'连续 30 天无 C',quote:'你的下限,就是别人的天花板',unlocked:false },
+    { id:'b21',name:'C级但快乐',rarity:'bronze',emoji:'😊',cond:'C 级+晚间情绪 4-5',quote:'完成率不代表一切,你今天过得不错就好',unlocked:true,date:'2026-04-09' },
+  ]},
+  { id:'goals', name:'🎯 目标猎人', badges:[
+    { id:'b22',name:'今日清盘',rarity:'bronze',emoji:'✅',cond:'全部计划完成',quote:'今天的你,没有给明天留任何债',unlocked:true,date:'2026-04-15' },
+    { id:'b23',name:'五杀',rarity:'silver',emoji:'🗡️',cond:'单日 5 任务完成',quote:'五杀!对面已投降',unlocked:true,date:'2026-04-16' },
+    { id:'b24',name:'首个里程碑',rarity:'silver',emoji:'🏁',cond:'完成第一个里程碑',quote:'大项目的进度条,终于动了',unlocked:false },
+    { id:'b25',name:'长线玩家',rarity:'gold',emoji:'🎮',cond:'目标持续 30 天+',quote:'你做到了大多数人做不到的事:坚持',unlocked:false },
+    { id:'b26',name:'搁置大师',rarity:'silver',emoji:'🧘',cond:'搁置 10+完成率>80%',quote:'你不是逃避,你是战略性放弃',unlocked:false },
+    { id:'b27',name:'提前交卷',rarity:'gold',emoji:'📝',cond:'DDL 前 3 天完成紧急任务',quote:'DDL 炼金术士在哭泣:这不科学',unlocked:false },
+  ]},
+  { id:'time', name:'🌙 时段徽章', badges:[
+    { id:'b28',name:'深夜卫士',rarity:'bronze',emoji:'🌙',cond:'凌晨 2 点后有记录',quote:'保安已经认识你了',unlocked:true,date:'2026-04-11' },
+    { id:'b29',name:'黎明之前',rarity:'silver',emoji:'🌅',cond:'5 点前开始番茄',quote:'太阳还没上班,你已经打卡了',unlocked:false },
+    { id:'b30',name:'全天候',rarity:'gold',emoji:'🕐',cond:'24h 内 6+时段有记录',quote:'你的热力图亮成一条直线',unlocked:false },
+    { id:'b31',name:'周末战士',rarity:'silver',emoji:'💪',cond:'连续 4 周末有记录',quote:'别人在玩,你在卷——但你自愿的',unlocked:true,date:'2026-04-14' },
+    { id:'b32',name:'午夜哲学家',rarity:'bronze',emoji:'🤔',cond:'23-01 时完成任务',quote:'夜深了,你和论文进行了一次深度对话',unlocked:true,date:'2026-04-10' },
+    { id:'b33',name:'跨日勇者',rarity:'silver',emoji:'⏰',cond:'跨 4:00 线连续专注',quote:'你打穿了时间结界,系统日志在报错',unlocked:false },
+  ]},
+  { id:'hidden', name:'🎭 隐藏彩蛋', badges:[
+    { id:'b34',name:'自相矛盾',rarity:'diamond',emoji:'🎭',cond:'打"保养档"但当日>8h',quote:'嘴上说休息,身体很诚实',unlocked:false,isHidden:true },
+    { id:'b35',name:'加载中...',rarity:'gold',emoji:'🔄',cond:'7 天未用后回归',quote:'欢迎回来,你的番茄钟等你等得都发芽了',unlocked:true,date:'2026-04-18',isHidden:true },
+    { id:'b36',name:'薛定谔的生产力',rarity:'diamond',emoji:'🐱',cond:'搁置>10+同日清 5',quote:'在观测之前,你既在摸鱼又在干活',unlocked:false,isHidden:true },
+    { id:'b37',name:'控制狂',rarity:'gold',emoji:'🎮',cond:'从不用 AI+完成率>90%',quote:'你用实力证明了:不需要 AI 你也很强',unlocked:false,isHidden:true },
+    { id:'b38',name:'完美缺席',rarity:'diamond',emoji:'👻',cond:'全周只 1 天但 S 级',quote:'你只来了一天,但那一天价值一整周',unlocked:false,isHidden:true },
+    { id:'b39',name:'社交推手',rarity:'bronze',emoji:'📢',cond:'第一次分享人格卡',quote:'你正在帮 FocusLab 不花钱做广告,谢谢',unlocked:true,date:'2026-04-17',isHidden:true },
+    { id:'b40',name:'人格分裂',rarity:'gold',emoji:'🪞',cond:'连续 4 周不同人格',quote:'系统已放弃给你贴标签',unlocked:false,isHidden:true },
+    { id:'b41',name:'本色出演',rarity:'silver',emoji:'🎬',cond:'连续 8 周同一人格',quote:'你是你自己最忠实的扮演者',unlocked:false,isHidden:true },
+    { id:'b42',name:'进化完成',rarity:'gold',emoji:'🧬',cond:'走完任意进化链',quote:'你的科研人格完成了一次完整进化',unlocked:false,isHidden:true },
+    { id:'b43',name:'季节收藏家',rarity:'diamond',emoji:'🗓️',cond:'集齐 3 个季节限定',quote:'你经历了春夏秋,每一季都有不同的人格',unlocked:false,isHidden:true },
+    { id:'b44',name:'反转王',rarity:'gold',emoji:'🔄',cond:'触发 3 次反转时刻',quote:'系统已经不敢预测你了',unlocked:false,isHidden:true },
+    { id:'b45',name:'图鉴完成者',rarity:'diamond',emoji:'📖',cond:'曾拥有 15+ 种人格',quote:'你把图鉴翻了个遍,科研界的宝可梦大师',unlocked:false,isHidden:true },
+  ]},
+];
+
+const RARITY_LABEL = { bronze:'铜', silver:'银', gold:'金', diamond:'钻石' };
+const RARITY_ICON = { bronze:'🟤', silver:'⚪', gold:'🟡', diamond:'💎' };
+
+let activeCat = BADGE_CATS[0].id;
+let openBadgeId = null;
+
+/* ---- 统计 ---- */
+function computeStats() {
+  const all = BADGE_CATS.flatMap(c => c.badges);
+  const unlocked = all.filter(b => b.unlocked);
+  const rc = { bronze:0, silver:0, gold:0, diamond:0 };
+  unlocked.forEach(b => rc[b.rarity]++);
+  document.getElementById('statCount').textContent = `${unlocked.length} / ${all.length}`;
+  const rEl = document.getElementById('statRarity');
+  rEl.innerHTML = Object.entries(rc).map(([k,v]) => `<i>${RARITY_ICON[k]}${v}</i>`).join('');
+}
+
+/* ---- 最近解锁 ---- */
+function renderRecent() {
+  const all = BADGE_CATS.flatMap(c => c.badges).filter(b => b.unlocked && b.date);
+  all.sort((a,b) => b.date.localeCompare(a.date));
+  const top3 = all.slice(0, 3);
+  document.getElementById('recentList').innerHTML = top3.map(b =>
+    `<div class="recent-card"><span class="recent-emoji">${b.emoji}</span><div class="recent-info"><span class="recent-name">${b.name}</span><span class="recent-date">${b.date}</span></div></div>`
+  ).join('');
+}
+
+/* ---- Tab ---- */
+function renderTabs() {
+  const el = document.getElementById('catTabs');
+  el.innerHTML = BADGE_CATS.map(c =>
+    `<div class="cat-tab${c.id === activeCat ? ' active' : ''}" data-cat="${c.id}">${c.name}</div>`
+  ).join('');
+  el.querySelectorAll('.cat-tab').forEach(tab => {
+    tab.onclick = () => { activeCat = tab.dataset.cat; openBadgeId = null; renderTabs(); renderGrid(); };
+  });
+}
+
+/* ---- 网格 ---- */
+function renderGrid() {
+  const cat = BADGE_CATS.find(c => c.id === activeCat);
+  if (!cat) return;
+  const grid = document.getElementById('badgeGrid');
+  let html = '';
+  cat.badges.forEach((b, i) => {
+    const isHidden = b.isHidden && !b.unlocked;
+    const isLocked = !b.unlocked && !b.isHidden;
+    let circleClass = 'badge-circle';
+    let inner = '';
+    let label = '';
+    if (b.unlocked) {
+      circleClass += ` rarity-${b.rarity}`;
+      inner = b.emoji;
+      label = b.name;
+    } else if (b.isHidden) {
+      circleClass += ' hidden-locked';
+      inner = '<span class="lock-icon">❓</span>';
+      label = '隐藏';
+    } else {
+      circleClass += ' locked';
+      inner = '<span class="lock-icon">🔒</span>';
+      label = '???';
+    }
+    html += `<div class="badge-item" data-bid="${b.id}"><div class="${circleClass}">${inner}</div><span class="badge-label">${label}</span></div>`;
+    /* 详情条插入 */
+    if (openBadgeId === b.id) {
+      html += renderDetail(b);
+    }
+  });
+  grid.innerHTML = html;
+  grid.querySelectorAll('.badge-item').forEach(item => {
+    item.onclick = () => {
+      const bid = item.dataset.bid;
+      openBadgeId = openBadgeId === bid ? null : bid;
+      renderGrid();
+    };
+  });
+}
+
+function renderDetail(b) {
+  if (b.unlocked) {
+    return `<div class="badge-detail">
+      <div class="detail-head">
+        <span class="detail-emoji">${b.emoji}</span>
+        <span class="detail-name">${b.name}</span>
+        <span class="detail-rarity r-${b.rarity}">${RARITY_ICON[b.rarity]} ${RARITY_LABEL[b.rarity]}</span>
+      </div>
+      <div class="detail-cond">达成条件: ${b.cond}</div>
+      <div class="detail-quote">${b.quote}</div>
+      <div class="detail-date">达成日期: ${b.date}</div>
+    </div>`;
+  }
+  const condText = b.isHidden ? '???' : b.cond.replace(/./g, c => Math.random() > 0.4 ? c : '*');
+  return `<div class="badge-detail">
+    <div class="detail-head">
+      <span class="detail-emoji">${b.isHidden ? '❓' : '🔒'}</span>
+      <span class="detail-name">${b.isHidden ? '???' : '???'}</span>
+      <span class="detail-rarity r-${b.rarity}">${RARITY_ICON[b.rarity]} ${RARITY_LABEL[b.rarity]}</span>
+    </div>
+    <div class="detail-cond">达成条件: ${condText}</div>
+    <div class="detail-locked-msg">继续努力,你离这枚徽章又近了一步 💪</div>
+  </div>`;
+}
+
+/* ---- 初始化 ---- */
+computeStats();
+renderRecent();
+renderTabs();
+renderGrid();
+</script>
+</body>
+</html>

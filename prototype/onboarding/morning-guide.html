@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 晨起引导思考</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { padding: 0; background: var(--color-bg); }
+  .showcase-wrap { max-width: 1200px; margin: 0 auto; padding: var(--sp-8) var(--sp-6) var(--sp-10); }
+
+  .showcase-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: var(--sp-6); gap: var(--sp-4); flex-wrap: wrap; }
+  .showcase-head h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .showcase-head .sub { color: var(--color-text-secondary); font-size: var(--fs-14); margin-top: 4px; }
+  .nav-back { color: var(--color-text-secondary); font-size: var(--fs-13, 13px); display:inline-flex; align-items:center; gap:4px; }
+  .nav-back:hover { color: var(--color-primary); }
+
+  /* ============ Morning hero ============ */
+  .morning-hero {
+    position: relative;
+    padding: var(--sp-8) var(--sp-8) var(--sp-6);
+    border-radius: var(--r-lg);
+    background: linear-gradient(135deg, #FFF4D1 0%, #FFDFA0 30%, #FFB6B9 65%, #B8A2FF 100%);
+    color: #3D2B4F;
+    margin-bottom: var(--sp-6);
+    overflow: hidden;
+  }
+  .morning-hero::before {
+    content: "🌅";
+    position: absolute;
+    top: -20px; right: 40px;
+    font-size: 140px;
+    opacity: 0.22;
+    pointer-events: none;
+    line-height: 1;
+  }
+  .morning-hero .greet-small {
+    font-size: var(--fs-12);
+    opacity: 0.7;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: var(--sp-2);
+  }
+  .morning-hero .greet {
+    font-size: 36px;
+    font-weight: var(--fw-bold);
+    letter-spacing: -0.8px;
+    margin-bottom: var(--sp-2);
+    position: relative;
+  }
+  .morning-hero .greet em { color: var(--color-primary-dark); font-style: normal; }
+  .morning-hero .greet-desc {
+    font-size: var(--fs-14);
+    opacity: 0.75;
+    position: relative;
+    max-width: 560px;
+    line-height: 1.7;
+  }
+  .morning-hero .meta-row {
+    display: flex; gap: var(--sp-4);
+    margin-top: var(--sp-4);
+    font-size: var(--fs-12);
+    position: relative;
+  }
+  .morning-hero .meta-item {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px;
+    background: rgba(255,255,255,0.4);
+    backdrop-filter: blur(8px);
+    border-radius: var(--r-pill);
+  }
+
+  /* ============ Layout: stepper + content ============ */
+  .guide-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: var(--sp-6);
+    align-items: start;
+  }
+
+  /* Left stepper (vertical sticky) */
+  .v-stepper {
+    position: sticky;
+    top: var(--sp-4);
+    display: flex; flex-direction: column; gap: 0;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    padding: var(--sp-4);
+  }
+  .v-step {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 10px 8px;
+    cursor: pointer;
+    border-radius: var(--r-sm);
+    position: relative;
+    transition: background var(--dur-base);
+  }
+  .v-step:hover { background: var(--color-bg-hover); }
+  .v-step.is-active { background: var(--color-primary-soft); }
+  .v-step .num {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--color-bg-hover);
+    color: var(--color-text-muted);
+    font-size: var(--fs-12);
+    font-weight: var(--fw-semibold);
+    flex-shrink: 0;
+    transition: all var(--dur-base);
+  }
+  .v-step.is-done .num { background: var(--color-success-soft); color: var(--color-success); }
+  .v-step.is-active .num { background: var(--color-primary); color: #fff; }
+  .v-step .label { font-size: var(--fs-13, 13px); color: var(--color-text-secondary); flex: 1; }
+  .v-step.is-active .label { color: var(--color-primary-dark); font-weight: var(--fw-medium); }
+  .v-step.is-done .label { color: var(--color-text-primary); }
+  .v-step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 21px;
+    top: 36px;
+    width: 2px;
+    height: calc(100% - 24px);
+    background: var(--color-divider);
+  }
+  .v-step.is-done:not(:last-child)::after { background: var(--color-success); }
+  .v-step-footer {
+    margin-top: var(--sp-3);
+    padding-top: var(--sp-3);
+    border-top: 1px solid var(--color-divider);
+    font-size: 11px;
+    color: var(--color-text-muted);
+    text-align: center;
+  }
+
+  /* Right: step cards stacked */
+  .step-stack { display: flex; flex-direction: column; gap: var(--sp-5); }
+  .g-step-card {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--dur-base);
+  }
+  .g-step-card.is-active {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-soft), var(--shadow-card);
+  }
+  .g-step-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: 1px solid var(--color-divider);
+    background: var(--color-bg-subtle);
+  }
+  .g-step-head .left-row { display: flex; align-items: center; gap: var(--sp-3); }
+  .g-step-head .num-ch {
+    width: 28px; height: 28px;
+    border-radius: var(--r-sm);
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    display: grid; place-items: center;
+    font-weight: var(--fw-semibold);
+    font-size: var(--fs-12);
+  }
+  .g-step-head.is-done .num-ch { background: var(--color-success-soft); color: var(--color-success); }
+  .g-step-head h3 { font-size: var(--fs-16); font-weight: var(--fw-semibold); }
+  .g-step-head .sub { font-size: var(--fs-12); color: var(--color-text-muted); margin-top: 2px; }
+  .g-step-head .skip { font-size: var(--fs-12); color: var(--color-text-muted); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+  .g-step-head .skip:hover { color: var(--color-text-primary); }
+  .g-step-body { padding: var(--sp-5); }
+
+  /* ========== Step 1 · 昨日回顾 ========== */
+  .yest-summary {
+    display: flex; align-items: center; gap: var(--sp-4);
+    padding: var(--sp-4);
+    background: var(--color-primary-soft);
+    border-radius: var(--r-sm);
+    margin-bottom: var(--sp-4);
+  }
+  .yest-badge {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-primary), #7AABFF);
+    color: #fff;
+    font-weight: var(--fw-bold);
+    font-size: var(--fs-24);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .yest-summary .info strong { font-size: var(--fs-14); }
+  .yest-summary .info p { font-size: var(--fs-13, 13px); color: var(--color-text-secondary); margin-top: 2px; line-height: 1.6; }
+
+  .undone-row {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-sm);
+    margin-bottom: 8px;
+    background: var(--color-bg-elevated);
+  }
+  .undone-row .u-title { flex: 1; font-size: var(--fs-14); font-weight: var(--fw-medium); }
+  .undone-row .u-meta { font-size: var(--fs-12); color: var(--color-text-muted); }
+  .undone-row .u-actions { display: flex; gap: 4px; }
+
+  /* ========== Step 2 · 长线目标 ========== */
+  .g-goal-card {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-4);
+    border: 2px solid var(--color-border);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: all var(--dur-base);
+    margin-bottom: 8px;
+  }
+  .g-goal-card:hover { border-color: var(--color-primary-light); }
+  .g-goal-card.is-selected { border-color: var(--color-primary); background: var(--color-primary-soft); }
+  .g-goal-card .g-icon {
+    width: 40px; height: 40px;
+    border-radius: var(--r-sm);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    color: #fff;
+  }
+  .g-goal-card .g-body { flex: 1; }
+  .g-goal-card .g-name { font-size: var(--fs-14); font-weight: var(--fw-semibold); }
+  .g-goal-card .g-meta { font-size: var(--fs-12); color: var(--color-text-secondary); }
+  .g-goal-card .g-progress-mini {
+    width: 60px; flex-shrink: 0;
+  }
+  .g-goal-card .g-progress-mini .bar {
+    height: 6px; background: var(--color-bg-hover); border-radius: var(--r-pill); overflow: hidden;
+  }
+  .g-goal-card .g-progress-mini .fill { height: 100%; border-radius: var(--r-pill); }
+  .g-goal-card .g-pct {
+    font-family: var(--font-mono); font-size: 11px; color: var(--color-text-muted);
+    text-align: right; margin-top: 2px;
+  }
+
+  /* ========== Step 3 · 固定日程 ========== */
+  .schedule-view {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 8px;
+    padding: var(--sp-4) 0;
+  }
+  .time-axis {
+    display: flex; flex-direction: column;
+    gap: 0;
+    padding-top: 8px;
+  }
+  .time-label {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    height: 40px;
+    text-align: right;
+    padding-right: 8px;
+    font-family: var(--font-mono);
+  }
+  .day-slots {
+    position: relative;
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--color-bg-subtle),
+      var(--color-bg-subtle) 39px,
+      var(--color-divider) 39px,
+      var(--color-divider) 40px
+    );
+    border-radius: var(--r-sm);
+    padding: 8px;
+    min-height: 360px;
+  }
+  .schedule-event {
+    position: absolute;
+    left: 8px; right: 8px;
+    border-radius: var(--r-xs);
+    padding: 6px 10px;
+    font-size: var(--fs-12);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .schedule-event.lesson { background: rgba(79, 140, 255, 0.15); border-left: 3px solid var(--color-primary); color: var(--color-primary-dark); }
+  .schedule-event.meeting { background: rgba(255, 140, 0, 0.15); border-left: 3px solid var(--color-warning); color: #D2691E; }
+  .schedule-event .title { font-weight: var(--fw-semibold); }
+  .schedule-event .time { font-family: var(--font-mono); font-size: 10px; opacity: 0.8; }
+
+  .available-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--color-success-soft);
+    border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent);
+    border-radius: var(--r-sm);
+    margin-top: var(--sp-3);
+  }
+  .available-row .t { font-size: var(--fs-13, 13px); color: #389E0D; }
+  .available-row .t strong { color: var(--color-text-primary); }
+  .available-row .v { font-family: var(--font-mono); font-size: var(--fs-20); font-weight: var(--fw-bold); color: var(--color-success); }
+
+  /* ========== Step 4 · AI 建议 ========== */
+  .ai-suggest-list { display: flex; flex-direction: column; gap: 8px; }
+  .ai-suggest {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: 10px 12px;
+    border: 1px dashed color-mix(in srgb, var(--color-primary) 40%, transparent);
+    background: var(--color-primary-soft);
+    border-radius: var(--r-sm);
+  }
+  .ai-suggest .s-check {
+    width: 18px; height: 18px;
+    border: 1.5px solid var(--color-primary);
+    border-radius: 4px;
+    flex-shrink: 0;
+    cursor: pointer;
+    display: grid; place-items: center;
+    color: transparent;
+    transition: all var(--dur-base);
+  }
+  .ai-suggest.is-taken .s-check { background: var(--color-primary); color: #fff; }
+  .ai-suggest .s-title { flex: 1; font-size: var(--fs-14); font-weight: var(--fw-medium); }
+  .ai-suggest .s-meta { font-size: var(--fs-12); color: var(--color-text-muted); display: flex; align-items: center; gap: 8px; }
+  .ai-suggest .s-why {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    padding: 8px 10px;
+    margin-top: 4px;
+    background: rgba(255,255,255,0.5);
+    border-radius: var(--r-xs);
+    border-left: 2px solid var(--color-primary-light);
+  }
+  .ai-suggest-wrap { margin-bottom: var(--sp-2); }
+
+  .regen-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: var(--sp-2) 0;
+  }
+  .regen-row .lead { font-size: var(--fs-12); color: var(--color-text-muted); }
+  .regen-row .chip-buttons { display: flex; gap: 6px; }
+
+  .custom-task-row {
+    display: flex; gap: 8px; align-items: center;
+    padding: 8px 10px;
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--r-sm);
+    color: var(--color-text-muted);
+    font-size: var(--fs-13, 13px);
+    margin-top: 6px;
+  }
+
+  /* ========== Step 5 · 能量 ========== */
+  .energy-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--sp-3);
+  }
+  .energy-choice {
+    padding: var(--sp-4);
+    border: 2px solid var(--color-border);
+    border-radius: var(--r-md);
+    background: var(--color-bg-elevated);
+    cursor: pointer;
+    transition: all var(--dur-base);
+    text-align: center;
+  }
+  .energy-choice:hover { border-color: var(--color-primary-light); transform: translateY(-2px); }
+  .energy-choice.is-selected { border-color: var(--color-primary); background: var(--color-primary-soft); }
+  .energy-choice .e-emoji { font-size: 32px; margin-bottom: var(--sp-2); line-height: 1; }
+  .energy-choice .e-label { font-size: var(--fs-14); font-weight: var(--fw-semibold); }
+  .energy-choice .e-sub { font-size: 11px; color: var(--color-text-muted); margin-top: 4px; line-height: 1.4; }
+
+  .energy-feedback {
+    margin-top: var(--sp-4);
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--color-primary-soft);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-13, 13px);
+    color: var(--color-primary-dark);
+    line-height: 1.6;
+    display: flex; gap: 8px;
+  }
+
+  .final-confirm {
+    margin-top: var(--sp-8);
+    padding: var(--sp-6);
+    border: 2px dashed color-mix(in srgb, var(--color-primary) 30%, transparent);
+    border-radius: var(--r-md);
+    background: linear-gradient(135deg, var(--color-primary-soft), transparent);
+    display: flex; flex-direction: column; align-items: center; gap: var(--sp-3);
+    text-align: center;
+  }
+  .final-confirm .emoji { font-size: 36px; line-height: 1; }
+  .final-confirm h3 { font-size: var(--fs-20); font-weight: var(--fw-semibold); }
+  .final-confirm p { font-size: var(--fs-13, 13px); color: var(--color-text-secondary); max-width: 420px; line-height: 1.7; }
+
+  /* ============ 轻量替代卡片 ============ */
+  .alt-section {
+    margin-top: var(--sp-10);
+    padding-top: var(--sp-8);
+    border-top: 2px dashed var(--color-divider);
+  }
+  .alt-section h2 { font-size: var(--fs-20); font-weight: var(--fw-semibold); margin-bottom: var(--sp-2); }
+  .alt-section .alt-sub { color: var(--color-text-secondary); font-size: var(--fs-14); margin-bottom: var(--sp-5); max-width: 720px; line-height: 1.7; }
+
+  .thought-card {
+    max-width: 520px;
+    margin: 0 auto;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+  }
+  .tc-head {
+    padding: var(--sp-4) var(--sp-5);
+    background: linear-gradient(135deg, var(--color-primary-soft), transparent);
+    border-bottom: 1px solid var(--color-divider);
+    display: flex; align-items: center; gap: var(--sp-2);
+  }
+  .tc-head .emoji { font-size: 18px; }
+  .tc-head .title { font-size: var(--fs-14); font-weight: var(--fw-semibold); }
+  .tc-body { padding: var(--sp-5); }
+  .tc-body .lead-p {
+    font-size: var(--fs-15, 15px);
+    line-height: 1.8;
+    color: var(--color-text-primary);
+    margin-bottom: var(--sp-4);
+  }
+  .tc-body .lead-p em { color: var(--color-primary); font-style: normal; font-weight: var(--fw-medium); }
+  .tc-dir-label {
+    font-size: var(--fs-12);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-muted);
+    font-weight: var(--fw-medium);
+    margin-bottom: var(--sp-2);
+  }
+  .tc-direction {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-sm);
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all var(--dur-base);
+    font-size: var(--fs-13, 13px);
+  }
+  .tc-direction:hover { border-color: var(--color-primary); background: var(--color-primary-soft); }
+  .tc-direction .d-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-primary); flex-shrink: 0; }
+  .tc-foot {
+    padding: var(--sp-3) var(--sp-5) var(--sp-5);
+    display: flex; gap: var(--sp-2); justify-content: flex-end;
+  }
+
+  .card-caption { text-align: center; color: var(--color-text-muted); font-size: var(--fs-12); margin-top: var(--sp-3); }
+
+  @media (max-width: 900px) {
+    .guide-layout { grid-template-columns: 1fr; }
+    .v-stepper { position: static; flex-direction: row; overflow-x: auto; }
+    .v-step::after { display: none; }
+    .schedule-view { grid-template-columns: 40px 1fr; }
+    .energy-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="showcase-wrap">
+  <div class="showcase-head">
+    <div>
+      <h1>🌅 晨起引导思考</h1>
+      <div class="sub">每天的 3 分钟仪式感 · 5 步启发式卡片 · 非问答、非打卡 · docs/02 §4</div>
+    </div>
+    <a class="nav-back" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回原型导航</a>
+  </div>
+
+  <!-- Morning hero -->
+  <div class="morning-hero">
+    <div class="greet-small">2026 年 4 月 17 日 · 周五 · 上午 09:12</div>
+    <div class="greet">早上好 · <em>今天是扎实的一天</em></div>
+    <div class="greet-desc">
+      开始工作前,花 3 分钟和自己对一下焦 · 看看昨天怎么样、长线上还差什么、今天想推哪个方向。<br/>
+      如果现在就想工作,直接跳过也完全 OK。
+    </div>
+    <div class="meta-row">
+      <span class="meta-item"><span data-icon="clock" data-size="12"></span> 预计 3 分钟</span>
+      <span class="meta-item"><span data-icon="sparkles" data-size="12"></span> AI 已预读你的数据</span>
+      <span class="meta-item"><span data-icon="x" data-size="12"></span> 每一步都可跳过</span>
+    </div>
+  </div>
+
+  <div class="guide-layout">
+    <!-- Left vertical stepper -->
+    <aside class="v-stepper">
+      <div class="v-step is-done" data-step="1">
+        <div class="num"><span data-icon="check" data-size="14"></span></div>
+        <div class="label">回顾昨日</div>
+      </div>
+      <div class="v-step is-done" data-step="2">
+        <div class="num"><span data-icon="check" data-size="14"></span></div>
+        <div class="label">审视长线目标</div>
+      </div>
+      <div class="v-step is-active" data-step="3">
+        <div class="num">3</div>
+        <div class="label">检查固定日程</div>
+      </div>
+      <div class="v-step" data-step="4">
+        <div class="num">4</div>
+        <div class="label">设定今日目标</div>
+      </div>
+      <div class="v-step" data-step="5">
+        <div class="num">5</div>
+        <div class="label">状态检查</div>
+      </div>
+      <div class="v-step-footer">
+        <div style="font-family: var(--font-mono);">⌘ G</div>
+        <div style="margin-top:4px">随时呼出</div>
+      </div>
+    </aside>
+
+    <!-- Step cards stack -->
+    <div class="step-stack">
+
+      <!-- ================= Step 1 · 昨日回顾 ================= -->
+      <div class="g-step-card">
+        <div class="g-step-head is-done">
+          <div class="left-row">
+            <div class="num-ch"><span data-icon="check" data-size="14"></span></div>
+            <div>
+              <h3>回顾昨日</h3>
+              <div class="sub">先看看昨天走到哪了</div>
+            </div>
+          </div>
+          <span style="color:var(--color-success);font-size:var(--fs-12)">已完成</span>
+        </div>
+        <div class="g-step-body">
+          <div class="yest-summary">
+            <div class="yest-badge">A</div>
+            <div class="info">
+              <strong>昨天 · A 级 · 完美完成</strong>
+              <p>4 / 5 计划完成 · 专注 4h 10m · 11 个番茄钟 · 中断 2 次(均被动)</p>
+            </div>
+            <button class="btn btn-ghost btn-sm">查看完整结算</button>
+          </div>
+
+          <div class="sub-section-label" style="font-size:var(--fs-12);text-transform:uppercase;letter-spacing:0.5px;color:var(--color-text-muted);font-weight:var(--fw-medium);margin-bottom:var(--sp-2)">
+            昨天没完成的任务 · 1 个
+          </div>
+
+          <div class="undone-row">
+            <span class="fl-check"></span>
+            <div class="u-title">设计改进方案</div>
+            <span class="u-meta">预估 2h · 未开始</span>
+            <div class="u-actions">
+              <button class="btn btn-soft btn-sm">挪到今天</button>
+              <button class="btn btn-ghost btn-sm">搁置</button>
+              <button class="btn btn-ghost btn-sm"><span data-icon="more-horizontal" data-size="14"></span></button>
+            </div>
+          </div>
+
+          <div style="margin-top:var(--sp-3);padding:var(--sp-3);background:var(--color-bg-subtle);border-radius:var(--r-sm);font-size:var(--fs-13, 13px);color:var(--color-text-secondary);line-height:1.6">
+            💭 <em>你已经连续 3 天完成计划内全部任务</em> — 这个节奏值得保持。昨天没做的那个可能需要拆小一些。
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= Step 2 · 审视长线目标 ================= -->
+      <div class="g-step-card">
+        <div class="g-step-head is-done">
+          <div class="left-row">
+            <div class="num-ch"><span data-icon="check" data-size="14"></span></div>
+            <div>
+              <h3>审视长线目标</h3>
+              <div class="sub">今天推哪个方向</div>
+            </div>
+          </div>
+          <span style="color:var(--color-success);font-size:var(--fs-12)">已选择</span>
+        </div>
+        <div class="g-step-body">
+          <p style="font-size:var(--fs-13, 13px);color:var(--color-text-secondary);margin-bottom:var(--sp-3)">选择今天想往前推进的目标,后续的任务建议会围绕它来生成。</p>
+
+          <div class="g-goal-card is-selected">
+            <div class="g-icon" style="background: linear-gradient(135deg, var(--color-primary), #7AABFF)">
+              <span data-icon="target" data-size="18"></span>
+            </div>
+            <div class="g-body">
+              <div class="g-name">发表 SCI 论文 A</div>
+              <div class="g-meta">进行 23 天 · 里程碑 3 / 7 · 方法论设计中</div>
+            </div>
+            <div class="g-progress-mini">
+              <div class="bar"><div class="fill" style="width:43%;background:var(--color-primary)"></div></div>
+              <div class="g-pct">43%</div>
+            </div>
+          </div>
+
+          <div class="g-goal-card">
+            <div class="g-icon" style="background: linear-gradient(135deg, #B87FFF, #DFA9FF)">
+              <span data-icon="flag" data-size="18"></span>
+            </div>
+            <div class="g-body">
+              <div class="g-name">毕业答辩材料</div>
+              <div class="g-meta">进行 5 天 · 里程碑 1 / 4 · 提纲阶段</div>
+            </div>
+            <div class="g-progress-mini">
+              <div class="bar"><div class="fill" style="width:18%;background:#B87FFF"></div></div>
+              <div class="g-pct">18%</div>
+            </div>
+          </div>
+
+          <div class="g-goal-card">
+            <div class="g-icon" style="background: linear-gradient(135deg, var(--color-gold), #FFD666)">
+              <span data-icon="sparkles" data-size="18"></span>
+            </div>
+            <div class="g-body">
+              <div class="g-name">PyTorch 2 精通</div>
+              <div class="g-meta">长期 · 不设截止 · 技能积累</div>
+            </div>
+            <div class="g-progress-mini">
+              <div class="bar"><div class="fill" style="width:35%;background:var(--color-gold)"></div></div>
+              <div class="g-pct">35%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= Step 3 · 固定日程 · ACTIVE ================= -->
+      <div class="g-step-card is-active">
+        <div class="g-step-head">
+          <div class="left-row">
+            <div class="num-ch">3</div>
+            <div>
+              <h3>检查固定日程</h3>
+              <div class="sub">看看今天有哪些已经占掉的时间</div>
+            </div>
+          </div>
+          <span class="skip">跳过 <span data-icon="chevron-right" data-size="12"></span></span>
+        </div>
+        <div class="g-step-body">
+          <p style="font-size:var(--fs-13, 13px);color:var(--color-text-secondary);margin-bottom:var(--sp-3)">从每周固定日程模板自动拉取 · 今天是<strong style="color:var(--color-text-primary)">周五</strong>。</p>
+
+          <div class="schedule-view">
+            <div class="time-axis">
+              <div class="time-label">09:00</div>
+              <div class="time-label">10:00</div>
+              <div class="time-label">11:00</div>
+              <div class="time-label">12:00</div>
+              <div class="time-label">13:00</div>
+              <div class="time-label">14:00</div>
+              <div class="time-label">15:00</div>
+              <div class="time-label">16:00</div>
+              <div class="time-label">17:00</div>
+            </div>
+            <div class="day-slots">
+              <div class="schedule-event lesson" style="top:8px; height:56px">
+                <span class="title">📘 机器学习课程</span>
+                <span class="time">09:00 - 10:30</span>
+              </div>
+              <div class="schedule-event meeting" style="top:208px; height:76px">
+                <span class="title">🧑‍🤝‍🧑 组会 · 汇报 baseline 进度</span>
+                <span class="time">14:00 - 16:00</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="available-row">
+            <div class="t">
+              <strong>今天可用于深度工作的时间</strong> · 去掉固定日程和吃饭后
+            </div>
+            <div class="v">5h 30m</div>
+          </div>
+
+          <div style="display:flex; gap:var(--sp-2); justify-content:flex-end; margin-top: var(--sp-3)">
+            <button class="btn btn-ghost btn-sm"><span data-icon="calendar" data-size="14"></span> 编辑固定日程</button>
+            <button class="btn btn-primary btn-sm">确认 · 下一步 <span data-icon="chevron-right" data-size="14"></span></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= Step 4 · AI 建议今日目标 ================= -->
+      <div class="g-step-card">
+        <div class="g-step-head">
+          <div class="left-row">
+            <div class="num-ch">4</div>
+            <div>
+              <h3>设定今日目标</h3>
+              <div class="sub">AI 基于你的进度给了 3 个建议 · 你可以挑、改、或自己写</div>
+            </div>
+          </div>
+          <span class="skip">直接加自己的 →</span>
+        </div>
+        <div class="g-step-body">
+          <!-- ⏰ 今日到期 · 自动置顶(v1.2.2 任务到期日与日历待办) -->
+          <div style="padding:12px 14px;margin-bottom:var(--sp-4);background:color-mix(in srgb, #FF8C00 8%, transparent);border:1px solid color-mix(in srgb, #FF8C00 28%, transparent);border-radius:var(--r-sm)">
+            <div style="display:flex;align-items:center;gap:var(--sp-2);margin-bottom:8px">
+              <span style="font-size:16px;line-height:1">⏰</span>
+              <strong style="color:#C2410C;font-size:var(--fs-14)">今日到期 · 2 个任务</strong>
+              <span style="color:var(--color-text-secondary);font-size:var(--fs-12)">已自动置顶到今日计划</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:center;gap:var(--sp-2);padding:6px 10px;background:var(--color-bg-elevated);border-radius:var(--r-xs);font-size:var(--fs-13, 13px)">
+                <span class="chip chip-due is-today" style="height:20px;padding:0 6px;font-size:11px">⏰ 今日到期</span>
+                <span style="color:var(--color-text-primary);font-weight:var(--fw-medium)">复现 baseline 代码</span>
+                <span style="color:var(--color-text-muted);margin-left:auto">🎯 论文 A · M3 · 预估 2h</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-2);padding:6px 10px;background:var(--color-bg-elevated);border-radius:var(--r-xs);font-size:var(--fs-13, 13px)">
+                <span class="chip chip-due is-today" style="height:20px;padding:0 6px;font-size:11px">⏰ 今日到期</span>
+                <span style="color:var(--color-text-primary);font-weight:var(--fw-medium)">提交报销单</span>
+                <span style="color:var(--color-text-muted);margin-left:auto">事务性 · 预估 20m</span>
+              </div>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:var(--color-text-muted);line-height:1.5">
+              这些是前几天设了截止日期、今天必须完成的任务 · 可在下方 AI 建议里忽略,但建议优先处理
+            </div>
+          </div>
+
+          <div class="ai-banner" style="margin-bottom: var(--sp-4)">
+            <div class="ai-avatar"><span data-icon="sparkles" data-size="14"></span></div>
+            <div style="font-size:var(--fs-13, 13px); color: var(--color-text-secondary); line-height: 1.6">
+              已考虑:昨日节奏 · <strong style="color:var(--color-text-primary)">论文 A · M3</strong> 当前进度 · 今天组会前需要交基准数据 · 5h 30m 可用深度时间 · <strong style="color:#C2410C">2 个今日到期任务</strong>
+            </div>
+          </div>
+
+          <div class="ai-suggest-wrap">
+            <div class="ai-suggest is-taken">
+              <span class="s-check"><span data-icon="check" data-size="12"></span></span>
+              <span class="s-title">完成 baseline 最后验证</span>
+              <span class="s-meta">
+                <span class="chip chip-q1">紧急重要</span>
+                <span>1.5h</span>
+              </span>
+            </div>
+            <div class="s-why">为什么建议 · 今天 14:00 组会需要基准数据,这是唯一卡关节点。</div>
+          </div>
+
+          <div class="ai-suggest-wrap">
+            <div class="ai-suggest is-taken">
+              <span class="s-check"><span data-icon="check" data-size="12"></span></span>
+              <span class="s-title">设计改进方案初稿</span>
+              <span class="s-meta">
+                <span class="chip chip-q2">计划执行</span>
+                <span>2h</span>
+              </span>
+            </div>
+            <div class="s-why">为什么建议 · 昨天未开始,拖了 1 天。今天上午精力好,适合做这种需要思考的事。</div>
+          </div>
+
+          <div class="ai-suggest-wrap">
+            <div class="ai-suggest">
+              <span class="s-check"></span>
+              <span class="s-title">阅读文献 1 篇 (AAAI 24 · Efficient Attention)</span>
+              <span class="s-meta">
+                <span class="chip chip-q2">计划执行</span>
+                <span>45m</span>
+              </span>
+            </div>
+            <div class="s-why">为什么建议 · 和 M3 里改进方向直接相关 · 可选,时间紧时可以放到周末。</div>
+          </div>
+
+          <div class="custom-task-row">
+            <span data-icon="plus" data-size="14"></span>
+            自己加一个任务...
+          </div>
+
+          <div class="regen-row">
+            <span class="lead">已选 2 个建议 · 共约 3.5h</span>
+            <div class="chip-buttons">
+              <button class="btn btn-ghost btn-sm">全不采纳</button>
+              <button class="btn btn-ghost btn-sm"><span data-icon="sparkles" data-size="12"></span> 重新生成</button>
+              <button class="btn btn-primary btn-sm">采纳 · 下一步 <span data-icon="chevron-right" data-size="12"></span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= Step 5 · 能量状态 ================= -->
+      <div class="g-step-card">
+        <div class="g-step-head">
+          <div class="left-row">
+            <div class="num-ch">5</div>
+            <div>
+              <h3>状态检查</h3>
+              <div class="sub">今天的能量大概在什么水平?</div>
+            </div>
+          </div>
+          <span class="skip">跳过</span>
+        </div>
+        <div class="g-step-body">
+          <p style="font-size:var(--fs-13, 13px);color:var(--color-text-secondary);margin-bottom:var(--sp-4)">这不是打卡,只是让 AI 建议更贴合 · 能量低的时候它会推轻的任务。</p>
+
+          <div class="energy-grid">
+            <div class="energy-choice">
+              <div class="e-emoji">🪫</div>
+              <div class="e-label">低能量</div>
+              <div class="e-sub">没睡好 / 头疼 / 心情差</div>
+            </div>
+            <div class="energy-choice">
+              <div class="e-emoji">😐</div>
+              <div class="e-label">一般</div>
+              <div class="e-sub">就那样,能开工</div>
+            </div>
+            <div class="energy-choice is-selected">
+              <div class="e-emoji">😊</div>
+              <div class="e-label">不错</div>
+              <div class="e-sub">状态在线 · 可以专注</div>
+            </div>
+            <div class="energy-choice">
+              <div class="e-emoji">⚡</div>
+              <div class="e-label">精神饱满</div>
+              <div class="e-sub">今天要大干一场</div>
+            </div>
+          </div>
+
+          <div class="energy-feedback">
+            <span data-icon="sparkles" data-size="16"></span>
+            <span>状态不错 · AI 建议的深度任务都保留 · 建议把最硬的"设计改进方案"放在 10:30-12:30,那是你的黄金时段。</span>
+          </div>
+
+          <div class="final-confirm">
+            <div class="emoji">🌱</div>
+            <h3>好,今天就这样开始吧</h3>
+            <p>3 个计划任务 · 预计 3h 30m 专注 · 已锁定为今日计划 · 日结算时只统计这些</p>
+            <div style="display:flex;gap:var(--sp-2);margin-top:var(--sp-2)">
+              <button class="btn btn-ghost btn-sm">返回调整</button>
+              <button class="btn btn-primary btn-lg">
+                <span data-icon="play" data-size="16"></span>
+                开始第一个番茄钟
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========== 轻量替代:思考卡片 ========== -->
+  <div class="alt-section">
+    <h2>💭 思考卡片 · 轻量替代方案</h2>
+    <p class="alt-sub">
+      当用户选择"跳过完整引导流程"时,<strong style="color:var(--color-text-primary)">不是什么都不给</strong>,而是展示一张简洁的思考卡片。
+      它不问用户问题,只提供思考素材 · 心理压力比问答式引导低很多。
+    </p>
+
+    <div class="thought-card">
+      <div class="tc-head">
+        <span class="emoji">💭</span>
+        <span class="title">今日思考</span>
+        <button class="btn-icon btn-sm" style="margin-left:auto;color:var(--color-text-muted)" aria-label="关闭">
+          <span data-icon="x" data-size="14"></span>
+        </button>
+      </div>
+      <div class="tc-body">
+        <p class="lead-p">
+          你的长线目标 <em>发表 SCI 论文 A</em> 已经进行了 <em>23 天</em>,当前在 <em>里程碑 3 · 方法论设计</em>。
+        </p>
+
+        <div class="tc-dir-label">今天可以推进的方向</div>
+        <div class="tc-direction">
+          <span class="d-dot"></span>
+          <span>继续昨天未完成的 <strong>baseline 复现</strong></span>
+          <span style="margin-left:auto;color:var(--color-text-muted);font-size:11px">1.5h</span>
+        </div>
+        <div class="tc-direction">
+          <span class="d-dot"></span>
+          <span>开始 <strong>设计改进方案</strong></span>
+          <span style="margin-left:auto;color:var(--color-text-muted);font-size:11px">2h</span>
+        </div>
+        <div class="tc-direction">
+          <span class="d-dot"></span>
+          <span>补充相关 <strong>文献阅读</strong> (AAAI 24)</span>
+          <span style="margin-left:auto;color:var(--color-text-muted);font-size:11px">45m</span>
+        </div>
+      </div>
+      <div class="tc-foot">
+        <button class="btn btn-ghost btn-sm">我有其他计划</button>
+        <button class="btn btn-ghost btn-sm">关闭</button>
+        <button class="btn btn-primary btn-sm">基于此创建任务</button>
+      </div>
+    </div>
+    <div class="card-caption">设计要点:提供素材 · 不提问 · 用户可采纳可忽略</div>
+  </div>
+
+  <!-- 触发策略说明 -->
+  <div class="card" style="margin-top: var(--sp-8); padding: var(--sp-5);">
+    <h3 style="font-size:var(--fs-14);font-weight:var(--fw-semibold);margin-bottom:var(--sp-3);color:var(--color-text-secondary)">🔀 触发策略 · docs/02 §4</h3>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-4);font-size:var(--fs-13, 13px);color:var(--color-text-secondary);line-height:1.6">
+      <div>
+        <strong style="color:var(--color-text-primary)">新用户(前 7 天)</strong><br/>
+        默认展示完整引导流程,帮助形成使用节奏
+      </div>
+      <div>
+        <strong style="color:var(--color-text-primary)">老用户 · 智能判断</strong><br/>
+        打开后 30 秒无操作 → 主动弹出卡片<br/>
+        快速添加任务的用户 → 不打扰
+      </div>
+      <div>
+        <strong style="color:var(--color-text-primary)">主动呼出</strong><br/>
+        任何时候 <span class="kbd">⌘</span> <span class="kbd">G</span> 唤起 · 设置里可切"总展示/从不/智能"
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  try {
+    const saved = localStorage.getItem('fl-theme');
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+
+  // Energy choice toggle
+  document.querySelectorAll('.energy-grid').forEach(group => {
+    group.querySelectorAll('.energy-choice').forEach(c => {
+      c.addEventListener('click', () => {
+        group.querySelectorAll('.energy-choice').forEach(x => x.classList.remove('is-selected'));
+        c.classList.add('is-selected');
+      });
+    });
+  });
+
+  // Goal card toggle
+  document.querySelectorAll('.g-goal-card').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('.g-goal-card').forEach(x => x.classList.remove('is-selected'));
+      c.classList.add('is-selected');
+    });
+  });
+
+  // AI suggestion check
+  document.querySelectorAll('.ai-suggest .s-check').forEach(ck => {
+    ck.addEventListener('click', (e) => {
+      e.stopPropagation();
+      ck.closest('.ai-suggest').classList.toggle('is-taken');
+    });
+  });
+
+  // Check boxes
+  document.querySelectorAll('.fl-check').forEach(ck => {
+    ck.addEventListener('click', () => {
+      ck.classList.toggle('is-checked');
+      if (ck.classList.contains('is-checked') && !ck.querySelector('svg')) {
+        ck.innerHTML = window.Icon ? window.Icon.create('check', { size: 12 }) : '';
+      } else if (!ck.classList.contains('is-checked')) {
+        ck.innerHTML = '';
+      }
+    });
+  });
+</script>
+</body>
+</html>

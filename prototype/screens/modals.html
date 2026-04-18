@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 全局模态弹窗</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { padding: 0; background: var(--color-bg); }
+  .showcase-wrap { max-width: 1400px; margin: 0 auto; padding: var(--sp-8) var(--sp-6); }
+
+  .showcase-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: var(--sp-6); gap: var(--sp-4); flex-wrap: wrap; }
+  .showcase-head h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .showcase-head .sub { color: var(--color-text-secondary); font-size: var(--fs-14); margin-top: 4px; }
+  .nav-back { color: var(--color-text-secondary); font-size: var(--fs-13, 13px); display:inline-flex; align-items:center; gap:4px; }
+  .nav-back:hover { color: var(--color-primary); }
+
+  /* ============ Stage (dim background for modal) ============ */
+  .stage {
+    position: relative;
+    background: linear-gradient(135deg, #2C3858 0%, #1A2340 100%);
+    border-radius: var(--r-md);
+    padding: var(--sp-5);
+    min-height: 480px;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stage::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+  .stage::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.35) 80%);
+    pointer-events: none;
+  }
+  .stage.light { background: linear-gradient(135deg, #EAF1FF 0%, #F5F7FA 100%); }
+  .stage.light::before {
+    background-image:
+      linear-gradient(to right, rgba(79,140,255,0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(79,140,255,0.05) 1px, transparent 1px);
+  }
+  .stage.light::after {
+    background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.08) 80%);
+  }
+
+  .modal-caption {
+    margin-top: var(--sp-2);
+    text-align: center;
+    font-size: var(--fs-12);
+    color: var(--color-text-muted);
+    line-height: 1.5;
+  }
+  .modal-caption strong { color: var(--color-text-secondary); display: block; margin-bottom: 2px; font-weight: var(--fw-semibold); font-size: var(--fs-13, 13px); }
+
+  .modal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--sp-6);
+  }
+
+  /* ============ Modal base ============ */
+  .modal {
+    position: relative;
+    background: var(--color-bg-elevated);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+    z-index: 2;
+    max-width: 100%;
+    border: 1px solid var(--color-border);
+  }
+
+  /* ============ Command Palette (Shortcut overview) ============ */
+  .cmd-palette {
+    width: 560px;
+    max-width: 100%;
+  }
+  .cmd-head {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .cmd-head .icon { color: var(--color-text-muted); }
+  .cmd-head input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: var(--fs-14);
+    color: var(--color-text-primary);
+  }
+  .cmd-head input::placeholder { color: var(--color-text-muted); }
+  .cmd-head .esc {
+    font-size: 10px; color: var(--color-text-muted); padding: 2px 6px;
+    border: 1px solid var(--color-border); border-radius: var(--r-xs);
+  }
+
+  .cmd-body { max-height: 360px; overflow-y: auto; padding: var(--sp-2) 0; }
+  .cmd-section-label {
+    padding: 8px var(--sp-4) 4px;
+    font-size: 11px;
+    color: var(--color-text-muted);
+    font-weight: var(--fw-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .cmd-item {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 8px var(--sp-4);
+    cursor: pointer;
+    font-size: var(--fs-13, 13px);
+    transition: background var(--dur-base);
+  }
+  .cmd-item:hover, .cmd-item.is-active { background: var(--color-primary-soft); }
+  .cmd-item .ci-icon {
+    width: 24px; height: 24px;
+    display: grid; place-items: center;
+    color: var(--color-text-secondary);
+  }
+  .cmd-item .ci-label { flex: 1; }
+  .cmd-item .ci-combo { display: flex; gap: 2px; }
+
+  .cmd-foot {
+    display: flex; gap: var(--sp-4); align-items: center;
+    padding: var(--sp-2) var(--sp-4);
+    background: var(--color-bg-subtle);
+    border-top: 1px solid var(--color-divider);
+    font-size: 11px;
+    color: var(--color-text-muted);
+  }
+  .cmd-foot .hint { display: inline-flex; align-items: center; gap: 4px; }
+  .cmd-foot .kbd { height: 16px; padding: 0 4px; font-size: 10px; }
+
+  /* ============ AI Privacy Modal ============ */
+  .ai-privacy {
+    width: 480px;
+    max-width: 100%;
+  }
+  .ap-head {
+    padding: var(--sp-5) var(--sp-5) var(--sp-3);
+    text-align: center;
+  }
+  .ap-icon-big {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    margin: 0 auto var(--sp-3);
+    background: linear-gradient(135deg, var(--color-primary), #B87FFF);
+    color: #fff;
+    display: grid; place-items: center;
+  }
+  .ap-head h3 { font-size: var(--fs-20); font-weight: var(--fw-semibold); margin-bottom: 4px; }
+  .ap-head .sub { font-size: var(--fs-13, 13px); color: var(--color-text-secondary); }
+
+  .ap-body { padding: 0 var(--sp-5) var(--sp-4); }
+  .ap-rule {
+    display: flex; gap: var(--sp-2); align-items: flex-start;
+    padding: 10px 12px;
+    border-radius: var(--r-sm);
+    margin-bottom: 6px;
+    background: var(--color-bg-subtle);
+    font-size: var(--fs-13, 13px);
+  }
+  .ap-rule .icon {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .ap-rule.yes .icon { background: var(--color-success-soft); color: var(--color-success); }
+  .ap-rule.no .icon { background: var(--color-q1-soft); color: var(--color-q1); }
+  .ap-rule .text { flex: 1; line-height: 1.5; }
+  .ap-rule .text strong { color: var(--color-text-primary); }
+  .ap-rule .text .desc { color: var(--color-text-secondary); font-size: var(--fs-12); margin-top: 2px; }
+
+  .ap-foot {
+    display: flex; gap: var(--sp-2);
+    padding: var(--sp-4) var(--sp-5);
+    border-top: 1px solid var(--color-divider);
+    background: var(--color-bg-subtle);
+  }
+  .ap-foot .btn { flex: 1; }
+
+  /* ============ Danger confirm ============ */
+  .danger-confirm {
+    width: 440px;
+    max-width: 100%;
+  }
+  .dc-head {
+    padding: var(--sp-5);
+    text-align: center;
+    background: var(--color-q1-soft);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-q1) 20%, transparent);
+  }
+  .dc-icon {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    margin: 0 auto var(--sp-3);
+    background: var(--color-bg-elevated);
+    color: var(--color-q1);
+    display: grid; place-items: center;
+    box-shadow: 0 4px 12px rgba(245, 108, 108, 0.25);
+  }
+  .dc-head h3 { font-size: var(--fs-20); font-weight: var(--fw-semibold); color: var(--color-q1); margin-bottom: 4px; }
+  .dc-head .sub { font-size: var(--fs-13, 13px); color: #A83232; }
+
+  .dc-body { padding: var(--sp-5); }
+  .dc-item {
+    display: flex; gap: var(--sp-2);
+    padding: 8px 0;
+    font-size: var(--fs-13, 13px);
+    color: var(--color-text-secondary);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .dc-item:last-child { border-bottom: none; }
+  .dc-item .cnt { font-family: var(--font-mono); font-weight: var(--fw-semibold); color: var(--color-text-primary); flex-shrink: 0; margin-left: auto; }
+
+  .dc-confirm-input {
+    margin-top: var(--sp-3);
+    padding: var(--sp-3);
+    background: var(--color-bg-subtle);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-12);
+    color: var(--color-text-secondary);
+  }
+  .dc-confirm-input input {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono);
+    color: var(--color-text-primary);
+    background: var(--color-bg-elevated);
+  }
+
+  .dc-foot {
+    display: flex; gap: var(--sp-2);
+    padding: var(--sp-4) var(--sp-5);
+    border-top: 1px solid var(--color-divider);
+  }
+  .btn-danger {
+    background: var(--color-q1);
+    color: #fff;
+  }
+  .btn-danger:hover { background: #D54D4D; }
+
+  /* ============ Data export modal ============ */
+  .data-export {
+    width: 520px;
+    max-width: 100%;
+  }
+  .de-head {
+    padding: var(--sp-4) var(--sp-5) var(--sp-3);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .de-head h3 { font-size: var(--fs-16); font-weight: var(--fw-semibold); }
+  .de-head .sub { font-size: var(--fs-12); color: var(--color-text-muted); margin-top: 2px; }
+  .de-body { padding: var(--sp-4) var(--sp-5); }
+
+  .de-format-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); margin-bottom: var(--sp-4); }
+  .de-format {
+    padding: var(--sp-3);
+    border: 2px solid var(--color-border);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: all var(--dur-base);
+    text-align: center;
+  }
+  .de-format:hover { border-color: var(--color-primary-light); }
+  .de-format.is-selected { border-color: var(--color-primary); background: var(--color-primary-soft); }
+  .de-format .ext {
+    font-family: var(--font-mono);
+    font-weight: var(--fw-bold);
+    font-size: var(--fs-14);
+    color: var(--color-primary);
+    margin-bottom: 2px;
+  }
+  .de-format .desc { font-size: 11px; color: var(--color-text-muted); }
+
+  .de-options {
+    margin-top: var(--sp-3);
+    padding-top: var(--sp-3);
+    border-top: 1px solid var(--color-divider);
+  }
+  .de-opt-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0;
+    font-size: var(--fs-13, 13px);
+  }
+  .de-opt-row:not(:last-child) { border-bottom: 1px solid var(--color-divider); }
+  .de-opt-row .desc { color: var(--color-text-secondary); }
+  .de-opt-row .desc strong { color: var(--color-text-primary); display: block; }
+
+  /* ============ AI data preview modal ============ */
+  .ai-preview {
+    width: 600px;
+    max-width: 100%;
+  }
+  .apv-head {
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: 1px solid var(--color-divider);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .apv-head h3 { font-size: var(--fs-16); font-weight: var(--fw-semibold); }
+  .apv-head .sub { font-size: var(--fs-12); color: var(--color-text-muted); margin-top: 2px; }
+
+  .apv-body { padding: var(--sp-4) var(--sp-5); max-height: 360px; overflow-y: auto; }
+  .apv-body h4 { font-size: var(--fs-12); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: var(--fw-medium); margin-bottom: 6px; margin-top: var(--sp-3); }
+  .apv-body h4:first-child { margin-top: 0; }
+
+  .code-block {
+    padding: var(--sp-3);
+    background: #1F2430;
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: #C8D0DC;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+  .code-block .k { color: #79C0FF; }
+  .code-block .s { color: #A5D6A1; }
+  .code-block .v { color: #FFA657; }
+  .code-block .c { color: #8B949E; }
+
+  /* ============ Quick add task modal ============ */
+  .quick-add {
+    width: 520px;
+    max-width: 100%;
+  }
+  .qa-head {
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--color-divider);
+    display: flex; align-items: center; gap: var(--sp-2);
+  }
+  .qa-title-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: var(--fs-16);
+    font-weight: var(--fw-medium);
+    color: var(--color-text-primary);
+  }
+  .qa-title-input::placeholder { color: var(--color-text-muted); }
+
+  .qa-body { padding: var(--sp-3) var(--sp-4); }
+  .qa-chips {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-bottom: var(--sp-3);
+  }
+  .qa-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 6px 10px;
+    background: var(--color-bg-hover);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-12);
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    transition: all var(--dur-base);
+  }
+  .qa-chip:hover { background: var(--color-bg-subtle); }
+  .qa-chip.is-selected { background: var(--color-primary); color: #fff; }
+
+  .qa-row {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: 6px 0;
+    font-size: var(--fs-13, 13px);
+  }
+  .qa-row .label {
+    color: var(--color-text-muted);
+    width: 80px;
+    flex-shrink: 0;
+  }
+  .qa-row .value { color: var(--color-text-primary); font-weight: var(--fw-medium); }
+
+  .qa-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--color-bg-subtle);
+    border-top: 1px solid var(--color-divider);
+  }
+  .qa-foot .hint { font-size: 11px; color: var(--color-text-muted); display: flex; gap: var(--sp-2); align-items: center; }
+
+  @media (max-width: 960px) {
+    .modal-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="showcase-wrap">
+  <div class="showcase-head">
+    <div>
+      <h1>🪟 全局模态弹窗合集</h1>
+      <div class="sub">6 个高频出现的全局 modal · 统一的交互、圆角、阴影规范</div>
+    </div>
+    <a class="nav-back" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回原型导航</a>
+  </div>
+
+  <div class="modal-grid">
+
+    <!-- ========== 1. 快捷键总览 / Command Palette ========== -->
+    <div>
+      <div class="stage">
+        <div class="modal cmd-palette">
+          <div class="cmd-head">
+            <span class="icon" data-icon="zap" data-size="16"></span>
+            <input type="text" placeholder="搜索命令、快捷键、任务..." />
+            <span class="esc">esc</span>
+          </div>
+          <div class="cmd-body">
+            <div class="cmd-section-label">⌨️ 专注控制</div>
+            <div class="cmd-item is-active">
+              <div class="ci-icon"><span data-icon="pause" data-size="14"></span></div>
+              <span class="ci-label">暂停 / 继续专注</span>
+              <span class="ci-combo"><span class="kbd">Space</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="skip-forward" data-size="14"></span></div>
+              <span class="ci-label">切换任务</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">T</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="square" data-size="14"></span></div>
+              <span class="ci-label">结束当前番茄钟</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">X</span></span>
+            </div>
+
+            <div class="cmd-section-label">📋 任务 / 计划</div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="plus" data-size="14"></span></div>
+              <span class="ci-label">快速添加任务</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">N</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="sparkles" data-size="14"></span></div>
+              <span class="ci-label">启动晨起引导思考</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">G</span></span>
+            </div>
+
+            <div class="cmd-section-label">🎨 视图 / 导航</div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="home" data-size="14"></span></div>
+              <span class="ci-label">今日计划</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">1</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="grid" data-size="14"></span></div>
+              <span class="ci-label">四象限视图</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">Q</span></span>
+            </div>
+            <div class="cmd-item">
+              <div class="ci-icon"><span data-icon="target" data-size="14"></span></div>
+              <span class="ci-label">长线目标</span>
+              <span class="ci-combo"><span class="kbd">⌘</span><span class="kbd">2</span></span>
+            </div>
+          </div>
+          <div class="cmd-foot">
+            <span class="hint"><span class="kbd">↑</span><span class="kbd">↓</span> 移动</span>
+            <span class="hint"><span class="kbd">↵</span> 执行</span>
+            <span class="hint"><span class="kbd">esc</span> 关闭</span>
+            <span style="margin-left:auto;color:var(--color-text-muted)">全部 24 条 · 可在设置中重新绑定</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-caption">
+        <strong>⌘ /</strong> 任意界面呼出 · 输入即搜索 · 键盘可达
+      </div>
+    </div>
+
+    <!-- ========== 2. AI Privacy 配置 ========== -->
+    <div>
+      <div class="stage">
+        <div class="modal ai-privacy">
+          <div class="ap-head">
+            <div class="ap-icon-big"><span data-icon="lock" data-size="24"></span></div>
+            <h3>使用 AI 前 · 先了解这些</h3>
+            <div class="sub">3 条规则 · 你点"我了解了"就表示看过了 · 随时可关</div>
+          </div>
+          <div class="ap-body">
+            <div class="ap-rule yes">
+              <span class="icon"><span data-icon="check" data-size="12"></span></span>
+              <div class="text">
+                <strong>会发送给 AI 的</strong>
+                <div class="desc">任务名称、任务描述、完成时长、长线目标相关信息(你选的那个目标)</div>
+              </div>
+            </div>
+            <div class="ap-rule no">
+              <span class="icon"><span data-icon="x" data-size="12"></span></span>
+              <div class="text">
+                <strong>绝不发送的</strong>
+                <div class="desc">你的完整历史 · 其它不相关任务 · 姓名 / 学校 / 邮箱等 PII</div>
+              </div>
+            </div>
+            <div class="ap-rule yes">
+              <span class="icon"><span data-icon="check" data-size="12"></span></span>
+              <div class="text">
+                <strong>你有完全的控制</strong>
+                <div class="desc">API Key 存本地 Keychain · 不经我们服务器 · 随时可关闭 AI 功能</div>
+              </div>
+            </div>
+          </div>
+          <div class="ap-foot">
+            <button class="btn btn-ghost">暂不使用 AI</button>
+            <button class="btn btn-primary">我了解了 · 继续</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-caption">
+        <strong>首次开启 AI 功能时出现</strong>
+        透明地告诉用户数据去向 · 不藏进隐私政策
+      </div>
+    </div>
+
+    <!-- ========== 3. 危险操作确认 ========== -->
+    <div>
+      <div class="stage light">
+        <div class="modal danger-confirm">
+          <div class="dc-head">
+            <div class="dc-icon"><span data-icon="alert" data-size="24"></span></div>
+            <h3>重置所有数据?</h3>
+            <div class="sub">这个操作不可撤销 · 会清除下列内容</div>
+          </div>
+          <div class="dc-body">
+            <div class="dc-item">任务总数 <span class="cnt">142 个</span></div>
+            <div class="dc-item">长线目标 <span class="cnt">3 个</span></div>
+            <div class="dc-item">专注时长记录 <span class="cnt">183h 20m</span></div>
+            <div class="dc-item">日结算记录 <span class="cnt">47 天</span></div>
+            <div class="dc-item">AI 交互记录 <span class="cnt">96 条</span></div>
+            <div class="dc-item">最近一次本地备份 <span class="cnt" style="color:var(--color-success)">今天 04:00</span></div>
+
+            <div class="dc-confirm-input">
+              输入 <code style="color:var(--color-q1);font-weight:var(--fw-bold)">RESET</code> 以确认:
+              <input type="text" placeholder="RESET" />
+            </div>
+          </div>
+          <div class="dc-foot">
+            <button class="btn btn-secondary" style="flex:1">取消</button>
+            <button class="btn btn-danger" style="flex:1" aria-disabled="true" disabled>重置 · 不可撤销</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-caption">
+        <strong>危险操作确认 · 重置数据 / 永久删除</strong>
+        高摩擦设计 · 用完整数量 + 输入 RESET 确保不误操作
+      </div>
+    </div>
+
+    <!-- ========== 4. 数据导出 ========== -->
+    <div>
+      <div class="stage light">
+        <div class="modal data-export">
+          <div class="de-head">
+            <h3>导出你的所有数据</h3>
+            <div class="sub">遵循 GDPR 精神 · 随时可带走</div>
+          </div>
+          <div class="de-body">
+            <div style="font-size:var(--fs-12);color:var(--color-text-muted);font-weight:var(--fw-medium);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:var(--sp-2)">格式</div>
+            <div class="de-format-grid">
+              <div class="de-format is-selected">
+                <div class="ext">.json</div>
+                <div class="desc">完整数据结构 · 可用于迁移</div>
+              </div>
+              <div class="de-format">
+                <div class="ext">.md</div>
+                <div class="desc">按目标 / 里程碑整理 · 给人看</div>
+              </div>
+              <div class="de-format">
+                <div class="ext">.csv</div>
+                <div class="desc">任务表格 · Excel 可打开</div>
+              </div>
+            </div>
+
+            <div style="font-size:var(--fs-12);color:var(--color-text-muted);font-weight:var(--fw-medium);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:var(--sp-2)">包含内容</div>
+            <div class="de-options">
+              <div class="de-opt-row">
+                <div class="desc"><strong>任务 · 142 个</strong>所有任务含搁置和已完成</div>
+                <div class="toggle-sw is-on"></div>
+              </div>
+              <div class="de-opt-row">
+                <div class="desc"><strong>长线目标 · 3 个</strong>含里程碑和子任务</div>
+                <div class="toggle-sw is-on"></div>
+              </div>
+              <div class="de-opt-row">
+                <div class="desc"><strong>专注记录 · 183h 20m</strong>番茄钟 / 中断 / 时段</div>
+                <div class="toggle-sw is-on"></div>
+              </div>
+              <div class="de-opt-row">
+                <div class="desc"><strong>日结算 · 47 条</strong>每日分级 + 感想</div>
+                <div class="toggle-sw is-on"></div>
+              </div>
+              <div class="de-opt-row">
+                <div class="desc"><strong>AI 交互记录 · 96 条</strong>完整 prompt 和回复</div>
+                <div class="toggle-sw"></div>
+              </div>
+            </div>
+          </div>
+          <div class="ap-foot">
+            <button class="btn btn-ghost" style="flex:1">取消</button>
+            <button class="btn btn-primary" style="flex:1"><span data-icon="home" data-size="14"></span> 导出到下载</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-caption">
+        <strong>设置 → 数据 → 导出全部</strong>
+        3 种格式 · 5 种内容可选 · 用户真正拥有自己的数据
+      </div>
+    </div>
+
+    <!-- ========== 5. 查看发送给 AI 的数据示例 ========== -->
+    <div>
+      <div class="stage">
+        <div class="modal ai-preview">
+          <div class="apv-head">
+            <div>
+              <h3>发送给 AI 的数据示例</h3>
+              <div class="sub">这是"日结算寄语"调用时的实际 payload · 不是示意</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span class="chip chip-brand">日结算寄语</span>
+              <button class="btn-icon btn-sm" aria-label="关闭"><span data-icon="x" data-size="14"></span></button>
+            </div>
+          </div>
+          <div class="apv-body">
+            <h4>System Prompt (FocusLab 预设)</h4>
+            <div class="code-block"><span class="c">// 包含:语气风格、安全边界、格式要求</span>
+<span class="k">You are</span> FocusLab<span class="s">, a warm companion for graduate students.</span>
+<span class="c">// (全文约 280 字,可在设置中查看)</span></div>
+
+            <h4>User Prompt (本次调用)</h4>
+            <div class="code-block">{
+  <span class="k">"date"</span>: <span class="s">"2026-04-17"</span>,
+  <span class="k">"level"</span>: <span class="s">"A"</span>,
+  <span class="k">"completion_rate"</span>: <span class="v">1.0</span>,
+  <span class="k">"focus_time"</span>: <span class="s">"7h 15m"</span>,
+  <span class="k">"pomodoro_count"</span>: <span class="v">12</span>,
+  <span class="k">"tasks_completed"</span>: [
+    <span class="s">"复现 baseline 代码"</span>,
+    <span class="s">"回复导师邮件"</span>,
+    <span class="s">"阅读文献 2 篇"</span>
+  ],
+  <span class="k">"related_goal"</span>: {
+    <span class="k">"name"</span>: <span class="s">"论文 A"</span>,
+    <span class="k">"current_milestone"</span>: <span class="s">"M3 方法论"</span>,
+    <span class="k">"milestone_progress"</span>: <span class="v">52</span>
+  },
+  <span class="k">"tone"</span>: <span class="s">"温暖鼓励"</span>
+}</div>
+
+            <div style="padding:10px 12px;background:var(--color-success-soft);color:#389E0D;border-radius:var(--r-sm);font-size:var(--fs-12);margin-top:var(--sp-3);display:flex;gap:6px">
+              <span data-icon="check" data-size="14"></span>
+              <span>注意 · 不含用户姓名、学校、邮箱等 PII · 不含其它任务的详细内容 · 不含完整历史</span>
+            </div>
+          </div>
+          <div class="ap-foot">
+            <button class="btn btn-ghost">选择其它调用场景 <span data-icon="chevron-down" data-size="12"></span></button>
+            <button class="btn btn-primary">知道了</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-caption">
+        <strong>设置 → AI → 查看发送的数据示例</strong>
+        完全透明 · 用户能看到每次调用的实际 payload
+      </div>
+    </div>
+
+    <!-- ========== 6. Quick Add Task ========== -->
+    <div>
+      <div class="stage light">
+        <div class="modal quick-add">
+          <div class="qa-head">
+            <span style="color:var(--color-primary)" data-icon="plus" data-size="18"></span>
+            <input class="qa-title-input" placeholder="要做什么?" value="设计改进方案初稿" autofocus />
+            <span class="kbd">↵ 保存</span>
+          </div>
+          <div class="qa-body">
+            <div class="qa-chips">
+              <span class="qa-chip is-selected">🎯 论文 A · M3</span>
+              <span class="qa-chip is-selected">Q2 · 计划执行</span>
+              <span class="qa-chip">预估 2h</span>
+              <span class="qa-chip">重复 · 每周一</span>
+              <span class="qa-chip">后台任务</span>
+            </div>
+
+            <div class="qa-row">
+              <span class="label">关联目标</span>
+              <span class="value">🎯 发表 SCI 论文 A · 里程碑 3</span>
+              <span style="margin-left:auto;color:var(--color-primary);font-size:11px;cursor:pointer">更改</span>
+            </div>
+            <div class="qa-row">
+              <span class="label">象限</span>
+              <span class="value" style="color:#AD6800">🟡 不紧急但重要</span>
+              <span style="margin-left:auto;color:var(--color-primary);font-size:11px;cursor:pointer">更改</span>
+            </div>
+            <div class="qa-row">
+              <span class="label">预估</span>
+              <span class="value" style="font-family:var(--font-mono)">2h 00m</span>
+              <span style="margin-left:auto;color:var(--color-text-muted);font-size:11px">AI 根据历史建议 · 2h 15m</span>
+            </div>
+            <div class="qa-row" style="align-items:flex-start">
+              <span class="label">截止日期</span>
+              <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+                <div>
+                  <span class="value">📅 4/21 · 3 天后</span>
+                  <span style="color:var(--color-text-muted);font-size:11px;margin-left:6px">周二</span>
+                </div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap">
+                  <span class="qa-chip">今天</span>
+                  <span class="qa-chip">明天</span>
+                  <span class="qa-chip is-selected">3 天后</span>
+                  <span class="qa-chip">下周一</span>
+                  <span class="qa-chip">📅 自定义...</span>
+                  <span class="qa-chip" style="color:var(--color-text-muted)">不设</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="qa-foot">
+            <div class="hint">
+              <span><span class="kbd">⌘</span><span class="kbd">↵</span> 保存并开始专注</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm">取消</button>
+              <button class="btn btn-primary btn-sm">保存</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-caption">
+        <strong>⌘ N · 快速添加任务</strong>
+        任何界面呼出 · 输入标题后按 ⌘ ↵ 直接开始专注 · AI 根据历史自动预估时长 · 可设截止日期(到期日内部提醒,不同步外部日历)
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Pattern notes -->
+  <div class="card" style="margin-top: var(--sp-8); padding: var(--sp-5);">
+    <h3 style="font-size:var(--fs-14);font-weight:var(--fw-semibold);margin-bottom:var(--sp-3);color:var(--color-text-secondary)">🎨 Modal 统一规范</h3>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-4);font-size:var(--fs-13, 13px);color:var(--color-text-secondary);line-height:1.6">
+      <div><strong style="color:var(--color-text-primary)">圆角</strong><br/>16px (r-lg)<br/>全体统一</div>
+      <div><strong style="color:var(--color-text-primary)">阴影</strong><br/>0 12px 32px + 0 2px 8px<br/>shadow-modal 变量</div>
+      <div><strong style="color:var(--color-text-primary)">入场动效</strong><br/>300ms ease-out<br/>中心放大 + 背景模糊</div>
+      <div><strong style="color:var(--color-text-primary)">关闭</strong><br/>ESC · 点遮罩 · 右上 ✕<br/>危险操作除外(需显式按按钮)</div>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  try {
+    const saved = localStorage.getItem('fl-theme');
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+
+  // Toggle switches
+  document.querySelectorAll('.toggle-sw').forEach(el => {
+    el.addEventListener('click', () => {
+      el.classList.toggle('is-on');
+    });
+  });
+
+  // Format select (single)
+  document.querySelectorAll('.de-format-grid').forEach(group => {
+    group.querySelectorAll('.de-format').forEach(f => {
+      f.addEventListener('click', () => {
+        group.querySelectorAll('.de-format').forEach(x => x.classList.remove('is-selected'));
+        f.classList.add('is-selected');
+      });
+    });
+  });
+
+  // Command palette item select
+  document.querySelectorAll('.cmd-item').forEach(i => {
+    i.addEventListener('mouseenter', () => {
+      document.querySelectorAll('.cmd-item').forEach(x => x.classList.remove('is-active'));
+      i.classList.add('is-active');
+    });
+  });
+
+  // QA chip toggle
+  document.querySelectorAll('.qa-chip').forEach(c => {
+    c.addEventListener('click', () => c.classList.toggle('is-selected'));
+  });
+
+  // Reset input enable confirm button
+  const resetInput = document.querySelector('.dc-confirm-input input');
+  const resetBtn = document.querySelector('.btn-danger');
+  if (resetInput && resetBtn) {
+    resetInput.addEventListener('input', () => {
+      const ok = resetInput.value === 'RESET';
+      resetBtn.disabled = !ok;
+      resetBtn.setAttribute('aria-disabled', !ok);
+    });
+  }
+</script>
+</body>
+</html>

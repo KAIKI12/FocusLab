@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 科研人格图鉴</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { background: var(--color-bg); padding: 0; }
+
+  /* ---- 页面容器 ---- */
+  .page-wrap { max-width: 960px; margin: 0 auto; padding: var(--sp-8) var(--sp-6) var(--sp-16); }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: var(--sp-6); flex-wrap: wrap; gap: var(--sp-4); }
+  .page-head h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .nav-back { color: var(--color-text-secondary); font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
+  .nav-back:hover { color: var(--color-primary); }
+
+  /* ---- 门 Tab 栏 ---- */
+  .gate-tabs { display: flex; gap: var(--sp-2); overflow-x: auto; padding-bottom: var(--sp-2); margin-bottom: var(--sp-6); scrollbar-width: none; }
+  .gate-tabs::-webkit-scrollbar { display: none; }
+  .gate-tab {
+    flex-shrink: 0; padding: 6px 14px; border-radius: var(--r-pill); font-size: var(--fs-14);
+    background: var(--color-bg-elevated); border: 1px solid var(--color-border); cursor: pointer;
+    transition: all var(--dur-base) var(--ease-smooth); white-space: nowrap; user-select: none;
+  }
+  .gate-tab:hover { border-color: var(--color-primary); color: var(--color-primary); }
+  .gate-tab.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+
+  /* ---- Gallery 网格 ---- */
+  .gallery { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-bottom: var(--sp-8); }
+  .gallery-item {
+    width: 80px; height: 80px; border-radius: var(--r-md); background: var(--color-bg-elevated);
+    border: 2px solid var(--color-border); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; cursor: pointer; gap: 2px;
+    transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+  }
+  .gallery-item:hover { transform: scale(1.08); box-shadow: var(--shadow-float); }
+  .gallery-item.active { border-color: var(--color-primary); box-shadow: var(--shadow-focus); }
+  .gallery-item .gi-emoji { font-size: 28px; line-height: 1; }
+  .gallery-item .gi-name { font-size: 10px; color: var(--color-text-secondary); text-align: center; line-height: 1.2; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---- 分享卡预览区 ---- */
+  .card-preview-wrap { display: flex; justify-content: center; margin-bottom: var(--sp-8); }
+
+  /* ---- 分享卡片 360×540 ---- */
+  .share-card {
+    width: 360px; height: 540px; border-radius: var(--r-lg); overflow: hidden; position: relative;
+    display: flex; flex-direction: column; padding: 24px 28px 20px; color: #fff;
+    font-family: var(--font-sans); box-shadow: var(--shadow-modal);
+    transition: background var(--dur-slow) var(--ease-out);
+  }
+  .sc-header { display: flex; align-items: center; gap: 6px; margin-bottom: 18px; opacity: 0.7; font-size: 11px; letter-spacing: 0.5px; }
+  .sc-logo { width: 16px; height: 16px; border-radius: 4px; background: rgba(255,255,255,0.25); display: grid; place-items: center; font-size: 9px; font-weight: 700; }
+  .sc-emoji { font-size: 56px; line-height: 1; margin-bottom: 10px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3)); }
+  .sc-name { font-size: 24px; font-weight: var(--fw-bold); margin-bottom: 2px; }
+  .sc-code { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: var(--r-pill); background: rgba(255,255,255,0.15); margin-bottom: 12px; letter-spacing: 1px; font-family: var(--font-mono); }
+  .sc-quote { font-size: 14px; line-height: 1.5; opacity: 0.88; margin-bottom: 8px; font-style: italic; }
+  .sc-quote::before { content: '"'; }
+  .sc-quote::after { content: '"'; }
+  .sc-hidden { font-size: 11px; opacity: 0.55; margin-bottom: 14px; line-height: 1.4; }
+  .sc-dims { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; font-size: 11px; }
+  .sc-dim-row { display: flex; align-items: center; gap: 4px; }
+  .sc-dim-label { width: 52px; flex-shrink: 0; opacity: 0.6; text-align: right; }
+  .sc-dim-stars { letter-spacing: 1px; font-size: 12px; }
+  .sc-dim-desc { opacity: 0.5; font-size: 10px; margin-left: 4px; }
+  .sc-drift { font-size: 12px; opacity: 0.7; margin-bottom: 10px; }
+  .sc-divider { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 0 0 10px; }
+  .sc-footer { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+  .sc-footer-text { font-size: 10px; opacity: 0.5; line-height: 1.4; flex: 1; }
+  .sc-qr { width: 40px; height: 40px; border-radius: 6px; background: rgba(255,255,255,0.15); display: grid; place-items: center; font-size: 18px; flex-shrink: 0; }
+
+  /* 稀有门全息效果 */
+  @keyframes hue-shift { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+  .share-card.holo { animation: hue-shift 4s linear infinite; }
+
+  /* ---- 组合称号区 ---- */
+  .combos-title { font-size: var(--fs-20); font-weight: var(--fw-semibold); margin-bottom: var(--sp-4); }
+  .combos-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3); }
+  .combo-card {
+    background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--r-md);
+    padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: 4px;
+    transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+  }
+  .combo-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-float); }
+  .combo-emojis { font-size: 20px; letter-spacing: 2px; }
+  .combo-name { font-size: var(--fs-14); font-weight: var(--fw-semibold); }
+  .combo-desc { font-size: var(--fs-12); color: var(--color-text-secondary); line-height: 1.4; }
+
+  /* ---- 响应式 ---- */
+  @media (max-width: 480px) {
+    .page-wrap { padding: var(--sp-4) var(--sp-3) var(--sp-12); }
+    .share-card { width: 320px; height: 480px; padding: 20px 22px 16px; }
+    .sc-emoji { font-size: 44px; }
+    .sc-name { font-size: 20px; }
+    .combos-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+  <!-- 页头 -->
+  <div class="page-head">
+    <div>
+      <h1>科研人格图鉴 · 30 型</h1>
+    </div>
+    <a class="nav-back" href="settlement.html">← 返回日结算</a>
+  </div>
+
+  <!-- 门 Tab 栏 -->
+  <div class="gate-tabs" id="gateTabs"></div>
+
+  <!-- Gallery 网格 -->
+  <div class="gallery" id="gallery"></div>
+
+  <!-- 分享卡预览 -->
+  <div class="card-preview-wrap">
+    <div class="share-card" id="shareCard">
+      <div class="sc-header"><span class="sc-logo">F</span> 我的科研人格</div>
+      <div class="sc-emoji" id="scEmoji"></div>
+      <div class="sc-name" id="scName"></div>
+      <div class="sc-code" id="scCode"></div>
+      <div class="sc-quote" id="scQuote"></div>
+      <div class="sc-hidden" id="scHidden"></div>
+      <div class="sc-dims" id="scDims"></div>
+      <div class="sc-drift" id="scDrift"></div>
+      <hr class="sc-divider" />
+      <div class="sc-footer">
+        <div class="sc-footer-text">#FocusLab #实验室蝙蝠<br>你是什么科研人格?</div>
+        <div class="sc-qr">📱</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 组合称号 -->
+  <h2 class="combos-title">🏅 组合称号 · 16 种</h2>
+  <div class="combos-grid" id="combosGrid"></div>
+</div>
+
+<script>
+/* ======== 数据 ======== */
+const GATES = [
+  {
+    id: 'night', name: '夜型生物门', emoji: '🌙',
+    gradient: ['#1a0a2e', '#6C5CE7'],
+    personas: [
+      { id: 'BATS', name: '实验室蝙蝠', emoji: '🦇', quote: '22点之后你才真正上线,白天那个是替身。', hidden: '深夜的图书馆是你的主场,保安都认识你', dims: [5,3,2,4,2] },
+      { id: 'OWL', name: '猫头鹰研究员', emoji: '🦉', quote: '20点准时进入战斗状态,像被人按了开关。', hidden: '早会对你来说是一种酷刑', dims: [4,2,3,3,2] },
+      { id: 'GHST', name: '深夜幽灵', emoji: '🌑', quote: '0点之后的你,连番茄钟都不敢打扰你。', hidden: '你的导师不知道你几点睡觉,你自己也不知道', dims: [5,4,1,5,1] },
+    ]
+  },
+  {
+    id: 'morning', name: '晨型生物门', emoji: '☀️',
+    gradient: ['#2d1810', '#FF6B6B'],
+    personas: [
+      { id: 'DAWN', name: '晨鸣鹤', emoji: '🐓', quote: '6点的图书馆,你已经完成了第一个番茄钟。', hidden: '你发的朋友圈时间让室友怀疑人生', dims: [1,2,4,3,2] },
+      { id: 'DMTK', name: '黎明特攻队', emoji: '🌅', quote: '天没亮就开始工作,不是因为勤奋,是因为睡不着。', hidden: '焦虑是你的闹钟', dims: [1,3,3,4,1] },
+      { id: 'BEE6', name: '六点蜜蜂', emoji: '🐝', quote: '别人还在闹钟和被窝里搏斗,你已经清空了三封邮件。', hidden: '你是导师唯一不用催的学生,虽然导师不知道原因是焦虑', dims: [1,1,4,3,3] },
+    ]
+  },
+  {
+    id: 'ddl', name: 'DDL生物门', emoji: '⚡',
+    gradient: ['#2d1f00', '#FAAD14'],
+    personas: [
+      { id: 'DDLX', name: 'DDL炼金术士', emoji: '🐆', quote: '截止日期前三天的你,能量密度超过太阳。', hidden: '你不是拖延,你是在「蓄力」,你一直这么告诉自己', dims: [3,5,1,5,3] },
+      { id: 'VLCN', name: '火山爆发型选手', emoji: '🌋', quote: '平静了二十天,最后两天把所有人都干沉默了。', hidden: '你的导师以为你在摸鱼,你只是在等待临界点', dims: [3,5,1,5,2] },
+      { id: 'BOMB', name: '定时炸弹研究员', emoji: '💣', quote: 'DDL是你唯一的生产力来源,这一点你心知肚明。', hidden: '没有DDL的任务对你来说等于不存在', dims: [3,5,2,4,1] },
+    ]
+  },
+  {
+    id: 'zen', name: '佛系生物门', emoji: '🧘',
+    gradient: ['#0a1a2e', '#7AABFF'],
+    personas: [
+      { id: 'STBL', name: '稳态水母', emoji: '🪼', quote: '洋流再乱,你自漂浮。连续14天完成率从未低于70%。', hidden: '你是实验室里最不焦虑的人,大家都想知道你的秘密', dims: [3,1,5,3,2] },
+      { id: 'TRTL', name: '沉浸模式海龟', emoji: '🐢', quote: '慢慢来,但你一直在游。别人冲刺,你匀速到终点。', hidden: '你进入心流的速度很慢,但出来的时候已经完成了别人三倍的工作', dims: [3,1,5,4,1] },
+      { id: 'HYBR', name: '冬眠熊', emoji: '🐻', quote: '该搁置的搁置,该爆发的爆发。你懂得战略性放弃。', hidden: '你的搁置区是一个哲学空间', dims: [3,2,4,2,2] },
+      { id: 'SLTH', name: '树懒禅师', emoji: '🦥', quote: '你不是没在做,你是在等灵感自己来敲门。', hidden: '你的搁置区不是垃圾桶,是发酵罐', dims: [3,2,3,2,1] },
+    ]
+  },
+  {
+    id: 'rush', name: '猛冲生物门', emoji: '🔥',
+    gradient: ['#2d0a0a', '#FF4757'],
+    personas: [
+      { id: 'SHRK', name: '全天候鲨鱼', emoji: '🦈', quote: '鲨鱼不睡觉,你也不停。每个时段都有你的专注记录。', hidden: '你的休息是换一个任务继续做', dims: [3,3,3,5,3] },
+      { id: 'HIVE', name: '蜂巢建筑师', emoji: '🐝', quote: '每一格都不浪费。你把碎片时间拼成了整块工作。', hidden: '等电梯的时候你在回复导师邮件', dims: [3,2,4,4,3] },
+      { id: 'FALC', name: '猎隼专注体', emoji: '🦅', quote: '锁定目标,其他都是噪音。你的中断次数少得可疑。', hidden: '导师叫你你都没听见,这不是缺点,这是天赋', dims: [3,2,4,5,1] },
+      { id: 'WOLF', name: '满月狼', emoji: '🐺', quote: '一旦进入状态,谁也拦不住你,包括你自己。', hidden: '你进入心流的频率让心理学教科书都要改版', dims: [3,3,2,5,2] },
+    ]
+  },
+  {
+    id: 'crash', name: '崩溃重启门', emoji: '💀',
+    gradient: ['#1a1a2e', '#B87FFF'],
+    personas: [
+      { id: 'PHNX', name: '凤凰协议', emoji: '🔥', quote: '崩了又怎样,重启就完事了。C级之后必然是A级。', hidden: '你的崩溃是有规律的,这反而是一种稳定', dims: [3,4,1,4,2] },
+      { id: 'QNTM', name: '量子态研究员', emoji: '🌀', quote: '你同时存在于所有任务里,又好像哪个都没在做。', hidden: '你的工作方式让旁观者焦虑,但你自己很平静', dims: [3,3,1,3,4] },
+      { id: 'ZMBI', name: '学术僵尸', emoji: '🧟', quote: '肉体已经下线,但番茄钟还在转。', hidden: '你不是在工作,你是在用工作麻醉自己', dims: [4,3,2,5,1] },
+      { id: 'HOLE', name: '黑洞吸收者', emoji: '🕳️', quote: '任务进来,时间消失,产出玄学。', hidden: '你对时间的感知能力已经损坏,请联系导师', dims: [3,4,1,4,3] },
+    ]
+  },
+  {
+    id: 'strategy', name: '战略生物门', emoji: '🗺️',
+    gradient: ['#0a2d1a', '#27AE60'],
+    personas: [
+      { id: 'NEST', name: '筑巢松鼠', emoji: '🐿️', quote: '每颗坚果都有它的位置。你的任务清单比别人的论文还整齐。', hidden: '你花在规划上的时间,有时候比执行还多', dims: [2,1,5,3,4] },
+      { id: 'MLST', name: '里程碑猎人', emoji: '🦫', quote: '你不是在写论文,你是在打Boss。一个一个拿下。', hidden: '你的人生有章节感,别人活在流水账里', dims: [2,2,4,4,4] },
+      { id: 'OCTO', name: '章鱼多线程', emoji: '🐙', quote: '八条腿同时在干活。多个长线目标并行,你乐在其中。', hidden: '你的大脑有多个标签页,从不关闭', dims: [3,3,3,4,5] },
+      { id: 'MORPH', name: '慢热变形者', emoji: '🦋', quote: '前期看不出来,后期让人刮目相看。', hidden: '你需要很长的热身期,但爆发的时候没人能追上', dims: [3,3,3,4,2] },
+    ]
+  },
+  {
+    id: 'chaos', name: '混沌生物门', emoji: '🎲',
+    gradient: ['#2d0a1a', '#F56C6C', '#FAAD14', '#52C41A'],
+    personas: [
+      { id: 'GMBL', name: '实验室赌徒', emoji: '🎰', quote: '你同时开了五个方向,赌的就是总有一个能跑出来。', hidden: '你的导师以为你有方法论,其实你在赌概率', dims: [3,4,1,3,5] },
+      { id: 'NEST2', name: '俄罗斯套娃', emoji: '🪆', quote: '打开一个任务,里面还有三个任务,里面还有三个任务。', hidden: '你的任务树比你的论文目录还复杂', dims: [3,3,2,3,5] },
+    ]
+  },
+  {
+    id: 'rare', name: '稀有物种门', emoji: '🎭',
+    gradient: ['#0a0a2e', '#4F8CFF', '#B87FFF', '#FF6B6B'],
+    personas: [
+      { id: 'PERF', name: '数据幽灵', emoji: '👁️', quote: '你的热力图完美到像是P的。', hidden: '你要么是效率天才,要么是机器人,我们倾向于后者', dims: [3,1,5,5,3], rarity: '稀有' },
+      { id: 'OMNI', name: '全能异常体', emoji: '🌈', quote: '你打破了所有分类规则,我们的算法对你束手无策。', hidden: '你是FocusLab遇到的最复杂的用户,这是夸你', dims: [3,3,3,3,3], rarity: '极稀有' },
+      { id: 'SOLO', name: '孤独星球', emoji: '🪐', quote: '你在自己的轨道上运行,不需要任何人理解。', hidden: '你有一套外人看不懂但极其有效的系统', dims: [2,1,5,4,1], rarity: '隐藏' },
+    ]
+  },
+];
+
+const DIM_LABELS = ['时段偏好', 'DDL模式', '稳定性', '强度', '多线程'];
+const DIM_LOW = ['晨型', '提前', '波动', '低频', '单线'];
+const DIM_HIGH = ['夜型', '临阵', '稳态', '高产', '多线'];
+
+const COMBOS = [
+  { a: 'BATS', b: 'PHNX', name: '暗夜不死鸟', desc: '深夜崩溃,深夜重生' },
+  { a: 'DDLX', b: 'OCTO', name: '截止日期超导体', desc: '三条线同时到期,全部交出' },
+  { a: 'NEST', b: 'STBL', name: '秩序编织者', desc: '计划从不崩,人从不崩' },
+  { a: 'ZMBI', b: 'FALC', name: '行走的科研机器', desc: '肉体消耗殆尽,专注力满格' },
+  { a: 'HYBR', b: 'MORPH', name: '隐形冠军', desc: '前期消失,后期震场' },
+  { a: 'HOLE', b: 'VLCN', name: '时间黑洞', desc: '时间进去,成果出来,过程玄学' },
+  { a: 'BATS', b: 'SHRK', name: '永动机', desc: '白天打工晚上科研,24h不停转' },
+  { a: 'DAWN', b: 'GHST', name: '薛定谔的作息', desc: '你同时是早鸟和夜猫,量子力学已无法解释' },
+  { a: 'HIVE', b: 'NEST', name: '效率偏执狂', desc: '连等电梯的30秒都在规划' },
+  { a: 'DDLX', b: 'HYBR', name: '战略性摆烂', desc: '平时躺平是为了积蓄DDL时刻的爆发力' },
+  { a: 'TRTL', b: 'WOLF', name: '双面人', desc: '慢的时候特别慢,快的时候特别快,没有中间档' },
+  { a: 'GMBL', b: 'PHNX', name: '豪赌不死', desc: '五个方向全炸了,但你从废墟里扒出来一个' },
+  { a: 'BEE6', b: 'BOMB', name: '早起但还是赶DDL', desc: '起得比谁都早,还是最后一天才交。这就是你' },
+  { a: 'QNTM', b: 'NEST2', name: '混沌之子', desc: '你的工作方式是一个分形:越放大越复杂' },
+  { a: 'SLTH', b: 'VLCN', name: '休眠火山', desc: '安静到让人以为已经死了,突然喷发一整个月的进度' },
+  { a: 'SHRK', b: 'PERF', name: '机器人嫌疑', desc: '你的数据太完美,我们不得不弹出验证码' },
+];
+
+/* ======== 辅助 ======== */
+const personaMap = {};
+GATES.forEach(g => g.personas.forEach(p => { personaMap[p.id] = { ...p, gate: g }; }));
+
+let currentGateIdx = 0;
+let currentPersonaId = null;
+
+function stars(v) { return '★'.repeat(v) + '☆'.repeat(5 - v); }
+
+function gradientCSS(arr) {
+  if (arr.length === 2) return `linear-gradient(135deg, ${arr[0]}, ${arr[1]})`;
+  const stops = arr.map((c, i) => `${c} ${Math.round(i / (arr.length - 1) * 100)}%`);
+  return `linear-gradient(135deg, ${stops.join(', ')})`;
+}
+
+/* ======== 渲染 Tab ======== */
+function renderTabs() {
+  const el = document.getElementById('gateTabs');
+  el.innerHTML = GATES.map((g, i) =>
+    `<button class="gate-tab${i === currentGateIdx ? ' active' : ''}" data-idx="${i}">${g.emoji} ${g.name.replace('生物门','').replace('门','')}</button>`
+  ).join('');
+  el.querySelectorAll('.gate-tab').forEach(btn => {
+    btn.onclick = () => { currentGateIdx = +btn.dataset.idx; renderTabs(); renderGallery(); };
+  });
+}
+
+/* ======== 渲染 Gallery ======== */
+function renderGallery() {
+  const gate = GATES[currentGateIdx];
+  if (!currentPersonaId || !gate.personas.find(p => p.id === currentPersonaId)) {
+    currentPersonaId = gate.personas[0].id;
+  }
+  const el = document.getElementById('gallery');
+  el.innerHTML = gate.personas.map(p =>
+    `<div class="gallery-item${p.id === currentPersonaId ? ' active' : ''}" data-pid="${p.id}">
+      <span class="gi-emoji">${p.emoji}</span>
+      <span class="gi-name">${p.name}</span>
+    </div>`
+  ).join('');
+  el.querySelectorAll('.gallery-item').forEach(item => {
+    item.onclick = () => { currentPersonaId = item.dataset.pid; renderGallery(); };
+  });
+  renderCard();
+}
+
+/* ======== 渲染分享卡 ======== */
+function renderCard() {
+  const p = personaMap[currentPersonaId];
+  if (!p) return;
+  const card = document.getElementById('shareCard');
+  card.style.background = gradientCSS(p.gate.gradient);
+  card.classList.toggle('holo', p.gate.id === 'rare');
+
+  document.getElementById('scEmoji').textContent = p.emoji;
+  document.getElementById('scName').textContent = p.name;
+  document.getElementById('scCode').textContent = p.id;
+  document.getElementById('scQuote').textContent = p.quote;
+  document.getElementById('scHidden').textContent = '🔍 隐藏属性: ' + p.hidden;
+
+  const dimsEl = document.getElementById('scDims');
+  dimsEl.innerHTML = p.dims.map((v, i) => {
+    const desc = v >= 4 ? DIM_HIGH[i] : v <= 2 ? DIM_LOW[i] : '';
+    return `<div class="sc-dim-row"><span class="sc-dim-label">${DIM_LABELS[i]}</span><span class="sc-dim-stars">${stars(v)}</span><span class="sc-dim-desc">${desc}</span></div>`;
+  }).join('');
+
+  // 漂移轨迹: 随机选一个同门或相邻门人格
+  const allP = GATES.flatMap(g => g.personas);
+  const other = allP.filter(x => x.id !== p.id);
+  const prev = other[Math.floor(Math.random() * other.length)];
+  document.getElementById('scDrift').textContent = `漂移轨迹: 上周 ${prev.emoji} → 本周 ${p.emoji}`;
+
+  // 底部标签
+  const ftEl = card.querySelector('.sc-footer-text');
+  ftEl.innerHTML = `#FocusLab #${p.name}<br>你是什么科研人格?`;
+}
+
+/* ======== 渲染组合称号 ======== */
+function renderCombos() {
+  const el = document.getElementById('combosGrid');
+  el.innerHTML = COMBOS.map(c => {
+    const pa = personaMap[c.a], pb = personaMap[c.b];
+    return `<div class="combo-card">
+      <div class="combo-emojis">${pa ? pa.emoji : '?'} × ${pb ? pb.emoji : '?'}</div>
+      <div class="combo-name">${c.name}</div>
+      <div class="combo-desc">${c.desc}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ======== 初始化 ======== */
+renderTabs();
+renderGallery();
+renderCombos();
+</script>
+</body>
+</html>

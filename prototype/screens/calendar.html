@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 日历视图</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { padding: 0; }
+  .page-shell { display: flex; min-height: 100vh; max-width: 1440px; margin: 0 auto; background: var(--color-bg-elevated); box-shadow: 0 0 0 1px var(--color-border); }
+  .main-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 40px; padding: 0 var(--sp-4);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+  }
+  .titlebar .left { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-12); color: var(--color-text-secondary); }
+
+  .content {
+    flex: 1;
+    padding: var(--sp-5) var(--sp-6);
+    background: var(--color-bg);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: var(--sp-5);
+    overflow-y: auto;
+  }
+
+  /* Calendar area */
+  .cal-area { display: flex; flex-direction: column; min-width: 0; }
+
+  .cal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--sp-4);
+  }
+  .cal-head .left-group { display: flex; align-items: center; gap: var(--sp-3); }
+  .cal-head h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .cal-head .nav-btn {
+    width: 32px; height: 32px; display: grid; place-items: center;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    transition: all var(--dur-base);
+  }
+  .cal-head .nav-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+  .view-tabs { display: flex; gap: 2px; padding: 2px; background: var(--color-bg-hover); border-radius: var(--r-sm); }
+  .view-tabs .tab {
+    padding: 6px 14px; font-size: var(--fs-13, 13px);
+    border-radius: var(--r-xs);
+    color: var(--color-text-secondary); cursor: pointer;
+  }
+  .view-tabs .tab.is-active {
+    background: var(--color-bg-elevated);
+    color: var(--color-primary);
+    box-shadow: var(--shadow-card);
+    font-weight: var(--fw-medium);
+  }
+
+  /* Calendar grid */
+  .cal-grid {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+  }
+  .dow-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-subtle);
+  }
+  .dow-cell {
+    padding: 10px 12px;
+    font-size: var(--fs-12);
+    font-weight: var(--fw-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .dow-cell.weekend { color: var(--color-warning); }
+
+  .month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+  .day-cell {
+    min-height: 110px;
+    padding: 8px;
+    border-right: 1px solid var(--color-divider);
+    border-bottom: 1px solid var(--color-divider);
+    cursor: pointer;
+    position: relative;
+    transition: background var(--dur-base);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .day-cell:hover { background: var(--color-bg-hover); }
+  .day-cell.is-selected { background: var(--color-primary-soft); box-shadow: inset 0 0 0 2px var(--color-primary); z-index: 1; }
+  .day-cell.is-today .date-num { background: var(--color-primary); color: #fff; }
+  .day-cell.is-past .date-num { color: var(--color-text-secondary); }
+  .day-cell.is-out { background: var(--color-bg-subtle); }
+  .day-cell.is-out .date-num { color: var(--color-border-strong); }
+  .day-cell:nth-child(7n-1),
+  .day-cell:nth-child(7n) { border-right: none; }
+
+  .date-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  .date-num {
+    width: 24px; height: 24px;
+    display: grid; place-items: center;
+    font-size: var(--fs-13, 13px);
+    font-weight: var(--fw-semibold);
+    color: var(--color-text-primary);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .date-weekday {
+    font-size: 10px;
+    color: var(--color-text-muted);
+  }
+  .lvl-pill {
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: var(--r-xs);
+    font-weight: var(--fw-bold);
+    flex-shrink: 0;
+  }
+  .lvl-pill.s { background: linear-gradient(135deg, #FAAD14, #FF8C00); color: #fff; }
+  .lvl-pill.a { background: var(--color-gold-soft); color: #AD6800; }
+  .lvl-pill.b { background: var(--color-primary-soft); color: var(--color-primary-dark); }
+  .lvl-pill.c { background: var(--color-bg-hover); color: var(--color-text-muted); }
+
+  /* Event pills in day cell */
+  .event-pill {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: var(--r-xs);
+    background: var(--color-bg-hover);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+    display: block;
+  }
+  .event-pill.lesson { background: rgba(79, 140, 255, 0.15); color: var(--color-primary-dark); border-left: 2px solid var(--color-primary); padding-left: 4px; }
+  .event-pill.meeting { background: rgba(255, 140, 0, 0.15); color: #D2691E; border-left: 2px solid var(--color-warning); padding-left: 4px; }
+  .event-pill.milestone { background: color-mix(in srgb, #B87FFF 15%, transparent); color: #7B52D6; border-left: 2px solid #B87FFF; padding-left: 4px; }
+  .event-pill.fixed { background: var(--color-bg-hover); color: var(--color-text-secondary); }
+  /* DDL / 任务到期日 (v1.2.2 任务到期日与日历待办) */
+  .event-pill.due { background: color-mix(in srgb, #FAAD14 14%, transparent); color: #AD6800; border-left: 2px solid #FAAD14; padding-left: 4px; font-weight: var(--fw-medium); }
+  .event-pill.due.is-today { background: color-mix(in srgb, #FF8C00 20%, transparent); color: #C2410C; border-left-color: #FF8C00; font-weight: var(--fw-semibold); }
+
+  /* Day cell footer (pomodoro + focus time) */
+  .day-foot {
+    margin-top: auto;
+    font-size: 10px;
+    color: var(--color-text-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 4px;
+    border-top: 1px dashed var(--color-divider);
+  }
+  .day-foot .pomo { display: inline-flex; align-items: center; gap: 2px; }
+  .day-foot .pomo-ct { font-family: var(--font-mono); font-weight: var(--fw-semibold); }
+
+  .more-chip { font-size: 10px; color: var(--color-primary); cursor: pointer; }
+
+  /* ============ Right side ============ */
+  .side-col { display: flex; flex-direction: column; gap: var(--sp-4); overflow-y: auto; }
+
+  .side-panel {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    padding: var(--sp-4);
+  }
+  .panel-title {
+    font-size: var(--fs-12);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: var(--fw-medium);
+    margin-bottom: var(--sp-3);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  /* Day detail */
+  .day-detail-head { margin-bottom: var(--sp-4); }
+  .day-detail-head .date {
+    font-size: var(--fs-24); font-weight: var(--fw-bold); letter-spacing: -0.3px;
+  }
+  .day-detail-head .weekday { color: var(--color-text-secondary); font-size: var(--fs-14); }
+  .day-detail-head .badge-row {
+    display: flex; gap: 6px; margin-top: var(--sp-2);
+  }
+
+  .mini-stat-row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-2);
+    margin-bottom: var(--sp-4);
+  }
+  .mini-stat {
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--color-bg-subtle);
+    border-radius: var(--r-sm);
+    text-align: center;
+  }
+  .mini-stat .v { font-family: var(--font-mono); font-size: var(--fs-16); font-weight: var(--fw-bold); }
+  .mini-stat .l { font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
+
+  .day-event-list { display: flex; flex-direction: column; gap: 6px; }
+  .day-event-item {
+    display: flex; align-items: flex-start; gap: var(--sp-2);
+    padding: 8px 10px;
+    background: var(--color-bg-subtle);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-13, 13px);
+  }
+  .day-event-item .time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+    width: 60px;
+  }
+  .day-event-item .body { flex: 1; min-width: 0; }
+  .day-event-item .title { font-weight: var(--fw-medium); font-size: var(--fs-13, 13px); }
+  .day-event-item .type-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+
+  /* Fixed schedule template */
+  .fixed-group { margin-bottom: var(--sp-3); }
+  .fixed-group:last-child { margin-bottom: 0; }
+  .fixed-day-label {
+    font-size: var(--fs-12);
+    font-weight: var(--fw-semibold);
+    color: var(--color-text-secondary);
+    margin-bottom: 6px;
+    padding: 4px 8px;
+    background: var(--color-bg-subtle);
+    border-radius: var(--r-xs);
+    display: inline-block;
+  }
+  .fixed-row {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 6px 8px;
+    font-size: var(--fs-13, 13px);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .fixed-row:last-child { border-bottom: none; }
+  .fixed-row .time-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-muted);
+    min-width: 90px;
+    flex-shrink: 0;
+  }
+  .fixed-row .fr-title { flex: 1; }
+  .fixed-row .fr-actions { opacity: 0; transition: opacity var(--dur-base); }
+  .fixed-row:hover .fr-actions { opacity: 1; }
+
+  /* Available time per day */
+  .avail-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0;
+    font-size: var(--fs-12);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .avail-row:last-child { border-bottom: none; }
+  .avail-row .day { color: var(--color-text-secondary); }
+  .avail-row .v { font-family: var(--font-mono); font-weight: var(--fw-semibold); color: var(--color-primary); }
+  .avail-row .bar-mini { flex: 1; height: 4px; background: var(--color-bg-hover); border-radius: var(--r-pill); margin: 0 10px; overflow: hidden; }
+  .avail-row .bar-mini .fl { height: 100%; background: var(--color-primary); border-radius: var(--r-pill); }
+
+  /* Legend */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: var(--sp-2);
+    padding: var(--sp-3);
+    background: var(--color-bg-subtle);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-12);
+    color: var(--color-text-secondary);
+    margin-top: var(--sp-3);
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 4px; }
+  .legend-item .sw {
+    width: 10px; height: 10px; border-radius: 2px;
+  }
+
+  @media (max-width: 1100px) {
+    .content { grid-template-columns: 1fr; }
+    .day-cell { min-height: 88px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-shell">
+  <aside class="sidebar" aria-label="主导航">
+    <div class="logo">F</div>
+    <div class="nav-item" data-tip="今日" role="button" tabindex="0"><span data-icon="home"></span></div>
+    <div class="nav-item" data-tip="任务" role="button" tabindex="0"><span data-icon="list"></span></div>
+    <div class="nav-item" data-tip="长线目标" role="button" tabindex="0"><span data-icon="target"></span></div>
+    <div class="nav-item" data-tip="数据分析" role="button" tabindex="0"><span data-icon="bar-chart"></span></div>
+    <div class="nav-item is-active" data-tip="日历" role="button" tabindex="0"><span data-icon="calendar"></span></div>
+    <div class="nav-spacer"></div>
+    <div class="nav-item" data-tip="设置" role="button" tabindex="0"><span data-icon="settings"></span></div>
+  </aside>
+
+  <div class="main-col">
+    <div class="titlebar">
+      <div class="left">
+        <span style="width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));display:inline-grid;place-items:center;color:#fff;font-weight:700;font-size:10px">F</span>
+        FocusLab · 日历
+      </div>
+      <a class="btn btn-ghost btn-sm" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回导航</a>
+    </div>
+
+    <div class="content">
+
+      <!-- ========== Calendar ========== -->
+      <div class="cal-area">
+        <div class="cal-head">
+          <div class="left-group">
+            <button class="nav-btn" aria-label="上个月"><span data-icon="chevron-left" data-size="16"></span></button>
+            <h1>2026 年 4 月</h1>
+            <button class="nav-btn" aria-label="下个月"><span data-icon="chevron-right" data-size="16"></span></button>
+            <button class="btn btn-ghost btn-sm">今天</button>
+          </div>
+          <div style="display:flex; gap: var(--sp-3); align-items:center">
+            <div class="view-tabs">
+              <span class="tab">周</span>
+              <span class="tab is-active">月</span>
+              <span class="tab">季</span>
+            </div>
+            <button class="btn btn-primary btn-sm"><span data-icon="plus" data-size="14"></span> 添加日程</button>
+          </div>
+        </div>
+
+        <div class="cal-grid">
+          <!-- Day of week header -->
+          <div class="dow-row">
+            <div class="dow-cell">周一</div>
+            <div class="dow-cell">周二</div>
+            <div class="dow-cell">周三</div>
+            <div class="dow-cell">周四</div>
+            <div class="dow-cell">周五</div>
+            <div class="dow-cell weekend">周六</div>
+            <div class="dow-cell weekend">周日</div>
+          </div>
+
+          <!-- Month grid: April 2026 starts on Wednesday -->
+          <div class="month-grid">
+            <!-- Week 1: 3/30, 3/31, 4/1, 4/2, 4/3, 4/4, 4/5 -->
+            <div class="day-cell is-out is-past">
+              <div class="date-row"><span class="date-num">30</span></div>
+            </div>
+            <div class="day-cell is-out is-past">
+              <div class="date-row"><span class="date-num">31</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num">1</span><span class="lvl-pill b">B</span></div>
+              <span class="event-pill lesson">09:00 机器学习</span>
+              <span class="event-pill">复现 baseline</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">6</span></span><span>3h 10m</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num">2</span><span class="lvl-pill a">A</span></div>
+              <span class="event-pill">读文献 2 篇</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">8</span></span><span>4h 20m</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num">3</span><span class="lvl-pill b">B</span></div>
+              <span class="event-pill meeting">14:00 组会</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">5</span></span><span>2h 30m</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num weekend-num" style="color:var(--color-warning)">4</span></div>
+              <span class="event-pill" style="background:var(--color-warning-soft);color:var(--color-warning);font-weight:var(--fw-medium)">清明假</span>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num weekend-num" style="color:var(--color-warning)">5</span></div>
+              <span class="event-pill" style="background:var(--color-warning-soft);color:var(--color-warning);font-weight:var(--fw-medium)">清明假</span>
+            </div>
+
+            <!-- Week 2: 4/6 - 4/12 -->
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num">6</span><span class="lvl-pill a">A</span></div>
+              <span class="event-pill lesson">09:00 机器学习</span>
+              <span class="event-pill">baseline 调试</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">7</span></span><span>3h 50m</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num">7</span><span class="lvl-pill s">S</span></div>
+              <span class="event-pill">读文献 · 深度</span>
+              <span class="event-pill milestone">M2 完成 🎉</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">10</span></span><span>5h 20m</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num">8</span><span class="lvl-pill b">B</span></div>
+              <span class="event-pill meeting">14:00 组会</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">6</span></span><span>3h 05m</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num">9</span><span class="lvl-pill b">B</span></div>
+              <span class="event-pill">M3 启动</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">5</span></span><span>2h 40m</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num">10</span><span class="lvl-pill a">A</span></div>
+              <span class="event-pill">导师 1:1</span>
+              <span class="event-pill">baseline 选定</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">8</span></span><span>4h 10m</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num weekend-num" style="color:var(--color-warning)">11</span><span class="lvl-pill c">C</span></div>
+              <span class="event-pill">轻度写作</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">2</span></span><span>1h 10m</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num weekend-num" style="color:var(--color-warning)">12</span></div>
+            </div>
+
+            <!-- Week 3: 4/13 - 4/19 · THIS WEEK -->
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num">13</span><span class="lvl-pill a">A</span></div>
+              <span class="event-pill lesson">09:00 机器学习</span>
+              <span class="event-pill">环境搭建</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">7</span></span><span>3h 45m</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num">14</span><span class="lvl-pill b">B</span></div>
+              <span class="event-pill">baseline 代码</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">5</span></span><span>2h 50m</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num">15</span><span class="lvl-pill s">S</span></div>
+              <span class="event-pill meeting">14:00 组会</span>
+              <span class="event-pill">额外推进</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">10</span></span><span>5h 15m</span></div>
+            </div>
+            <div class="day-cell is-past">
+              <div class="date-row"><span class="date-num">16</span><span class="lvl-pill a">A</span></div>
+              <span class="event-pill">baseline 复现</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">11</span></span><span>4h 10m</span></div>
+            </div>
+
+            <!-- Today 4/17 -->
+            <div class="day-cell is-today is-selected">
+              <div class="date-row"><span class="date-num">17</span><span style="font-size:10px;color:var(--color-primary);font-weight:var(--fw-semibold)">今天</span></div>
+              <span class="event-pill lesson">09:00 机器学习</span>
+              <span class="event-pill meeting">14:00 组会</span>
+              <span class="event-pill due is-today" title="今日到期">⏰ 复现 baseline</span>
+              <div class="day-foot"><span class="pomo">🍅 <span class="pomo-ct">3</span></span><span style="color:var(--color-primary)">进行中</span></div>
+            </div>
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num weekend-num" style="color:var(--color-warning)">18</span></div>
+              <span class="event-pill" style="opacity:0.5">计划 3 个任务</span>
+            </div>
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num weekend-num" style="color:var(--color-warning)">19</span></div>
+              <span class="event-pill" style="opacity:0.5">休息日</span>
+            </div>
+
+            <!-- Week 4: 4/20 - 4/26 -->
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num">20</span></div>
+              <span class="event-pill lesson">09:00 机器学习</span>
+              <span class="event-pill milestone">M3 设计方案</span>
+            </div>
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num">21</span></div>
+              <span class="event-pill due" title="设计改进方案 · 到期">📅 设计改进方案</span>
+            </div>
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num">22</span></div>
+              <span class="event-pill meeting">14:00 组会</span>
+            </div>
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num">23</span></div>
+              <span class="event-pill">导师 1:1</span>
+            </div>
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num">24</span></div>
+            </div>
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num weekend-num" style="color:var(--color-warning)">25</span></div>
+              <span class="event-pill due" title="阅读文献 2 篇 · 到期">📅 阅读文献 2 篇</span>
+            </div>
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num weekend-num" style="color:var(--color-warning)">26</span></div>
+            </div>
+
+            <!-- Week 5: 4/27 - 4/30 + 5/1, 5/2, 5/3 -->
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num">27</span></div>
+              <span class="event-pill lesson">09:00 机器学习</span>
+            </div>
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num">28</span></div>
+            </div>
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num">29</span></div>
+              <span class="event-pill meeting">14:00 组会</span>
+            </div>
+            <div class="day-cell">
+              <div class="date-row"><span class="date-num">30</span><span class="event-pill milestone" style="margin-left:auto;padding:0 4px">M3 截止</span></div>
+            </div>
+            <div class="day-cell is-out">
+              <div class="date-row"><span class="date-num">1</span></div>
+              <span class="event-pill" style="background:var(--color-warning-soft);color:var(--color-warning)">劳动节</span>
+            </div>
+            <div class="day-cell is-out">
+              <div class="date-row"><span class="date-num weekend-num">2</span></div>
+            </div>
+            <div class="day-cell is-out">
+              <div class="date-row"><span class="date-num weekend-num">3</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+          <div class="legend-item"><span class="sw" style="background:var(--color-primary)"></span> 课程</div>
+          <div class="legend-item"><span class="sw" style="background:var(--color-warning)"></span> 会议 / 组会</div>
+          <div class="legend-item"><span class="sw" style="background:#B87FFF"></span> 里程碑节点</div>
+          <div class="legend-item"><span class="sw" style="background:#FAAD14"></span> 任务到期日</div>
+          <div class="legend-item"><span class="sw" style="background:var(--color-bg-hover)"></span> 任务</div>
+          <div class="legend-item"><span class="lvl-pill s" style="font-size:9px">S</span> 超额完成</div>
+          <div class="legend-item"><span class="lvl-pill a" style="font-size:9px">A</span> 完美完成</div>
+          <div class="legend-item"><span class="lvl-pill b" style="font-size:9px">B</span> 基本完成</div>
+          <div class="legend-item"><span class="lvl-pill c" style="font-size:9px">C</span> 推进中</div>
+        </div>
+      </div>
+
+      <!-- ========== Side panel ========== -->
+      <div class="side-col">
+
+        <!-- Selected day detail -->
+        <div class="side-panel">
+          <div class="day-detail-head">
+            <div class="date">4 月 17 日</div>
+            <div class="weekday">周五 · 今天</div>
+            <div class="badge-row">
+              <span class="chip chip-brand">进行中</span>
+              <span class="chip">🎯 论文 A · M3 专日</span>
+            </div>
+          </div>
+
+          <div class="mini-stat-row">
+            <div class="mini-stat">
+              <div class="v" style="color:var(--color-primary)">3</div>
+              <div class="l">番茄钟</div>
+            </div>
+            <div class="mini-stat">
+              <div class="v">1/3</div>
+              <div class="l">完成</div>
+            </div>
+            <div class="mini-stat">
+              <div class="v">5.5h</div>
+              <div class="l">可用</div>
+            </div>
+          </div>
+
+          <div class="sub-section-label" style="font-size:var(--fs-12);color:#C2410C;text-transform:uppercase;letter-spacing:0.5px;font-weight:var(--fw-semibold);margin-bottom:var(--sp-2);display:flex;align-items:center;gap:6px">
+            <span>⏰ 今日到期 · 1</span>
+          </div>
+          <div class="day-event-list" style="margin-bottom:var(--sp-4)">
+            <div class="day-event-item" style="background:color-mix(in srgb, #FF8C00 10%, transparent);border-left:3px solid #FF8C00;padding-left:8px">
+              <span class="type-dot" style="background:#FF8C00"></span>
+              <span class="time" style="color:#C2410C">今日到期</span>
+              <div class="body">
+                <div class="title">复现 baseline 代码</div>
+                <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px">🎯 论文 A · M3 · 进行中 · 已 1h20m</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sub-section-label" style="font-size:var(--fs-12);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:var(--fw-medium);margin-bottom:var(--sp-2)">
+            今日安排
+          </div>
+          <div class="day-event-list">
+            <div class="day-event-item">
+              <span class="type-dot" style="background:var(--color-primary)"></span>
+              <span class="time">09:00 - 10:30</span>
+              <div class="body">
+                <div class="title">机器学习课程</div>
+                <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px">固定日程 · 周五</div>
+              </div>
+            </div>
+            <div class="day-event-item">
+              <span class="type-dot" style="background:var(--color-q1)"></span>
+              <span class="time">10:30 - 12:00</span>
+              <div class="body">
+                <div class="title">复现 baseline 代码</div>
+                <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px">🎯 论文 A · M3 · 专注中</div>
+              </div>
+            </div>
+            <div class="day-event-item">
+              <span class="type-dot" style="background:var(--color-warning)"></span>
+              <span class="time">14:00 - 16:00</span>
+              <div class="body">
+                <div class="title">组会 · 汇报 baseline</div>
+                <div style="font-size:11px;color:var(--color-warning);margin-top:2px">🔔 需要准备汇报数据</div>
+              </div>
+            </div>
+            <div class="day-event-item">
+              <span class="type-dot" style="background:var(--color-q2)"></span>
+              <span class="time">16:30 - 18:30</span>
+              <div class="body">
+                <div class="title">设计改进方案初稿</div>
+                <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px">🎯 论文 A · M3 · 待启动</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weekly fixed schedule -->
+        <div class="side-panel">
+          <div class="panel-title">
+            <span>每周固定日程</span>
+            <button class="btn btn-ghost btn-sm" style="padding:0 6px;color:var(--color-primary);font-size:11px"><span data-icon="plus" data-size="12"></span> 添加</button>
+          </div>
+          <p style="font-size:var(--fs-12);color:var(--color-text-muted);margin-bottom:var(--sp-3);line-height:1.6">
+            课程、组会等每周重复的日程 · 自动写入每日计划
+          </p>
+
+          <div class="fixed-group">
+            <div class="fixed-day-label" style="color:var(--color-primary);background:var(--color-primary-soft)">周一</div>
+            <div class="fixed-row">
+              <span class="time-tag">09:00-10:30</span>
+              <span class="fr-title">📘 机器学习课程</span>
+              <div class="fr-actions"><button class="btn btn-ghost btn-sm" style="padding:0"><span data-icon="more-horizontal" data-size="12"></span></button></div>
+            </div>
+            <div class="fixed-row">
+              <span class="time-tag">14:00-16:00</span>
+              <span class="fr-title">🧑‍🤝‍🧑 组会</span>
+              <div class="fr-actions"><button class="btn btn-ghost btn-sm" style="padding:0"><span data-icon="more-horizontal" data-size="12"></span></button></div>
+            </div>
+          </div>
+
+          <div class="fixed-group">
+            <div class="fixed-day-label">周二</div>
+            <div class="fixed-row">
+              <span class="time-tag">10:00-12:00</span>
+              <span class="fr-title">📘 数学基础课程</span>
+              <div class="fr-actions"><button class="btn btn-ghost btn-sm" style="padding:0"><span data-icon="more-horizontal" data-size="12"></span></button></div>
+            </div>
+          </div>
+
+          <div class="fixed-group">
+            <div class="fixed-day-label" style="color:var(--color-text-muted)">周三</div>
+            <div style="padding: 8px;font-size:var(--fs-12);color:var(--color-text-muted);font-style:italic">(无固定日程)</div>
+          </div>
+
+          <div class="fixed-group">
+            <div class="fixed-day-label">周四</div>
+            <div class="fixed-row">
+              <span class="time-tag">14:00-15:00</span>
+              <span class="fr-title">🗓️ 导师 1:1</span>
+              <div class="fr-actions"><button class="btn btn-ghost btn-sm" style="padding:0"><span data-icon="more-horizontal" data-size="12"></span></button></div>
+            </div>
+          </div>
+
+          <div class="fixed-group">
+            <div class="fixed-day-label" style="color:var(--color-primary);background:var(--color-primary-soft)">周五 · 今天</div>
+            <div class="fixed-row">
+              <span class="time-tag">09:00-10:30</span>
+              <span class="fr-title">📘 机器学习课程</span>
+              <div class="fr-actions"><button class="btn btn-ghost btn-sm" style="padding:0"><span data-icon="more-horizontal" data-size="12"></span></button></div>
+            </div>
+            <div class="fixed-row">
+              <span class="time-tag">14:00-16:00</span>
+              <span class="fr-title">🧑‍🤝‍🧑 组会</span>
+              <div class="fr-actions"><button class="btn btn-ghost btn-sm" style="padding:0"><span data-icon="more-horizontal" data-size="12"></span></button></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Available work time per day -->
+        <div class="side-panel">
+          <div class="panel-title">
+            <span>本周可用工作时间</span>
+            <span style="color:var(--color-primary);font-family:var(--font-mono);font-weight:var(--fw-bold);text-transform:none;letter-spacing:0">42.5h</span>
+          </div>
+          <p style="font-size:var(--fs-12);color:var(--color-text-muted);margin-bottom:var(--sp-3);line-height:1.6">
+            去掉固定日程和吃饭时间 · 这是理论上可以用来深度工作的时间
+          </p>
+          <div class="avail-row"><span class="day">周一</span><div class="bar-mini"><div class="fl" style="width:70%"></div></div><span class="v">5.5h</span></div>
+          <div class="avail-row"><span class="day">周二</span><div class="bar-mini"><div class="fl" style="width:75%"></div></div><span class="v">6.0h</span></div>
+          <div class="avail-row"><span class="day">周三</span><div class="bar-mini"><div class="fl" style="width:100%"></div></div><span class="v">8.0h</span></div>
+          <div class="avail-row"><span class="day">周四</span><div class="bar-mini"><div class="fl" style="width:88%"></div></div><span class="v">7.0h</span></div>
+          <div class="avail-row" style="background:var(--color-primary-soft);border-radius:var(--r-xs);padding:6px 8px">
+            <span class="day" style="color:var(--color-primary-dark);font-weight:var(--fw-semibold)">周五 · 今天</span>
+            <div class="bar-mini"><div class="fl" style="width:69%"></div></div>
+            <span class="v">5.5h</span>
+          </div>
+          <div class="avail-row"><span class="day" style="color:var(--color-warning)">周六</span><div class="bar-mini"><div class="fl" style="width:63%"></div></div><span class="v">5.0h</span></div>
+          <div class="avail-row"><span class="day" style="color:var(--color-warning)">周日</span><div class="bar-mini"><div class="fl" style="width:69%"></div></div><span class="v">5.5h</span></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  try {
+    const saved = localStorage.getItem('fl-theme');
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+
+  // Day cell selection
+  document.querySelectorAll('.day-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      document.querySelectorAll('.day-cell').forEach(x => x.classList.remove('is-selected'));
+      cell.classList.add('is-selected');
+    });
+  });
+
+  // View tabs
+  document.querySelectorAll('.view-tabs').forEach(group => {
+    group.querySelectorAll('.tab').forEach(t => {
+      t.addEventListener('click', () => {
+        group.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
+        t.classList.add('is-active');
+      });
+    });
+  });
+</script>
+</body>
+</html>

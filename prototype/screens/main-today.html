@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 主窗口 · 今日计划</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { padding: 0; }
+  .page-shell { display: flex; min-height: 100vh; max-width: 1440px; margin: 0 auto; background: var(--color-bg-elevated); box-shadow: 0 0 0 1px var(--color-border); }
+
+  .main-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 40px; padding: 0 var(--sp-4);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+  }
+  .titlebar .left { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-12); color: var(--color-text-secondary); }
+  .titlebar .right { display: flex; align-items: center; gap: var(--sp-2); }
+  .tiny-kbd-hint { font-size: 11px; color: var(--color-text-muted); }
+
+  .content {
+    flex: 1;
+    padding: var(--sp-6);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: var(--sp-6);
+    background: var(--color-bg);
+    overflow-y: auto;
+  }
+
+  /* ============ Header row ============ */
+  .page-head {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-2);
+  }
+  .date-line { display: flex; align-items: baseline; gap: var(--sp-3); }
+  .date-main { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .date-sub { color: var(--color-text-secondary); font-size: var(--fs-14); }
+  .energy-row { display: flex; gap: var(--sp-2); }
+
+  /* ============ Focus card ============ */
+  .focus-card {
+    background: linear-gradient(180deg, var(--color-bg-elevated) 0%, var(--color-primary-soft) 100%);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 25%, var(--color-border));
+    border-radius: var(--r-lg);
+    padding: var(--sp-6);
+    position: relative;
+    overflow: hidden;
+  }
+  .focus-card::before {
+    content: "";
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, var(--color-primary-light), transparent 60%);
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  .focus-title-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--sp-4); position: relative;
+  }
+  .focus-title-row .tiny-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: var(--fs-12); color: var(--color-primary-dark); font-weight: var(--fw-medium);
+    padding: 4px 10px; background: rgba(255,255,255,0.6); border-radius: var(--r-pill);
+  }
+  .focus-task-name {
+    font-size: var(--fs-20); font-weight: var(--fw-semibold);
+    margin-bottom: var(--sp-1); position: relative;
+  }
+  .focus-task-meta { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-5); position: relative; }
+
+  .ring-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: var(--sp-4);
+  }
+  .ring-holder {
+    position: relative;
+    width: 180px; height: 180px;
+    display: grid;
+    place-items: center;
+  }
+  .ring {
+    position: absolute;
+    inset: 0;
+    width: 180px; height: 180px;
+    filter: drop-shadow(0 4px 16px rgba(79, 140, 255, 0.18));
+  }
+  .ring circle { fill: none; stroke-linecap: round; }
+  .ring .track { stroke: rgba(255, 255, 255, 0.8); stroke-width: 10; }
+  [data-theme="dark"] .ring .track { stroke: rgba(255, 255, 255, 0.08); }
+  .ring .progress-arc { stroke: url(#ringGrad); stroke-width: 10; stroke-dasharray: 722; stroke-dashoffset: 180; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset var(--dur-slow) var(--ease-out); }
+
+  .ring-center { position: relative; text-align: center; line-height: 1; }
+  .ring-time { font-family: var(--font-mono); font-size: 40px; font-weight: var(--fw-semibold); color: var(--color-text-primary); letter-spacing: -1px; line-height: 1; }
+  .ring-phase { font-size: 11px; color: var(--color-text-secondary); margin-top: 4px; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  .focus-controls { display: flex; justify-content: center; gap: var(--sp-3); position: relative; }
+  .focus-controls .btn-circle {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    display: grid; place-items: center;
+    transition: all var(--dur-base) var(--ease-smooth);
+    cursor: pointer;
+  }
+  .focus-controls .btn-circle:hover { color: var(--color-primary); border-color: var(--color-primary); transform: translateY(-1px); }
+  .focus-controls .btn-main {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    display: grid; place-items: center;
+    box-shadow: 0 8px 20px rgba(79, 140, 255, 0.32);
+    transition: all var(--dur-base) var(--ease-smooth);
+    cursor: pointer;
+  }
+  .focus-controls .btn-main:hover { background: var(--color-primary-dark); transform: translateY(-1px); }
+  .focus-controls .btn-main svg { width: 24px; height: 24px; }
+
+  .pomodoro-count {
+    display: flex; align-items: center; justify-content: center;
+    gap: var(--sp-2);
+    margin-top: var(--sp-4);
+    padding-top: var(--sp-4);
+    border-top: 1px solid color-mix(in srgb, var(--color-primary) 15%, transparent);
+    position: relative;
+  }
+  .pomodoro-count .dots { display: flex; gap: 6px; }
+  .pomodoro-count .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--color-bg-elevated);
+    border: 1.5px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+  }
+  .pomodoro-count .dot.is-done { background: #FF7A5C; border-color: #FF7A5C; box-shadow: 0 0 0 2px rgba(255, 122, 92, 0.15); }
+  .pomodoro-count .dot.is-current { background: var(--color-primary); border-color: var(--color-primary); animation: pulse-soft 2s ease-in-out infinite; }
+  @keyframes pulse-soft { 0%,100% { box-shadow: 0 0 0 0 rgba(79,140,255,0.4); } 50% { box-shadow: 0 0 0 4px rgba(79,140,255,0); } }
+  .pomodoro-count .count-label { font-size: var(--fs-12); color: var(--color-text-secondary); }
+
+  /* ============ Tasks section ============ */
+  .task-panel { background: var(--color-bg-elevated); border-radius: var(--r-lg); border: 1px solid var(--color-border); padding: var(--sp-5); }
+  .task-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-4); }
+  .task-section-head h2 { font-size: var(--fs-16); font-weight: var(--fw-semibold); }
+  .view-tabs { display: flex; gap: 2px; padding: 2px; background: var(--color-bg-hover); border-radius: var(--r-sm); }
+  .view-tabs .tab {
+    padding: 5px 12px; font-size: var(--fs-12);
+    border-radius: var(--r-xs);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .view-tabs .tab svg { width: 14px; height: 14px; }
+  .view-tabs .tab.is-active { background: var(--color-bg-elevated); color: var(--color-primary); box-shadow: var(--shadow-card); }
+
+  .quadrant-group { margin-top: var(--sp-4); }
+  .quadrant-group:first-child { margin-top: 0; }
+  .quadrant-label {
+    display: flex; align-items: center; gap: var(--sp-2);
+    font-size: var(--fs-12);
+    color: var(--color-text-secondary);
+    font-weight: var(--fw-medium);
+    margin-bottom: var(--sp-2);
+    letter-spacing: 0.2px;
+  }
+  .quadrant-label .q-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .q1 .q-dot { background: var(--color-q1); }
+  .q2 .q-dot { background: var(--color-q2); }
+  .q3 .q-dot { background: var(--color-q3); }
+  .q4 .q-dot { background: var(--color-q4); }
+  .quadrant-label .count { color: var(--color-text-muted); font-size: 11px; }
+
+  .task-item {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3);
+    border-radius: var(--r-sm);
+    border: 1px solid transparent;
+    transition: all var(--dur-base);
+    cursor: pointer;
+    margin-bottom: 4px;
+  }
+  .task-item:hover { background: var(--color-bg-hover); }
+  .task-item.is-active { background: var(--color-primary-soft); border-color: color-mix(in srgb, var(--color-primary) 25%, transparent); }
+  .task-item.is-done { opacity: 0.55; }
+  .task-item.is-done .t-name { text-decoration: line-through; color: var(--color-text-muted); }
+  .t-body { flex: 1; min-width: 0; }
+  .t-name { font-size: var(--fs-14); font-weight: var(--fw-medium); color: var(--color-text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t-meta { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-12); color: var(--color-text-muted); }
+  .t-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: var(--r-xs); font-size: 11px; background: var(--color-bg-hover); color: var(--color-text-secondary); }
+  .t-action { opacity: 0; transition: opacity var(--dur-base); }
+  .task-item:hover .t-action { opacity: 1; }
+
+  .add-task-bar {
+    margin-top: var(--sp-3);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--r-sm);
+    color: var(--color-text-muted);
+    font-size: var(--fs-13, 13px);
+    cursor: pointer;
+    transition: all var(--dur-base);
+  }
+  .add-task-bar:hover { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); }
+
+  /* ============ Right rail ============ */
+  .right-rail { display: flex; flex-direction: column; gap: var(--sp-4); }
+  .stat-card {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    padding: var(--sp-4);
+  }
+  .stat-card h3 { font-size: var(--fs-12); color: var(--color-text-muted); font-weight: var(--fw-medium); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--sp-3); }
+  .stat-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--sp-2); font-size: var(--fs-14); }
+  .stat-row:last-child { margin-bottom: 0; }
+  .stat-label { color: var(--color-text-secondary); }
+  .stat-value { font-weight: var(--fw-semibold); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .progress-wrap { margin-top: var(--sp-4); }
+  .progress-meta { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: var(--fs-12); color: var(--color-text-secondary); }
+
+  /* 长线目标微型卡 */
+  .goal-card .goal-top {
+    display: flex; align-items: center; gap: var(--sp-2);
+    margin-bottom: var(--sp-3);
+  }
+  .goal-icon { width: 32px; height: 32px; border-radius: var(--r-sm); background: var(--color-primary-soft); color: var(--color-primary); display: grid; place-items: center; }
+  .goal-name { font-size: var(--fs-14); font-weight: var(--fw-semibold); }
+  .goal-sub { font-size: var(--fs-12); color: var(--color-text-secondary); }
+  .milestone-dots {
+    display: flex; gap: 4px; margin-top: var(--sp-3);
+  }
+  .milestone-dots .m {
+    flex: 1; height: 6px; border-radius: 3px;
+    background: var(--color-bg-hover);
+  }
+  .milestone-dots .m.is-done { background: var(--color-success); }
+  .milestone-dots .m.is-current { background: var(--color-primary); animation: pulse-soft 2s infinite; }
+
+  /* Progress card (今日进度 + 结束今天 · v1.2.2 移自底部 bar) */
+  .progress-card .progress-top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--sp-3);
+  }
+  .progress-card .progress-top-left { display: flex; flex-direction: column; gap: 2px; }
+  .progress-card .progress-top-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .progress-card .progress-value {
+    font-family: var(--font-mono); font-size: 26px; font-weight: var(--fw-bold);
+    color: var(--color-primary); letter-spacing: -0.5px; line-height: 1;
+  }
+  .progress-card .progress-value em {
+    font-style: normal; font-size: 16px; font-weight: var(--fw-medium);
+    color: var(--color-text-muted); margin-left: 2px;
+  }
+  .progress-card .progress-percent {
+    font-size: 11px; color: var(--color-text-muted); letter-spacing: 0.3px;
+  }
+  .progress-card .progress-label {
+    font-size: 11px; color: var(--color-text-muted); letter-spacing: 0.3px;
+  }
+  .progress-card .progress-focus {
+    font-family: var(--font-mono); font-size: 18px; font-weight: var(--fw-semibold);
+    color: var(--color-text-primary);
+  }
+  .progress-card .progress-meta-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: var(--fs-12); color: var(--color-text-secondary);
+  }
+
+  /* =========================================================
+     晨间意图 Banner · 实验功能 (ADR-009)
+     只在 settings 中启用了 mood-master + mood-morning 时展开
+     ========================================================= */
+  .intent-banner {
+    display: none;
+    background:
+      radial-gradient(circle at 10% 0%, rgba(255, 214, 102, 0.22), transparent 55%),
+      radial-gradient(circle at 90% 100%, rgba(255, 173, 20, 0.14), transparent 60%),
+      var(--color-bg-elevated);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-gold) 20%, var(--color-border));
+    padding: var(--sp-3) var(--sp-6);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    transition: max-height var(--dur-slow) var(--ease-out);
+  }
+  .intent-banner.is-visible { display: flex; }
+  .intent-banner__left {
+    display: flex; align-items: center; gap: var(--sp-4);
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .intent-banner__title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: var(--fs-13, 13px);
+    font-weight: var(--fw-medium);
+    color: var(--color-text-primary);
+    white-space: nowrap;
+  }
+  .intent-banner__title .tag {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: var(--r-pill);
+    background: var(--color-gold-soft);
+    color: #AD6800;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.04em;
+  }
+  .intent-banner__row {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .intent-banner__btn {
+    appearance: none; background: transparent; border: 0; padding: 0;
+    cursor: pointer; position: relative;
+  }
+  .intent-banner__slot {
+    width: 36px; height: 36px; border-radius: var(--r-md);
+    display: grid; place-items: center;
+    background: rgba(255,255,255,0.6);
+    border: 1px solid transparent;
+    transition:
+      transform var(--dur-base) var(--ease-out),
+      border-color var(--dur-base) var(--ease-smooth),
+      background var(--dur-base) var(--ease-smooth);
+  }
+  .intent-banner__emoji {
+    font-size: 20px; line-height: 1;
+    filter: grayscale(0.6);
+    opacity: 0.7;
+    transition: filter var(--dur-base) var(--ease-smooth), opacity var(--dur-base) var(--ease-smooth);
+  }
+  .intent-banner__btn:hover .intent-banner__slot { transform: scale(1.08); background: rgba(255,255,255,0.9); }
+  .intent-banner__btn:hover .intent-banner__emoji { filter: grayscale(0); opacity: 1; }
+  .intent-banner__btn.is-selected .intent-banner__slot {
+    background: #fff;
+    border-color: var(--color-gold);
+    box-shadow: 0 2px 6px rgba(250, 173, 20, 0.25);
+  }
+  .intent-banner__btn.is-selected .intent-banner__emoji { filter: grayscale(0); opacity: 1; }
+
+  .intent-banner__right {
+    display: flex; align-items: center; gap: var(--sp-3);
+    flex-shrink: 0;
+  }
+  .intent-banner__hint {
+    font-size: var(--fs-12); color: var(--color-text-muted);
+  }
+  .intent-banner__close {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: transparent; border: 0;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    display: grid; place-items: center;
+  }
+  .intent-banner__close:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+  /* 已打卡态: 紧凑条 */
+  .intent-banner.is-logged .intent-banner__row,
+  .intent-banner.is-logged .intent-banner__hint { display: none; }
+  .intent-banner.is-logged .intent-banner__title .logged-label {
+    font-size: var(--fs-12); color: var(--color-text-secondary);
+    font-weight: var(--fw-regular);
+    margin-left: 4px;
+  }
+  .intent-banner.is-logged .intent-banner__title .logged-emoji {
+    font-size: 18px; margin-right: 4px;
+  }
+
+  @media (max-width: 1080px) {
+    .content { grid-template-columns: 1fr; }
+    .right-rail { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-shell">
+  <!-- Sidebar -->
+  <aside class="sidebar" aria-label="主导航">
+    <div class="logo">F</div>
+    <div class="nav-item is-active" data-tip="今日" aria-label="今日" role="button" tabindex="0">
+      <span data-icon="home"></span>
+    </div>
+    <div class="nav-item" data-tip="任务" aria-label="任务" role="button" tabindex="0">
+      <span data-icon="list"></span>
+    </div>
+    <div class="nav-item" data-tip="长线目标" aria-label="长线目标" role="button" tabindex="0">
+      <span data-icon="target"></span>
+    </div>
+    <div class="nav-item" data-tip="数据分析" aria-label="数据分析" role="button" tabindex="0">
+      <span data-icon="bar-chart"></span>
+    </div>
+    <div class="nav-item" data-tip="日历" aria-label="日历" role="button" tabindex="0">
+      <span data-icon="calendar"></span>
+    </div>
+    <div class="nav-spacer"></div>
+    <div class="nav-item" data-tip="设置" aria-label="设置" role="button" tabindex="0">
+      <span data-icon="settings"></span>
+    </div>
+  </aside>
+
+  <!-- Main column -->
+  <div class="main-col">
+    <!-- Window titlebar (桌面应用风格) -->
+    <div class="titlebar">
+      <div class="left">
+        <span style="width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));display:inline-grid;place-items:center;color:#fff;font-weight:700;font-size:10px">F</span>
+        FocusLab
+        <span class="tiny-kbd-hint" style="margin-left:8px">v1.0 · Batch 1 原型</span>
+      </div>
+      <div class="right">
+        <button class="btn-icon btn-sm" aria-label="查看快捷键"><span class="kbd">⌘K</span></button>
+        <a class="btn btn-ghost btn-sm" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回原型导航</a>
+      </div>
+    </div>
+
+    <!--
+      晨间意图 Banner · 实验功能
+      默认隐藏; 当 localStorage['fl-pref-mood-master'] === 'on' 且 mood-morning !== 'off'
+      且当日未打卡时,显示五档 emoji 选择。点击任一档即记录,banner 变"已打卡"紧凑态。
+    -->
+    <div class="intent-banner" id="intent-banner" role="region" aria-label="晨间意图打卡">
+      <div class="intent-banner__left">
+        <div class="intent-banner__title">
+          <span>🌤 今天想给自己定个档?</span>
+          <span class="tag">BETA</span>
+          <span class="logged-label" style="display:none">
+            <span class="logged-emoji"></span><span class="logged-text"></span>
+          </span>
+        </div>
+        <div class="intent-banner__row" aria-label="五档意图">
+          <button type="button" class="intent-banner__btn" data-value="1" aria-label="保养档">
+            <div class="intent-banner__slot"><span class="intent-banner__emoji">🌙</span></div>
+          </button>
+          <button type="button" class="intent-banner__btn" data-value="2" aria-label="温和档">
+            <div class="intent-banner__slot"><span class="intent-banner__emoji">🌤</span></div>
+          </button>
+          <button type="button" class="intent-banner__btn" data-value="3" aria-label="常规档">
+            <div class="intent-banner__slot"><span class="intent-banner__emoji">☀️</span></div>
+          </button>
+          <button type="button" class="intent-banner__btn" data-value="4" aria-label="进阶档">
+            <div class="intent-banner__slot"><span class="intent-banner__emoji">⚡</span></div>
+          </button>
+          <button type="button" class="intent-banner__btn" data-value="5" aria-label="冲刺档">
+            <div class="intent-banner__slot"><span class="intent-banner__emoji">🔥</span></div>
+          </button>
+        </div>
+      </div>
+      <div class="intent-banner__right">
+        <span class="intent-banner__hint">五档都很好,没有"正确答案"</span>
+        <button class="intent-banner__close" id="intent-close" aria-label="今日跳过">
+          <span data-icon="x" data-size="14"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content grid -->
+    <div class="content">
+
+      <!-- Page head (row) -->
+      <div class="page-head">
+        <div class="date-line">
+          <div class="date-main">2026 年 4 月 17 日</div>
+          <div class="date-sub">周五 · 上午 10:24</div>
+        </div>
+        <div class="energy-row" role="radiogroup" aria-label="今日能量状态">
+          <button class="energy-pill" role="radio" aria-checked="false">
+            <span data-icon="flame" data-size="14"></span> 状态一般
+          </button>
+          <button class="energy-pill is-active" role="radio" aria-checked="true">
+            <span data-icon="smile" data-size="14"></span> 状态不错
+          </button>
+          <button class="energy-pill" role="radio" aria-checked="false">
+            <span data-icon="sparkles" data-size="14"></span> 精神饱满
+          </button>
+        </div>
+      </div>
+
+      <!-- Left: focus + tasks -->
+      <div>
+        <!-- Focus card -->
+        <div class="focus-card">
+          <div class="focus-title-row">
+            <span class="tiny-label">🍅 当前专注</span>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" aria-label="切换任务"><span data-icon="skip-forward" data-size="14"></span> 切换任务</button>
+              <button class="btn btn-ghost btn-sm" aria-label="更多"><span data-icon="more-horizontal" data-size="14"></span></button>
+            </div>
+          </div>
+
+          <div class="focus-task-name">复现 baseline 代码</div>
+          <div class="focus-task-meta">
+            <span class="chip chip-q1"><span class="q-dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--color-q1)"></span>紧急重要</span>
+            <span class="chip chip-brand">🎯 论文A · 里程碑 3</span>
+            <span class="chip chip-neutral">预估 2h</span>
+          </div>
+
+          <div class="ring-wrap">
+            <div class="ring-holder">
+              <svg class="ring" viewBox="0 0 240 240" aria-label="番茄钟倒计时">
+                <defs>
+                  <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#4F8CFF" />
+                    <stop offset="100%" stop-color="#7AABFF" />
+                  </linearGradient>
+                </defs>
+                <circle class="track" cx="120" cy="120" r="115" />
+                <circle class="progress-arc" cx="120" cy="120" r="115" />
+              </svg>
+              <div class="ring-center">
+                <div class="ring-time">18:32</div>
+                <div class="ring-phase">专注中</div>
+              </div>
+            </div>
+
+            <div class="focus-controls">
+              <button class="btn-circle" aria-label="结束">
+                <span data-icon="square" data-size="18"></span>
+              </button>
+              <button class="btn-main" aria-label="暂停">
+                <span data-icon="pause" data-size="24"></span>
+              </button>
+              <button class="btn-circle" aria-label="跳过">
+                <span data-icon="skip-forward" data-size="18"></span>
+              </button>
+            </div>
+
+            <div class="pomodoro-count">
+              <div class="dots">
+                <span class="dot is-done"></span>
+                <span class="dot is-done"></span>
+                <span class="dot is-done"></span>
+                <span class="dot is-current"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+              </div>
+              <span class="count-label">今日第 4 个番茄钟 · 目标 8 个 · 中断 1 次</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tasks -->
+        <div class="task-panel" style="margin-top: var(--sp-5)">
+          <div class="task-section-head">
+            <h2>今日任务</h2>
+            <div style="display:flex;gap:var(--sp-2);align-items:center">
+              <div class="view-tabs" role="tablist">
+                <span class="tab is-active" role="tab"><span data-icon="list" data-size="14"></span> 列表</span>
+                <span class="tab" role="tab"><span data-icon="grid" data-size="14"></span> 四象限</span>
+              </div>
+              <button class="btn btn-soft btn-sm"><span data-icon="plus" data-size="14"></span> 添加任务</button>
+            </div>
+          </div>
+
+          <!-- DDL 到期总览条 (v1.2.2) -->
+          <div class="ddl-summary" style="display:flex;align-items:center;gap:var(--sp-3);padding:8px 12px;margin-bottom:var(--sp-4);background:color-mix(in srgb, #FF8C00 8%, transparent);border:1px solid color-mix(in srgb, #FF8C00 25%, transparent);border-radius:var(--r-sm);font-size:var(--fs-13, 13px)">
+            <span style="font-size:16px;line-height:1">⏰</span>
+            <div style="flex:1;color:var(--color-text-primary);line-height:1.5">
+              <strong style="color:#C2410C">2 个任务今日到期</strong>
+              <span style="color:var(--color-text-secondary)"> · 1 个逾期未完成已自动置顶</span>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="color:var(--color-primary);padding:0;background:transparent">
+              日历视图 <span data-icon="chevron-right" data-size="12"></span>
+            </button>
+          </div>
+
+          <!-- Q1 -->
+          <div class="quadrant-group q1">
+            <div class="quadrant-label">
+              <span class="q-dot"></span> 紧急重要 <span class="count">· 2</span>
+            </div>
+            <div class="task-item is-done">
+              <span class="fl-check is-checked" role="checkbox" aria-checked="true"><span data-icon="check" data-size="12"></span></span>
+              <div class="t-body">
+                <div class="t-name">回复导师邮件</div>
+                <div class="t-meta"><span>30 分钟</span> · <span>10:05 完成</span></div>
+              </div>
+              <div class="t-action">
+                <button class="btn-icon btn-sm"><span data-icon="more-horizontal" data-size="14"></span></button>
+              </div>
+            </div>
+            <div class="task-item is-active">
+              <span class="fl-check" role="checkbox" aria-checked="false"></span>
+              <div class="t-body">
+                <div class="t-name">复现 baseline 代码</div>
+                <div class="t-meta">
+                  <span>预估 2h</span> · <span>已专注 1h20m</span>
+                  <span class="chip chip-due is-today" style="height:18px;padding:0 6px;font-size:11px" title="今日到期">⏰ 今日到期</span>
+                  <span class="t-badge" style="background:var(--color-primary-soft);color:var(--color-primary-dark)">🍅 专注中</span>
+                </div>
+              </div>
+              <div class="t-action">
+                <button class="btn btn-ghost btn-sm">切换</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Q2 -->
+          <div class="quadrant-group q2">
+            <div class="quadrant-label">
+              <span class="q-dot"></span> 计划执行 <span class="count">· 3</span>
+            </div>
+            <div class="task-item">
+              <span class="fl-check" role="checkbox" aria-checked="false"></span>
+              <div class="t-body">
+                <div class="t-name">整理实验记录</div>
+                <div class="t-meta">
+                  <span>预估 30m</span> · <span>昨日未完成</span>
+                  <span class="chip chip-due is-overdue" style="height:18px;padding:0 6px;font-size:11px" title="逾期 1 天">⚠ 逾期 1 天</span>
+                </div>
+              </div>
+              <div class="t-action">
+                <button class="btn btn-ghost btn-sm"><span data-icon="play" data-size="12"></span> 开始</button>
+              </div>
+            </div>
+            <div class="task-item">
+              <span class="fl-check" role="checkbox" aria-checked="false"></span>
+              <div class="t-body">
+                <div class="t-name">阅读文献 2 篇</div>
+                <div class="t-meta"><span>预估 1.5h</span> · <span class="chip chip-q2" style="height:18px;padding:0 6px;font-size:11px">论文 A</span></div>
+              </div>
+              <div class="t-action">
+                <button class="btn btn-ghost btn-sm"><span data-icon="play" data-size="12"></span> 开始</button>
+              </div>
+            </div>
+            <div class="task-item">
+              <span class="fl-check" role="checkbox" aria-checked="false"></span>
+              <div class="t-body">
+                <div class="t-name">设计改进方案</div>
+                <div class="t-meta">
+                  <span>预估 2h</span>
+                  <span class="chip chip-q2" style="height:18px;padding:0 6px;font-size:11px">论文 A · 里程碑 3</span>
+                  <span class="chip chip-due is-soon" style="height:18px;padding:0 6px;font-size:11px" title="3 天后到期">📅 4/21</span>
+                </div>
+              </div>
+              <div class="t-action">
+                <button class="btn btn-ghost btn-sm"><span data-icon="play" data-size="12"></span> 开始</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Q3 -->
+          <div class="quadrant-group q3">
+            <div class="quadrant-label">
+              <span class="q-dot"></span> 快速处理 <span class="count">· 1</span>
+            </div>
+            <div class="task-item">
+              <span class="fl-check" role="checkbox" aria-checked="false"></span>
+              <div class="t-body">
+                <div class="t-name">提交报销单</div>
+                <div class="t-meta">
+                  <span>预估 20m</span> · <span>事务性</span>
+                  <span class="chip chip-due is-today" style="height:18px;padding:0 6px;font-size:11px" title="今日到期">⏰ 今日到期</span>
+                </div>
+              </div>
+              <div class="t-action">
+                <button class="btn btn-ghost btn-sm"><span data-icon="play" data-size="12"></span> 开始</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="add-task-bar" role="button" tabindex="0">
+            <span data-icon="plus" data-size="16"></span>
+            添加新任务 <span style="margin-left:auto" class="kbd">N</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right rail -->
+      <div class="right-rail">
+        <!-- Daily card · AI 建议 + 昨日小结(合并,遵循 ADR-010 v1.2.1) -->
+        <div class="ai-banner" style="flex-direction:column;align-items:stretch;gap:var(--sp-3);padding:var(--sp-4)">
+          <div style="display:flex;gap:var(--sp-3);align-items:flex-start">
+            <div class="ai-avatar"><span data-icon="sparkles" data-size="14"></span></div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:var(--fw-medium);margin-bottom:2px">今日小建议</div>
+              <div style="font-size:var(--fs-13, 13px);color:var(--color-text-secondary);line-height:1.6">
+                你上午注意力最好,紧急重要的"复现 baseline"还剩 40 分钟,可以一鼓作气推完,再去处理报销。
+              </div>
+            </div>
+          </div>
+
+          <div style="height:1px;background:color-mix(in srgb, var(--color-primary) 14%, transparent);margin:0 calc(-1 * var(--sp-4))"></div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);font-size:var(--fs-12)">
+            <span style="color:var(--color-text-secondary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              🌅 昨日 4/5 · <strong style="color:var(--color-text-primary);font-weight:var(--fw-semibold)">A 级</strong> · 专注 4h10m
+            </span>
+            <button class="btn btn-ghost btn-sm" style="padding:0;color:var(--color-primary);white-space:nowrap;background:transparent">
+              查看结算 <span data-icon="chevron-right" data-size="12"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Goal card · 关联长线目标 -->
+        <div class="stat-card goal-card">
+          <h3>关联长线目标</h3>
+          <div class="goal-top">
+            <div class="goal-icon"><span data-icon="target" data-size="18"></span></div>
+            <div>
+              <div class="goal-name">发表 SCI 论文 A</div>
+              <div class="goal-sub">已进行 23 天 · 里程碑 3 / 7</div>
+            </div>
+          </div>
+          <div class="milestone-dots">
+            <span class="m is-done"></span>
+            <span class="m is-done"></span>
+            <span class="m is-current"></span>
+            <span class="m"></span>
+            <span class="m"></span>
+            <span class="m"></span>
+            <span class="m"></span>
+          </div>
+          <div style="margin-top:var(--sp-3);font-size:var(--fs-12);color:var(--color-text-secondary)">
+            当前里程碑:<strong style="color:var(--color-text-primary)">方法论设计</strong>
+          </div>
+        </div>
+
+        <!-- Progress card · 今日进度 + 结束今天(原底部 bar 挪入) -->
+        <div class="stat-card progress-card">
+          <h3>今日进度</h3>
+          <div class="progress-top">
+            <div class="progress-top-left">
+              <span class="progress-value">2 <em>/ 6</em></span>
+              <span class="progress-percent">33%</span>
+            </div>
+            <div class="progress-top-right">
+              <span class="progress-label">专注时长</span>
+              <span class="progress-focus">3h 20m</span>
+            </div>
+          </div>
+          <div class="progress" style="margin:var(--sp-3) 0"><div class="progress-bar" style="width:33%"></div></div>
+          <div class="progress-meta-row">
+            <span>🍅 番茄 3 · 中断 1</span>
+            <span>目标 5.5h</span>
+          </div>
+          <button class="btn btn-primary btn-lg" style="width:100%;margin-top:var(--sp-4);justify-content:center">
+            <span data-icon="moon" data-size="16"></span>
+            结束今天 · 进入日结算
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  try {
+    const saved = localStorage.getItem('fl-theme');
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+
+  // =========================================================
+  // 晨间意图 Banner · 实验功能 (ADR-009)
+  // 由 settings 页的 mood-master + mood-morning 开关控制
+  // =========================================================
+  (function initIntentBanner() {
+    const banner = document.getElementById('intent-banner');
+    if (!banner) return;
+
+    // 读取实验开关(由 settings.html 写入 localStorage)
+    const master  = localStorage.getItem('fl-pref-mood-master') === 'on';
+    const morning = localStorage.getItem('fl-pref-mood-morning') !== 'off'; // 默认 on
+    if (!master || !morning) return; // 关闭态: 不显示
+
+    // 今日是否已打卡 / 已跳过
+    const todayKey = 'fl-mood-morning-' + new Date().toISOString().slice(0, 10);
+    const existing = localStorage.getItem(todayKey);
+
+    const INTENT_META = {
+      1: { emoji: '🌙', label: '保养档' },
+      2: { emoji: '🌤', label: '温和档' },
+      3: { emoji: '☀️', label: '常规档' },
+      4: { emoji: '⚡', label: '进阶档' },
+      5: { emoji: '🔥', label: '冲刺档' },
+    };
+
+    const loggedLabel = banner.querySelector('.logged-label');
+    const loggedEmoji = banner.querySelector('.logged-emoji');
+    const loggedText  = banner.querySelector('.logged-text');
+    const titleHead   = banner.querySelector('.intent-banner__title > span:first-child');
+    const hint        = banner.querySelector('.intent-banner__hint');
+
+    function showLogged(value) {
+      const meta = INTENT_META[value];
+      if (!meta) return;
+      banner.classList.add('is-logged');
+      banner.classList.add('is-visible');
+      loggedLabel.style.display = 'inline';
+      loggedEmoji.textContent = meta.emoji;
+      loggedText.textContent = ' 今日意图 · ' + meta.label;
+      if (titleHead) titleHead.textContent = '✓ 已打卡';
+    }
+
+    function showPicker() {
+      banner.classList.add('is-visible');
+      banner.classList.remove('is-logged');
+    }
+
+    if (existing === 'skipped') {
+      // 跳过后今日不再展开
+      return;
+    }
+    if (existing && INTENT_META[parseInt(existing, 10)]) {
+      showLogged(parseInt(existing, 10));
+    } else {
+      showPicker();
+    }
+
+    // 点击打卡
+    banner.querySelectorAll('.intent-banner__btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const v = Number(btn.dataset.value);
+        banner.querySelectorAll('.intent-banner__btn').forEach(b => b.classList.toggle('is-selected', b === btn));
+        localStorage.setItem(todayKey, String(v));
+        // 短暂停留后切换到已打卡紧凑态
+        setTimeout(() => showLogged(v), 350);
+      });
+    });
+
+    // 跳过
+    const closeBtn = document.getElementById('intent-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        localStorage.setItem(todayKey, 'skipped');
+        banner.classList.remove('is-visible');
+      });
+    }
+  })();
+</script>
+</body>
+</html>

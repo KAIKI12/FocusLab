@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 搁置区</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { padding: 0; }
+  .page-shell { display: flex; min-height: 100vh; max-width: 1440px; margin: 0 auto; background: var(--color-bg-elevated); box-shadow: 0 0 0 1px var(--color-border); }
+  .main-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 40px; padding: 0 var(--sp-4);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+  }
+  .titlebar .left { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-12); color: var(--color-text-secondary); }
+
+  .content {
+    flex: 1;
+    padding: var(--sp-6);
+    background: var(--color-bg);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--sp-5);
+    overflow-y: auto;
+  }
+  .main-area { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+
+  /* ============ Hero ============ */
+  .parked-hero {
+    position: relative;
+    padding: var(--sp-6);
+    border-radius: var(--r-md);
+    background: linear-gradient(135deg, var(--color-bg-subtle), color-mix(in srgb, var(--color-neutral) 10%, transparent));
+    border: 1px solid var(--color-divider);
+    overflow: hidden;
+  }
+  .parked-hero::before {
+    content: "🍃";
+    position: absolute;
+    top: -10px; right: 30px;
+    font-size: 100px;
+    opacity: 0.25;
+    pointer-events: none;
+  }
+  .parked-hero h1 {
+    font-size: var(--fs-24);
+    font-weight: var(--fw-semibold);
+    letter-spacing: -0.3px;
+    margin-bottom: 6px;
+  }
+  .parked-hero .lead {
+    font-size: var(--fs-14);
+    color: var(--color-text-secondary);
+    line-height: 1.7;
+    max-width: 640px;
+  }
+  .parked-hero .lead em { color: var(--color-text-primary); font-style: normal; font-weight: var(--fw-semibold); }
+  .parked-hero .meta {
+    display: flex; gap: var(--sp-4);
+    margin-top: var(--sp-4);
+    font-size: var(--fs-12);
+    position: relative;
+  }
+  .parked-hero .meta-item {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(8px);
+    border-radius: var(--r-pill);
+    color: var(--color-text-secondary);
+  }
+  .parked-hero .meta-item strong { color: var(--color-text-primary); font-family: var(--font-mono); }
+
+  /* ============ Toolbar ============ */
+  .toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+  }
+  .tool-left { display: flex; gap: var(--sp-2); }
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px;
+    font-size: var(--fs-12);
+    background: var(--color-bg-hover);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    transition: all var(--dur-base);
+  }
+  .filter-chip:hover { background: var(--color-bg-subtle); }
+  .filter-chip.is-active { background: var(--color-primary); color: #fff; }
+  .filter-chip .count { font-family: var(--font-mono); font-weight: var(--fw-semibold); }
+
+  .sort-wrap {
+    display: flex; align-items: center; gap: 6px;
+    font-size: var(--fs-12); color: var(--color-text-secondary);
+  }
+
+  /* ============ Parked task card ============ */
+  .parked-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .parked-card {
+    display: flex; gap: var(--sp-3);
+    padding: var(--sp-4);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-neutral);
+    border-radius: var(--r-md);
+    transition: all var(--dur-base);
+  }
+  .parked-card:hover { box-shadow: var(--shadow-card); transform: translateY(-1px); }
+  .parked-card.urgent { border-left-color: var(--color-warning); }
+
+  .pc-icon {
+    width: 40px; height: 40px;
+    border-radius: var(--r-sm);
+    background: var(--color-bg-hover);
+    color: var(--color-text-muted);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .parked-card.urgent .pc-icon { background: var(--color-warning-soft); color: var(--color-warning); }
+
+  .pc-body { flex: 1; min-width: 0; }
+  .pc-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: var(--sp-3);
+    margin-bottom: 4px;
+  }
+  .pc-title { font-size: var(--fs-15, 15px); font-weight: var(--fw-semibold); color: var(--color-text-primary); }
+  .pc-days { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-muted); flex-shrink: 0; }
+  .pc-days.warn { color: var(--color-warning); font-weight: var(--fw-semibold); }
+
+  .pc-meta {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    font-size: var(--fs-12);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--sp-2);
+  }
+
+  .pc-reason {
+    font-size: var(--fs-13, 13px);
+    color: var(--color-text-secondary);
+    padding: 8px 10px;
+    background: var(--color-bg-subtle);
+    border-radius: var(--r-sm);
+    border-left: 2px solid var(--color-primary-light);
+    line-height: 1.5;
+    margin-bottom: var(--sp-3);
+  }
+  .pc-reason .emph { color: var(--color-primary-dark); font-weight: var(--fw-medium); }
+
+  .pc-actions {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+
+  /* Empty state */
+  .empty-card {
+    padding: var(--sp-8);
+    text-align: center;
+    background: var(--color-bg-elevated);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--r-md);
+    color: var(--color-text-muted);
+  }
+  .empty-card .emoji { font-size: 48px; margin-bottom: var(--sp-3); }
+  .empty-card h3 { font-size: var(--fs-16); color: var(--color-text-primary); margin-bottom: 4px; }
+  .empty-card p { font-size: var(--fs-13, 13px); line-height: 1.6; }
+
+  /* ============ Side: downgrade rules ============ */
+  .side-col { display: flex; flex-direction: column; gap: var(--sp-4); }
+  .side-panel {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    padding: var(--sp-4);
+  }
+  .side-panel h2 { font-size: var(--fs-14); font-weight: var(--fw-semibold); margin-bottom: 4px; }
+  .side-panel .side-sub { font-size: var(--fs-12); color: var(--color-text-muted); margin-bottom: var(--sp-3); line-height: 1.6; }
+
+  .downgrade-flow { position: relative; padding: 8px 0; }
+  .downgrade-flow::before {
+    content: "";
+    position: absolute;
+    top: 20px; bottom: 20px;
+    left: 14px;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--color-primary) 0%, var(--color-gold) 35%, var(--color-warning) 70%, var(--color-neutral) 100%);
+    border-radius: 1px;
+  }
+  .df-step {
+    display: flex; gap: var(--sp-3);
+    padding: 10px 0;
+    position: relative;
+  }
+  .df-dot {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--color-bg-elevated);
+    border: 2px solid var(--color-primary);
+    color: var(--color-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .df-step:nth-child(2) .df-dot { border-color: var(--color-gold); color: var(--color-gold); }
+  .df-step:nth-child(3) .df-dot { border-color: var(--color-warning); color: var(--color-warning); }
+  .df-step:nth-child(4) .df-dot { border-color: var(--color-neutral); color: var(--color-neutral); }
+
+  .df-body { flex: 1; padding-top: 4px; }
+  .df-title { font-size: var(--fs-13, 13px); font-weight: var(--fw-semibold); margin-bottom: 2px; }
+  .df-desc { font-size: var(--fs-12); color: var(--color-text-secondary); line-height: 1.5; }
+
+  /* Gentle quote card */
+  .quote-card {
+    padding: var(--sp-4);
+    background: linear-gradient(135deg, var(--color-primary-soft), transparent);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-13, 13px);
+    line-height: 1.8;
+    color: var(--color-text-primary);
+  }
+  .quote-card .who {
+    font-size: 11px; color: var(--color-text-muted);
+    margin-top: var(--sp-2);
+  }
+  .quote-card .q-mark {
+    font-size: 24px; color: var(--color-primary); font-family: Georgia, serif;
+    line-height: 0.8;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  @media (max-width: 1100px) {
+    .content { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-shell">
+  <aside class="sidebar" aria-label="主导航">
+    <div class="logo">F</div>
+    <div class="nav-item" data-tip="今日" role="button" tabindex="0"><span data-icon="home"></span></div>
+    <div class="nav-item is-active" data-tip="任务" role="button" tabindex="0"><span data-icon="list"></span></div>
+    <div class="nav-item" data-tip="长线目标" role="button" tabindex="0"><span data-icon="target"></span></div>
+    <div class="nav-item" data-tip="数据分析" role="button" tabindex="0"><span data-icon="bar-chart"></span></div>
+    <div class="nav-item" data-tip="日历" role="button" tabindex="0"><span data-icon="calendar"></span></div>
+    <div class="nav-spacer"></div>
+    <div class="nav-item" data-tip="设置" role="button" tabindex="0"><span data-icon="settings"></span></div>
+  </aside>
+
+  <div class="main-col">
+    <div class="titlebar">
+      <div class="left">
+        <span style="width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));display:inline-grid;place-items:center;color:#fff;font-weight:700;font-size:10px">F</span>
+        FocusLab · 任务 · 搁置区
+      </div>
+      <a class="btn btn-ghost btn-sm" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回导航</a>
+    </div>
+
+    <div class="content">
+      <div class="main-area">
+        <!-- Hero -->
+        <div class="parked-hero">
+          <h1>🍃 搁置区</h1>
+          <div class="lead">
+            这里放的不是你"没做完"的任务,而是你主动决定"暂时不做"的任务。
+            <em>搁置 ≠ 失败 · 搁置是策略性选择</em>。想起来了再捡回来,想不起来就让它睡着,时间到了系统会温柔地提醒你。
+          </div>
+          <div class="meta">
+            <span class="meta-item">📦 当前搁置 · <strong>7</strong> 个任务</span>
+            <span class="meta-item">⏱ 平均搁置 · <strong>14</strong> 天</span>
+            <span class="meta-item">🔔 即将到期 · <strong>2</strong> 个(&gt; 30 天)</span>
+          </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <div class="tool-left">
+            <span class="filter-chip is-active">全部 <span class="count">7</span></span>
+            <span class="filter-chip">紧急重要 <span class="count">1</span></span>
+            <span class="filter-chip">计划执行 <span class="count">3</span></span>
+            <span class="filter-chip">快速处理 <span class="count">2</span></span>
+            <span class="filter-chip">减少搁置 <span class="count">1</span></span>
+          </div>
+          <div class="sort-wrap">
+            排序 ·
+            <div class="select-wrap" style="min-width: auto">
+              <select style="height:28px;padding:0 28px 0 10px;font-size:var(--fs-12)">
+                <option>搁置最久优先</option>
+                <option>最近搁置优先</option>
+                <option>关联里程碑</option>
+                <option>创建时间</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Parked list -->
+        <div class="parked-list">
+
+          <!-- Task 1 · 即将到期 (>30 天) -->
+          <div class="parked-card urgent">
+            <div class="pc-icon"><span data-icon="circle-alert" data-size="18"></span></div>
+            <div class="pc-body">
+              <div class="pc-head">
+                <div class="pc-title">学习 Rust 基础语法</div>
+                <span class="pc-days warn">搁置 34 天</span>
+              </div>
+              <div class="pc-meta">
+                <span class="chip chip-q2">计划执行 · Q2</span>
+                <span class="chip">🎯 技能积累</span>
+                <span>预估 8h · 最初创建于 3/14</span>
+              </div>
+              <div class="pc-reason">
+                <span class="emph">用户备注 ·</span> 本学期先聚焦论文,Rust 留到暑假再学。
+              </div>
+              <div class="pc-actions">
+                <button class="btn btn-primary btn-sm"><span data-icon="play" data-size="12"></span> 恢复到今日</button>
+                <button class="btn btn-secondary btn-sm">延期 30 天</button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--color-q1)">
+                  <span data-icon="trash" data-size="12"></span> 永久删除
+                </button>
+                <div style="margin-left:auto;font-size:11px;color:var(--color-warning);display:inline-flex;align-items:center;gap:4px">
+                  <span data-icon="bell" data-size="12"></span> 再过 -4 天系统会提醒是否永久删除
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Task 2 · 紧急重要的搁置 -->
+          <div class="parked-card">
+            <div class="pc-icon"><span data-icon="circle-pause" data-size="18"></span></div>
+            <div class="pc-body">
+              <div class="pc-head">
+                <div class="pc-title">整理实验室共享代码仓库</div>
+                <span class="pc-days">搁置 21 天</span>
+              </div>
+              <div class="pc-meta">
+                <span class="chip chip-q1">紧急重要 · Q1</span>
+                <span class="chip">📦 事务性</span>
+                <span>预估 4h</span>
+              </div>
+              <div class="pc-reason">
+                <span class="emph">自动降级 ·</span> 连续 3 天未完成,系统建议搁置。你选择了"暂时搁置,下个月处理"。
+              </div>
+              <div class="pc-actions">
+                <button class="btn btn-primary btn-sm"><span data-icon="play" data-size="12"></span> 恢复到今日</button>
+                <button class="btn btn-soft btn-sm"><span data-icon="edit" data-size="12"></span> 拆成更小任务</button>
+                <button class="btn btn-ghost btn-sm">永久删除</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Task 3 · 里程碑相关搁置 -->
+          <div class="parked-card">
+            <div class="pc-icon" style="background:color-mix(in srgb, #B87FFF 15%, transparent); color: #B87FFF"><span data-icon="target" data-size="18"></span></div>
+            <div class="pc-body">
+              <div class="pc-head">
+                <div class="pc-title">写博士毕业开题报告初稿</div>
+                <span class="pc-days">搁置 18 天</span>
+              </div>
+              <div class="pc-meta">
+                <span class="chip chip-q2">计划执行 · Q2</span>
+                <span class="chip" style="background:color-mix(in srgb, #B87FFF 15%, transparent); color: #7B52D6">🎯 毕业答辩 · M1</span>
+                <span>预估 12h · 拆分为 4 个子任务</span>
+              </div>
+              <div class="pc-reason">
+                <span class="emph">用户备注 ·</span> 等论文 A 投稿后再弄 · 先聚焦一件事。
+              </div>
+              <div class="pc-actions">
+                <button class="btn btn-primary btn-sm">恢复到今日</button>
+                <button class="btn btn-secondary btn-sm"><span data-icon="calendar" data-size="12"></span> 预约到下周</button>
+                <button class="btn btn-ghost btn-sm">永久删除</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Task 4 · Q3 事务性搁置 -->
+          <div class="parked-card">
+            <div class="pc-icon"><span data-icon="circle-pause" data-size="18"></span></div>
+            <div class="pc-body">
+              <div class="pc-head">
+                <div class="pc-title">申请出差报销</div>
+                <span class="pc-days">搁置 12 天</span>
+              </div>
+              <div class="pc-meta">
+                <span class="chip chip-q3">快速处理 · Q3</span>
+                <span>预估 30m</span>
+              </div>
+              <div class="pc-reason">
+                <span class="emph">自动降级 ·</span> Q3 小任务闲置 &gt; 7 天,AI 建议搁置或删除。
+              </div>
+              <div class="pc-actions">
+                <button class="btn btn-primary btn-sm">恢复到今日</button>
+                <button class="btn btn-ghost btn-sm">永久删除</button>
+                <div style="margin-left:auto;font-size:11px;color:var(--color-text-muted)">
+                  💡 半小时的事,今天顺手做掉也许更好?
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Task 5 -->
+          <div class="parked-card">
+            <div class="pc-icon"><span data-icon="circle-pause" data-size="18"></span></div>
+            <div class="pc-body">
+              <div class="pc-head">
+                <div class="pc-title">研究 LangChain v0.2 变化</div>
+                <span class="pc-days">搁置 9 天</span>
+              </div>
+              <div class="pc-meta">
+                <span class="chip chip-q2">计划执行 · Q2</span>
+                <span class="chip">🎯 技能积累</span>
+                <span>预估 1.5h</span>
+              </div>
+              <div class="pc-reason">
+                <span class="emph">用户备注 ·</span> 现在用不到,等下次做 Agent 项目再看。
+              </div>
+              <div class="pc-actions">
+                <button class="btn btn-primary btn-sm">恢复到今日</button>
+                <button class="btn btn-ghost btn-sm">永久删除</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Task 6 -->
+          <div class="parked-card">
+            <div class="pc-icon"><span data-icon="circle-pause" data-size="18"></span></div>
+            <div class="pc-body">
+              <div class="pc-head">
+                <div class="pc-title">整理 Zotero 文献库</div>
+                <span class="pc-days">搁置 6 天</span>
+              </div>
+              <div class="pc-meta">
+                <span class="chip chip-q3">快速处理 · Q3</span>
+                <span>预估 45m</span>
+              </div>
+              <div class="pc-reason">
+                <span class="emph">自然搁置 ·</span> 创建后一直没开始
+              </div>
+              <div class="pc-actions">
+                <button class="btn btn-primary btn-sm">恢复到今日</button>
+                <button class="btn btn-ghost btn-sm">永久删除</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Task 7 · Q4 搁置 -->
+          <div class="parked-card">
+            <div class="pc-icon"><span data-icon="circle-pause" data-size="18"></span></div>
+            <div class="pc-body">
+              <div class="pc-head">
+                <div class="pc-title">整理桌面</div>
+                <span class="pc-days">搁置 3 天</span>
+              </div>
+              <div class="pc-meta">
+                <span class="chip chip-q4">减少搁置 · Q4</span>
+                <span>预估 15m</span>
+              </div>
+              <div class="pc-reason">
+                <span class="emph">自然搁置 ·</span> Q4 任务默认不主动提醒。
+              </div>
+              <div class="pc-actions">
+                <button class="btn btn-primary btn-sm">恢复到今日</button>
+                <button class="btn btn-ghost btn-sm">永久删除</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ========== Side ========== -->
+      <div class="side-col">
+
+        <!-- Downgrade rules -->
+        <div class="side-panel">
+          <h2>🔀 自动降级规则</h2>
+          <div class="side-sub">不是一扔了之 · 系统会观察任务的状态,随着时间推移给出越来越温和的处理建议。</div>
+
+          <div class="downgrade-flow">
+            <div class="df-step">
+              <div class="df-dot">D1</div>
+              <div class="df-body">
+                <div class="df-title">第 1 天未完成</div>
+                <div class="df-desc">正常显示为"昨日遗留" · 顶部高亮</div>
+              </div>
+            </div>
+            <div class="df-step">
+              <div class="df-dot">D2</div>
+              <div class="df-body">
+                <div class="df-title">第 2 天仍未完成</div>
+                <div class="df-desc">标记为"连续遗留" · AI 建议拆分或调整</div>
+              </div>
+            </div>
+            <div class="df-step">
+              <div class="df-dot">D3</div>
+              <div class="df-body">
+                <div class="df-title">第 3 天仍未完成</div>
+                <div class="df-desc">系统弹卡片建议搁置 · 用户可选择"继续 / 搁置 / 拆小 / 删除"</div>
+              </div>
+            </div>
+            <div class="df-step">
+              <div class="df-dot">D30</div>
+              <div class="df-body">
+                <div class="df-title">搁置超过 30 天</div>
+                <div class="df-desc">温和提醒是否永久删除 · 不自动删</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Language principles -->
+        <div class="side-panel">
+          <h2>💬 语言原则</h2>
+          <div class="side-sub">FocusLab 在搁置场景下严格遵守的词汇原则</div>
+
+          <table style="width:100%;font-size:var(--fs-13, 13px);border-collapse:collapse">
+            <thead>
+              <tr>
+                <th style="padding:6px 0;text-align:left;border-bottom:1px solid var(--color-divider);font-size:11px;color:var(--color-text-muted);font-weight:var(--fw-medium);text-transform:uppercase;letter-spacing:0.5px">❌ 不用</th>
+                <th style="padding:6px 0;text-align:left;border-bottom:1px solid var(--color-divider);font-size:11px;color:var(--color-text-muted);font-weight:var(--fw-medium);text-transform:uppercase;letter-spacing:0.5px">✓ 用</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="padding:6px 0;color:var(--color-text-muted);text-decoration:line-through">失败</td><td style="padding:6px 0;color:var(--color-success);font-weight:var(--fw-medium)">搁置</td></tr>
+              <tr><td style="padding:6px 0;color:var(--color-text-muted);text-decoration:line-through">落后</td><td style="padding:6px 0;color:var(--color-success);font-weight:var(--fw-medium)">调整</td></tr>
+              <tr><td style="padding:6px 0;color:var(--color-text-muted);text-decoration:line-through">拖延</td><td style="padding:6px 0;color:var(--color-success);font-weight:var(--fw-medium)">重新安排</td></tr>
+              <tr><td style="padding:6px 0;color:var(--color-text-muted);text-decoration:line-through">没完成</td><td style="padding:6px 0;color:var(--color-success);font-weight:var(--fw-medium)">暂时不做</td></tr>
+              <tr><td style="padding:6px 0;color:var(--color-text-muted);text-decoration:line-through">红色警告</td><td style="padding:6px 0;color:var(--color-success);font-weight:var(--fw-medium)">中性灰</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Quote -->
+        <div class="side-panel" style="background: linear-gradient(135deg, var(--color-primary-soft), transparent);">
+          <span class="q-mark" style="font-size:32px;color:var(--color-primary);font-family:Georgia,serif;line-height:0.5">"</span>
+          <div style="font-size:var(--fs-13, 13px);line-height:1.7;color:var(--color-text-primary)">
+            给用户"体面退出"的选项 · 搁置不是失败,是策略性选择 · 应用不该让人背包袱。
+          </div>
+          <div class="who">— docs/02 §5.4 关键原则</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  try {
+    const saved = localStorage.getItem('fl-theme');
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+
+  // Filter chips
+  document.querySelectorAll('.filter-chip').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('.filter-chip').forEach(x => x.classList.remove('is-active'));
+      c.classList.add('is-active');
+    });
+  });
+</script>
+</body>
+</html>

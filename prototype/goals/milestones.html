@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 长线目标 · 里程碑</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { padding: 0; }
+  .page-shell { display: flex; min-height: 100vh; max-width: 1440px; margin: 0 auto; background: var(--color-bg-elevated); box-shadow: 0 0 0 1px var(--color-border); }
+  .main-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 40px; padding: 0 var(--sp-4);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+  }
+  .titlebar .left { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-12); color: var(--color-text-secondary); }
+
+  .content {
+    flex: 1;
+    padding: var(--sp-6);
+    background: var(--color-bg);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--sp-5);
+    overflow-y: auto;
+  }
+  .main-area { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
+
+  .page-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--sp-4);
+    grid-column: 1 / -1;
+  }
+  .page-head h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .page-head .sub { color: var(--color-text-secondary); font-size: var(--fs-14); margin-top: 4px; }
+
+  /* ============ Goal hero card ============ */
+  .goal-hero {
+    position: relative;
+    padding: var(--sp-6);
+    border-radius: var(--r-lg);
+    background: linear-gradient(135deg, var(--color-primary-soft), color-mix(in srgb, #B87FFF 8%, transparent));
+    border: 1px solid color-mix(in srgb, var(--color-primary) 22%, transparent);
+    overflow: hidden;
+  }
+  .goal-hero::before {
+    content: "";
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, var(--color-primary-light), transparent 60%);
+    opacity: 0.25;
+    pointer-events: none;
+  }
+  .goal-head-row { display: flex; align-items: center; justify-content: space-between; position: relative; margin-bottom: var(--sp-3); }
+  .goal-head-row .lead {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: var(--fs-12); color: var(--color-primary-dark); font-weight: var(--fw-medium);
+    padding: 4px 10px; background: rgba(255,255,255,0.6); border-radius: var(--r-pill);
+  }
+  .goal-name {
+    font-size: 28px; font-weight: var(--fw-bold); letter-spacing: -0.5px;
+    margin-bottom: var(--sp-2); position: relative;
+  }
+  .goal-desc {
+    font-size: var(--fs-14); color: var(--color-text-secondary);
+    max-width: 620px; line-height: 1.6; margin-bottom: var(--sp-4);
+    position: relative;
+  }
+  .goal-meta-row {
+    display: flex; gap: var(--sp-5); flex-wrap: wrap;
+    position: relative;
+  }
+  .goal-meta {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .goal-meta .m-label { font-size: var(--fs-12); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: var(--fw-medium); }
+  .goal-meta .m-value { font-size: var(--fs-16); font-weight: var(--fw-semibold); color: var(--color-text-primary); }
+  .goal-meta .m-value.mono { font-family: var(--font-mono); }
+
+  /* ============ Milestone timeline ============ */
+  .mile-section {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-lg);
+    padding: var(--sp-5);
+  }
+  .mile-section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--sp-5);
+  }
+  .mile-section-head h2 { font-size: var(--fs-16); font-weight: var(--fw-semibold); }
+  .mile-section-head .progress-hint { font-size: var(--fs-12); color: var(--color-text-secondary); }
+
+  .timeline {
+    position: relative;
+    padding: var(--sp-4) 0;
+  }
+  .timeline-track {
+    position: absolute;
+    top: calc(var(--sp-4) + 19px);
+    left: 20px; right: 20px;
+    height: 2px;
+    background: var(--color-bg-hover);
+    border-radius: 1px;
+  }
+  .timeline-track .fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-success), var(--color-primary));
+    border-radius: 1px;
+    width: 35%;
+  }
+  .timeline-nodes {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    gap: 8px;
+  }
+  .mile-node {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    transition: transform var(--dur-base);
+  }
+  .mile-node:hover { transform: translateY(-2px); }
+
+  .mile-circle {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--color-bg-elevated);
+    border: 2.5px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-weight: var(--fw-semibold);
+    font-size: var(--fs-14);
+    transition: all var(--dur-base);
+    position: relative;
+    z-index: 1;
+  }
+  .mile-node.is-done .mile-circle {
+    background: var(--color-success);
+    border-color: var(--color-success);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(82, 196, 26, 0.25);
+  }
+  .mile-node.is-current .mile-circle {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(79, 140, 255, 0.35);
+    animation: ring-pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes ring-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(79,140,255,0.5), 0 6px 16px rgba(79,140,255,0.35); }
+    70% { box-shadow: 0 0 0 10px rgba(79,140,255,0), 0 6px 16px rgba(79,140,255,0.35); }
+  }
+  .mile-node.is-upcoming .mile-circle {
+    background: var(--color-bg-elevated);
+    border-style: dashed;
+  }
+
+  .mile-title {
+    font-size: var(--fs-12);
+    font-weight: var(--fw-medium);
+    text-align: center;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+    max-width: 110px;
+    min-height: 34px;
+  }
+  .mile-node.is-current .mile-title { color: var(--color-primary-dark); font-weight: var(--fw-semibold); }
+  .mile-node.is-done .mile-title { color: var(--color-text-primary); }
+
+  .mile-sub {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    text-align: center;
+  }
+  .mile-node.is-current .mile-sub { color: var(--color-primary); font-weight: var(--fw-medium); }
+
+  /* ============ Current milestone expand ============ */
+  .current-mile {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+  }
+  .cm-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-5);
+    background: linear-gradient(135deg, var(--color-primary-soft), transparent);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .cm-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: var(--fs-12); font-weight: var(--fw-medium);
+    color: var(--color-primary-dark);
+    padding: 4px 10px;
+    background: rgba(255,255,255,0.7);
+    border-radius: var(--r-pill);
+    margin-bottom: var(--sp-2);
+    width: fit-content;
+  }
+  .cm-name { font-size: var(--fs-20); font-weight: var(--fw-semibold); }
+  .cm-meta { font-size: var(--fs-13, 13px); color: var(--color-text-secondary); margin-top: 2px; }
+  .cm-progress-ring {
+    width: 80px; height: 80px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .cm-progress-ring svg { width: 100%; height: 100%; }
+  .cm-progress-ring .track { fill: none; stroke: var(--color-bg-hover); stroke-width: 8; }
+  .cm-progress-ring .arc { fill: none; stroke: url(#cmGrad); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 220; transform: rotate(-90deg); transform-origin: 50% 50%; }
+  .cm-progress-ring .pct {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-mono);
+    font-size: var(--fs-16);
+    font-weight: var(--fw-semibold);
+    color: var(--color-primary);
+  }
+
+  .cm-body { padding: var(--sp-5); }
+  .cm-split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-5); }
+
+  .sub-section-label {
+    font-size: var(--fs-12);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: var(--fw-medium);
+    margin-bottom: var(--sp-3);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .sub-task-row {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 8px 10px;
+    border-radius: var(--r-sm);
+    transition: background var(--dur-base);
+    margin-bottom: 2px;
+  }
+  .sub-task-row:hover { background: var(--color-bg-hover); }
+  .sub-task-row.is-done { opacity: 0.55; }
+  .sub-task-row.is-done .st-title { text-decoration: line-through; color: var(--color-text-muted); }
+  .st-status {
+    width: 18px; height: 18px;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .st-status.done { color: var(--color-success); }
+  .st-status.doing { color: var(--color-primary); }
+  .st-status.pending { color: var(--color-text-muted); }
+  .st-title { flex: 1; font-size: var(--fs-14); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st-meta { font-size: 11px; color: var(--color-text-muted); flex-shrink: 0; }
+
+  .today-mapped {
+    padding: var(--sp-3);
+    background: var(--color-primary-soft);
+    border: 1px dashed color-mix(in srgb, var(--color-primary) 30%, transparent);
+    border-radius: var(--r-sm);
+    display: flex; align-items: center; gap: var(--sp-2);
+    font-size: var(--fs-13, 13px);
+    color: var(--color-primary-dark);
+  }
+
+  /* Investment chart */
+  .invest-chart { margin-top: var(--sp-5); padding-top: var(--sp-5); border-top: 1px solid var(--color-divider); }
+  .invest-bar { display: flex; gap: 2px; height: 100px; align-items: flex-end; padding: var(--sp-2) 0; }
+  .ib-col {
+    flex: 1;
+    background: var(--color-primary-soft);
+    border-radius: 2px 2px 0 0;
+    transition: background var(--dur-base);
+    position: relative;
+  }
+  .ib-col.is-current { background: var(--color-primary); }
+  .ib-col:hover { background: var(--color-primary-dark); }
+  .ib-col:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+    background: var(--color-text-primary);
+    color: var(--color-bg-elevated);
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: var(--r-xs);
+    white-space: nowrap;
+  }
+  .invest-axis { display: flex; font-size: 11px; color: var(--color-text-muted); padding-top: 4px; }
+  .invest-axis span { flex: 1; text-align: center; }
+
+  /* ============ Right rail ============ */
+  .right-rail { display: flex; flex-direction: column; gap: var(--sp-4); }
+  .rail-card { background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--r-md); padding: var(--sp-4); }
+  .rail-card h3 { font-size: var(--fs-12); text-transform: uppercase; letter-spacing: 0.5px; font-weight: var(--fw-medium); color: var(--color-text-muted); margin-bottom: var(--sp-3); }
+
+  .other-goal {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: 10px;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: background var(--dur-base);
+    margin-bottom: 2px;
+  }
+  .other-goal:hover { background: var(--color-bg-hover); }
+  .og-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .og-body { flex: 1; min-width: 0; }
+  .og-name { font-size: var(--fs-13, 13px); font-weight: var(--fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .og-progress { font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
+  .og-chart {
+    width: 40px; height: 20px;
+    background: var(--color-bg-hover);
+    border-radius: 4px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .og-chart .fill { height: 100%; background: var(--color-primary); }
+
+  @media (max-width: 1080px) {
+    .content { grid-template-columns: 1fr; }
+    .cm-split { grid-template-columns: 1fr; }
+    .mile-title { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-shell">
+  <aside class="sidebar" aria-label="主导航">
+    <div class="logo">F</div>
+    <div class="nav-item" data-tip="今日" role="button" tabindex="0"><span data-icon="home"></span></div>
+    <div class="nav-item" data-tip="任务" role="button" tabindex="0"><span data-icon="list"></span></div>
+    <div class="nav-item is-active" data-tip="长线目标" role="button" tabindex="0"><span data-icon="target"></span></div>
+    <div class="nav-item" data-tip="数据分析" role="button" tabindex="0"><span data-icon="bar-chart"></span></div>
+    <div class="nav-item" data-tip="日历" role="button" tabindex="0"><span data-icon="calendar"></span></div>
+    <div class="nav-spacer"></div>
+    <div class="nav-item" data-tip="设置" role="button" tabindex="0"><span data-icon="settings"></span></div>
+  </aside>
+
+  <div class="main-col">
+    <div class="titlebar">
+      <div class="left">
+        <span style="width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));display:inline-grid;place-items:center;color:#fff;font-weight:700;font-size:10px">F</span>
+        FocusLab · 长线目标
+      </div>
+      <a class="btn btn-ghost btn-sm" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回导航</a>
+    </div>
+
+    <div class="content">
+      <!-- Page head -->
+      <div class="page-head">
+        <div>
+          <h1>长线目标 · 发表 SCI 论文 A</h1>
+          <div class="sub">目标 → 里程碑 → 子任务 · 让每天的努力都能被看见 (docs/02 §6)</div>
+        </div>
+        <div style="display:flex;gap:var(--sp-2)">
+          <button class="btn btn-ghost btn-sm"><span data-icon="edit" data-size="14"></span> 编辑目标</button>
+          <button class="btn btn-primary btn-sm"><span data-icon="plus" data-size="14"></span> 新目标</button>
+        </div>
+      </div>
+
+      <div class="main-area">
+
+        <!-- Goal hero -->
+        <div class="goal-hero">
+          <div class="goal-head-row">
+            <span class="lead">🎯 当前焦点目标</span>
+            <div style="display:flex;gap:var(--sp-2)">
+              <span class="chip chip-brand">SCI 论文</span>
+              <span class="chip">高优</span>
+            </div>
+          </div>
+          <div class="goal-name">发表一篇 SCI 论文 A</div>
+          <div class="goal-desc">
+            基于 Efficient Attention for Long Context 方向,目标 IEEE Trans. 或顶会 short paper。
+            聚焦在注意力机制对长文本的稀疏化策略,已完成文献综述和方向确认。
+          </div>
+          <div class="goal-meta-row">
+            <div class="goal-meta">
+              <span class="m-label">已进行</span>
+              <span class="m-value mono">23 天</span>
+            </div>
+            <div class="goal-meta">
+              <span class="m-label">里程碑</span>
+              <span class="m-value mono">3 / 7</span>
+            </div>
+            <div class="goal-meta">
+              <span class="m-label">本周投入</span>
+              <span class="m-value mono">14h 30m</span>
+            </div>
+            <div class="goal-meta">
+              <span class="m-label">预计完成</span>
+              <span class="m-value">2026-10-31</span>
+            </div>
+            <div class="goal-meta">
+              <span class="m-label">状态</span>
+              <span class="m-value" style="color:var(--color-primary)">推进中 · 节奏良好</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Milestone timeline -->
+        <div class="mile-section">
+          <div class="mile-section-head">
+            <h2>里程碑进度</h2>
+            <span class="progress-hint">已完成 2 · 进行中 1 · 待启动 4 <span style="margin-left:8px;color:var(--color-text-muted)">· 计划会变很正常</span></span>
+          </div>
+          <div class="timeline">
+            <div class="timeline-track"><div class="fill"></div></div>
+            <div class="timeline-nodes">
+              <div class="mile-node is-done">
+                <div class="mile-circle"><span data-icon="check" data-size="18"></span></div>
+                <div class="mile-title">确定研究方向</div>
+                <div class="mile-sub">已完成 · 7 天</div>
+              </div>
+              <div class="mile-node is-done">
+                <div class="mile-circle"><span data-icon="check" data-size="18"></span></div>
+                <div class="mile-title">完成文献综述</div>
+                <div class="mile-sub">已完成 · 12 天</div>
+              </div>
+              <div class="mile-node is-current">
+                <div class="mile-circle">3</div>
+                <div class="mile-title">方法论设计 · baseline 复现</div>
+                <div class="mile-sub">进行中 · 13 天</div>
+              </div>
+              <div class="mile-node is-upcoming">
+                <div class="mile-circle">4</div>
+                <div class="mile-title">实验与数据收集</div>
+                <div class="mile-sub">待启动</div>
+              </div>
+              <div class="mile-node is-upcoming">
+                <div class="mile-circle">5</div>
+                <div class="mile-title">撰写初稿</div>
+                <div class="mile-sub">待启动</div>
+              </div>
+              <div class="mile-node is-upcoming">
+                <div class="mile-circle">6</div>
+                <div class="mile-title">导师审稿 + 修改</div>
+                <div class="mile-sub">待启动</div>
+              </div>
+              <div class="mile-node is-upcoming">
+                <div class="mile-circle">7</div>
+                <div class="mile-title">投稿 + 审稿回复</div>
+                <div class="mile-sub">待启动</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Current milestone expand -->
+        <div class="current-mile">
+          <div class="cm-head">
+            <div>
+              <div class="cm-badge">🔄 当前里程碑 · M3</div>
+              <div class="cm-name">方法论设计 · baseline 复现</div>
+              <div class="cm-meta">已进行 13 天 / 预计 4 周 · 3 个子任务完成 · 2 个进行中 · 3 个待启动</div>
+            </div>
+            <div class="cm-progress-ring">
+              <svg viewBox="0 0 80 80">
+                <defs>
+                  <linearGradient id="cmGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#4F8CFF"/>
+                    <stop offset="100%" stop-color="#7AABFF"/>
+                  </linearGradient>
+                </defs>
+                <circle class="track" cx="40" cy="40" r="35" />
+                <circle class="arc" cx="40" cy="40" r="35" stroke-dashoffset="106" />
+              </svg>
+              <div class="pct">52%</div>
+            </div>
+          </div>
+
+          <div class="cm-body">
+            <div class="cm-split">
+              <!-- 子任务 -->
+              <div>
+                <div class="sub-section-label">
+                  <span>子任务</span>
+                  <button class="btn btn-ghost btn-sm" style="padding:0 6px;color:var(--color-primary)"><span data-icon="plus" data-size="12"></span> 添加</button>
+                </div>
+                <div class="sub-task-row is-done">
+                  <span class="st-status done"><span data-icon="circle-check"></span></span>
+                  <span class="st-title">调研 5 篇相关 baseline 论文</span>
+                  <span class="st-meta">3 天</span>
+                </div>
+                <div class="sub-task-row is-done">
+                  <span class="st-status done"><span data-icon="circle-check"></span></span>
+                  <span class="st-title">选定 2 个主 baseline 作为对照</span>
+                  <span class="st-meta">1 天</span>
+                </div>
+                <div class="sub-task-row is-done">
+                  <span class="st-status done"><span data-icon="circle-check"></span></span>
+                  <span class="st-title">搭建训练与评估环境</span>
+                  <span class="st-meta">2 天</span>
+                </div>
+                <div class="sub-task-row">
+                  <span class="st-status doing"><span data-icon="circle-dashed"></span></span>
+                  <span class="st-title">复现 baseline 代码</span>
+                  <span class="st-meta">4 天 · 还剩 ~1 天</span>
+                </div>
+                <div class="sub-task-row">
+                  <span class="st-status doing"><span data-icon="circle-dashed"></span></span>
+                  <span class="st-title">验证性能数字与论文对齐</span>
+                  <span class="st-meta">进行中</span>
+                </div>
+                <div class="sub-task-row">
+                  <span class="st-status pending"><span data-icon="circle"></span></span>
+                  <span class="st-title">设计改进方案 (1-2 个候选)</span>
+                  <span class="st-meta">待启动</span>
+                </div>
+                <div class="sub-task-row">
+                  <span class="st-status pending"><span data-icon="circle"></span></span>
+                  <span class="st-title">初步 ablation 实验规划</span>
+                  <span class="st-meta">待启动</span>
+                </div>
+                <div class="sub-task-row">
+                  <span class="st-status pending"><span data-icon="circle"></span></span>
+                  <span class="st-title">与导师讨论方向</span>
+                  <span class="st-meta">周五例会</span>
+                </div>
+              </div>
+
+              <!-- 今日映射 + 备注 -->
+              <div>
+                <div class="sub-section-label">
+                  <span>今日关联任务</span>
+                  <button class="btn btn-ghost btn-sm" style="padding:0 6px;color:var(--color-primary)"><span data-icon="plus" data-size="12"></span> 拉入今日</button>
+                </div>
+                <div class="today-mapped">
+                  <span data-icon="flame" data-size="14"></span>
+                  <span>今天正在推进 · <strong>复现 baseline 代码</strong> · 已专注 1h 32m</span>
+                </div>
+
+                <div class="sub-section-label" style="margin-top: var(--sp-5)">
+                  <span>里程碑备注</span>
+                  <span class="kbd">M</span>
+                </div>
+                <div style="padding:var(--sp-3);background:var(--color-bg-subtle);border-radius:var(--r-sm);font-size:var(--fs-13, 13px);color:var(--color-text-secondary);line-height:1.7">
+                  <p style="margin-bottom:var(--sp-2)">📝 <strong>2026-04-15 ·</strong> baseline 有两个版本,官方实现和第三方重写。官方版本依赖 cuda 11.7 旧环境,先用重写版对比性能。</p>
+                  <p style="margin-bottom:var(--sp-2)">📝 <strong>2026-04-12 ·</strong> 决定用 dev set 而不是 test set 做中间验证,避免 overfitting 到 test。</p>
+                  <p>📝 <strong>2026-04-10 ·</strong> 和 @导师 确认:改进重点放在稀疏化策略,不是全新架构。</p>
+                </div>
+
+                <div class="sub-section-label" style="margin-top: var(--sp-5)">
+                  <span>预计完成</span>
+                </div>
+                <div style="font-size:var(--fs-13, 13px);color:var(--color-text-secondary);line-height:1.6">
+                  本里程碑预计 <strong style="color:var(--color-text-primary)">2026-04-30</strong> 完成 · 剩余约 13 天
+                </div>
+              </div>
+            </div>
+
+            <!-- Time investment chart -->
+            <div class="invest-chart">
+              <div class="sub-section-label"><span>本目标本周时间投入</span><span style="color:var(--color-primary);font-weight:var(--fw-semibold)">14h 30m</span></div>
+              <div class="invest-bar">
+                <div class="ib-col" style="height:40%" data-tip="周一 · 1h 15m"></div>
+                <div class="ib-col" style="height:75%" data-tip="周二 · 2h 30m"></div>
+                <div class="ib-col" style="height:90%" data-tip="周三 · 3h 10m"></div>
+                <div class="ib-col" style="height:55%" data-tip="周四 · 1h 50m"></div>
+                <div class="ib-col is-current" style="height:85%" data-tip="周五 · 今天 3h 20m 截止 12:30"></div>
+                <div class="ib-col" style="height:0%;background:var(--color-bg-hover)" data-tip="周六 · 未到"></div>
+                <div class="ib-col" style="height:0%;background:var(--color-bg-hover)" data-tip="周日 · 未到"></div>
+              </div>
+              <div class="invest-axis">
+                <span>周一</span><span>周二</span><span>周三</span><span>周四</span>
+                <span style="color:var(--color-primary);font-weight:var(--fw-medium)">周五</span>
+                <span>周六</span><span>周日</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right rail -->
+      <div class="right-rail">
+        <div class="rail-card">
+          <h3>其他长线目标 · 3</h3>
+          <div class="other-goal">
+            <span class="og-dot" style="background:var(--color-primary)"></span>
+            <div class="og-body">
+              <div class="og-name">发表 SCI 论文 A</div>
+              <div class="og-progress">M3 · 43%</div>
+            </div>
+            <div class="og-chart"><div class="fill" style="width:43%"></div></div>
+          </div>
+          <div class="other-goal">
+            <span class="og-dot" style="background:#B87FFF"></span>
+            <div class="og-body">
+              <div class="og-name">毕业答辩材料</div>
+              <div class="og-progress">M1 · 18%</div>
+            </div>
+            <div class="og-chart"><div class="fill" style="width:18%;background:#B87FFF"></div></div>
+          </div>
+          <div class="other-goal">
+            <span class="og-dot" style="background:var(--color-gold)"></span>
+            <div class="og-body">
+              <div class="og-name">PyTorch 2 精通</div>
+              <div class="og-progress">长期 · 不设截止</div>
+            </div>
+            <div class="og-chart"><div class="fill" style="width:35%;background:var(--color-gold)"></div></div>
+          </div>
+          <div style="border-top:1px solid var(--color-divider);margin-top:var(--sp-3);padding-top:var(--sp-3)">
+            <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center">
+              <span data-icon="plus" data-size="14"></span> 创建新目标
+            </button>
+          </div>
+        </div>
+
+        <div class="ai-banner" style="flex-direction:column;align-items:stretch">
+          <div style="display:flex;gap:var(--sp-2);margin-bottom:var(--sp-2)">
+            <div class="ai-avatar"><span data-icon="sparkles" data-size="14"></span></div>
+            <strong>AI 建议</strong>
+          </div>
+          <div style="font-size:var(--fs-13, 13px);color:var(--color-text-secondary);line-height:1.6">
+            根据你最近 3 周的节奏,M3 如果继续保持当前投入,预计 <strong style="color:var(--color-text-primary)">4 月 30 日</strong> 能收尾,比原计划提前 3 天 🌱。
+          </div>
+          <div style="margin-top: var(--sp-2); padding-top: var(--sp-2); border-top: 1px dashed color-mix(in srgb, var(--color-primary) 20%, transparent); font-size: 11px; color: var(--color-text-muted);">
+            基于 baseline、数据、复盘推断 · 仅供参考
+          </div>
+        </div>
+
+        <div class="rail-card">
+          <h3>相关链接</h3>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:var(--fs-13, 13px)">
+            <a href="#" style="color:var(--color-primary);display:inline-flex;align-items:center;gap:6px">
+              <span data-icon="globe" data-size="14"></span> 导师共享 Notion
+            </a>
+            <a href="#" style="color:var(--color-primary);display:inline-flex;align-items:center;gap:6px">
+              <span data-icon="edit" data-size="14"></span> 论文草稿 (Overleaf)
+            </a>
+            <a href="#" style="color:var(--color-primary);display:inline-flex;align-items:center;gap:6px">
+              <span data-icon="home" data-size="14"></span> 代码仓库 paper-a
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  try {
+    const saved = localStorage.getItem('fl-theme');
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+</script>
+</body>
+</html>

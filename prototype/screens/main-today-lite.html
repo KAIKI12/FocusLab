@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 主窗口 · 今日 (lite)</title>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { padding: 0; }
+  .page-shell {
+    display: flex; min-height: 100vh;
+    max-width: 1440px; margin: 0 auto;
+    background: var(--color-bg-elevated);
+    box-shadow: 0 0 0 1px var(--color-border);
+  }
+
+  /* ============ Main column ============ */
+  .main-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  .titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 40px; padding: 0 var(--sp-4);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+  }
+  .titlebar .left {
+    display: flex; align-items: center; gap: var(--sp-2);
+    font-size: var(--fs-12); color: var(--color-text-secondary);
+  }
+  .titlebar .right { display: flex; align-items: center; gap: var(--sp-2); }
+  .tiny-kbd-hint { font-size: 11px; color: var(--color-text-muted); }
+
+  /* 单列布局: 不再有 right-rail */
+  .content {
+    flex: 1;
+    padding: var(--sp-8) var(--sp-8) var(--sp-12);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-6);
+    background: var(--color-bg);
+    overflow-y: auto;
+    max-width: 880px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* ============ Block 1/2: Focus + Pomodoro (合并为一个卡) ============ */
+  .focus-card {
+    background: linear-gradient(180deg, var(--color-bg-elevated) 0%, var(--color-primary-soft) 100%);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 25%, var(--color-border));
+    border-radius: var(--r-lg);
+    padding: var(--sp-6);
+    position: relative;
+    overflow: hidden;
+  }
+  .focus-card::before {
+    content: "";
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, var(--color-primary-light), transparent 60%);
+    opacity: 0.28;
+    pointer-events: none;
+  }
+  .focus-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--sp-3); position: relative;
+  }
+  .focus-top .tiny-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: var(--fs-12); color: var(--color-primary-dark); font-weight: var(--fw-medium);
+    padding: 4px 10px; background: rgba(255,255,255,0.7); border-radius: var(--r-pill);
+  }
+  .focus-task-name {
+    font-size: var(--fs-24); font-weight: var(--fw-semibold);
+    letter-spacing: -0.3px;
+    margin-bottom: var(--sp-2); position: relative;
+  }
+  .focus-task-meta {
+    display: flex; gap: var(--sp-2); margin-bottom: var(--sp-5); position: relative;
+    flex-wrap: wrap;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: var(--r-pill);
+    font-size: var(--fs-12); font-weight: var(--fw-medium);
+    background: rgba(255,255,255,0.75);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+  }
+  .chip .q-dot { width:6px;height:6px;border-radius:50%; background: var(--color-q1); }
+  .chip-brand { color: var(--color-primary-dark); border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border)); }
+
+  /* 番茄区 */
+  .timer-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: var(--sp-6);
+    align-items: center;
+    position: relative;
+  }
+  .ring-holder { position: relative; width: 180px; height: 180px; }
+  .ring { width: 180px; height: 180px; transform: rotate(-90deg); }
+  .ring .track { fill: none; stroke: rgba(79, 140, 255, 0.15); stroke-width: 10; }
+  .ring .progress-arc {
+    fill: none; stroke: var(--color-primary); stroke-width: 10;
+    stroke-linecap: round;
+    stroke-dasharray: 722;
+    stroke-dashoffset: 183;
+  }
+  .ring-center {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    text-align: center;
+  }
+  .ring-time { font-size: 32px; font-weight: var(--fw-bold); letter-spacing: -0.5px; line-height: 1; }
+  .ring-phase { font-size: var(--fs-12); color: var(--color-text-secondary); margin-top: 4px; }
+
+  .focus-right {
+    display: flex; flex-direction: column; gap: var(--sp-4);
+  }
+  .focus-controls {
+    display: flex; gap: var(--sp-3); align-items: center;
+  }
+  .btn-main, .btn-circle {
+    cursor: pointer; border: 0;
+  }
+  .btn-main {
+    height: 48px; padding: 0 var(--sp-6);
+    border-radius: var(--r-pill);
+    background: var(--color-primary);
+    color: #fff;
+    font-size: var(--fs-14); font-weight: var(--fw-semibold);
+    display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: 0 4px 12px rgba(79,140,255,0.25);
+  }
+  .btn-circle {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    display: grid; place-items: center;
+    color: var(--color-text-secondary);
+  }
+  .btn-circle:hover { background: var(--color-bg-hover); }
+
+  .pomodoro-count .dots {
+    display: flex; gap: 6px; margin-bottom: 4px;
+  }
+  .pomodoro-count .dots .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--color-border);
+  }
+  .pomodoro-count .dots .dot.is-done { background: var(--color-primary); }
+  .pomodoro-count .dots .dot.is-current {
+    background: var(--color-primary-light);
+    box-shadow: 0 0 0 3px rgba(79,140,255,0.25);
+  }
+  .count-label { font-size: var(--fs-12); color: var(--color-text-secondary); }
+
+  /* ============ Block 3: Task list (单纯列表, 无 tab) ============ */
+  .task-panel {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-lg);
+    padding: var(--sp-5) var(--sp-6);
+  }
+  .task-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--sp-4);
+  }
+  .task-head h3 {
+    font-size: var(--fs-16); font-weight: var(--fw-semibold);
+    letter-spacing: -0.1px;
+  }
+  .task-head .count-hint {
+    font-size: var(--fs-12); color: var(--color-text-muted);
+    margin-left: 8px; font-weight: var(--fw-regular);
+  }
+  .btn-soft {
+    font-size: var(--fs-12); padding: 6px 12px;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+    border: 0; border-radius: var(--r-sm);
+    display: inline-flex; align-items: center; gap: 4px;
+    cursor: pointer; font-weight: var(--fw-medium);
+  }
+  .btn-soft:hover { background: color-mix(in srgb, var(--color-primary-soft) 80%, var(--color-primary) 20%); }
+
+  .task-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-3) 0;
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .task-item:last-child { border-bottom: 0; }
+  .task-item.is-active {
+    background: var(--color-primary-soft);
+    margin: 0 calc(-1 * var(--sp-4));
+    padding-left: var(--sp-4); padding-right: var(--sp-4);
+    border-radius: var(--r-sm);
+    border-bottom-color: transparent;
+  }
+  .task-item.is-done .t-name { text-decoration: line-through; color: var(--color-text-muted); }
+
+  .fl-check {
+    width: 20px; height: 20px; border-radius: 6px;
+    border: 1.5px solid var(--color-border-strong);
+    display: grid; place-items: center;
+    cursor: pointer;
+    background: var(--color-bg-elevated);
+    flex-shrink: 0;
+  }
+  .fl-check.is-checked {
+    background: var(--color-success); border-color: var(--color-success);
+    color: #fff;
+  }
+  .t-name {
+    font-size: var(--fs-14); font-weight: var(--fw-medium);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .t-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    display: inline-block;
+  }
+  .t-dot.q1 { background: var(--color-q1); }
+  .t-dot.q2 { background: var(--color-q2); }
+  .t-dot.q3 { background: var(--color-q3); }
+  .t-dot.q4 { background: var(--color-q4); }
+  .t-meta {
+    font-size: var(--fs-12); color: var(--color-text-muted);
+    margin-top: 2px;
+  }
+
+  /* ============ Block 4: 今日切片折叠卡 ============ */
+  .slice-card {
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    transition: border-color var(--dur-base) var(--ease-smooth);
+  }
+  .slice-card.is-open {
+    border-color: color-mix(in srgb, var(--color-primary) 25%, var(--color-border));
+    background: var(--color-bg-elevated);
+  }
+
+  .slice-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-4) var(--sp-5);
+    cursor: pointer;
+    user-select: none;
+  }
+  .slice-head:hover { background: var(--color-bg-hover); }
+  .slice-head__left {
+    display: flex; align-items: center; gap: var(--sp-3);
+  }
+  .slice-head__caret {
+    width: 16px; height: 16px;
+    transition: transform var(--dur-base) var(--ease-smooth);
+    color: var(--color-text-muted);
+  }
+  .slice-card.is-open .slice-head__caret { transform: rotate(90deg); }
+  .slice-head__title {
+    font-size: var(--fs-14); font-weight: var(--fw-semibold);
+    color: var(--color-text-primary);
+  }
+  .slice-head__summary {
+    font-size: var(--fs-12); color: var(--color-text-muted);
+    display: flex; gap: var(--sp-3); align-items: center;
+  }
+  .slice-head__summary .dot-sep { color: var(--color-border-strong); }
+
+  .slice-body {
+    display: none;
+    padding: 0 var(--sp-5) var(--sp-5);
+    border-top: 1px dashed var(--color-divider);
+  }
+  .slice-card.is-open .slice-body { display: block; }
+
+  .slice-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--sp-3);
+    margin-top: var(--sp-4);
+  }
+  .slice-tile {
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .slice-tile .k {
+    font-size: var(--fs-12); color: var(--color-text-muted);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    font-weight: var(--fw-medium);
+  }
+  .slice-tile .v {
+    font-size: var(--fs-20); font-weight: var(--fw-semibold);
+    color: var(--color-text-primary);
+    line-height: var(--lh-tight);
+    margin-top: 4px;
+  }
+  .slice-tile .s {
+    font-size: var(--fs-12); color: var(--color-text-secondary);
+    margin-top: 2px;
+  }
+
+  /* 切片卡内的二级内容: 长目标 / AI / 昨日复盘 */
+  .slice-extra {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-3);
+    margin-top: var(--sp-4);
+  }
+  .slice-chunk {
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    padding: var(--sp-4);
+  }
+  .slice-chunk h4 {
+    font-size: var(--fs-12); color: var(--color-text-muted);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    font-weight: var(--fw-medium);
+    margin-bottom: var(--sp-2);
+  }
+  .slice-chunk p {
+    font-size: var(--fs-13, 13px); color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+  .slice-chunk__link {
+    font-size: var(--fs-12); color: var(--color-primary);
+    margin-top: var(--sp-2); display: inline-block;
+    text-decoration: none;
+  }
+
+  /* 实验功能入口: 心情打卡 (默认不出现, 切换到 is-on 才显示) */
+  .slice-exp {
+    margin-top: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--color-bg-subtle);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--r-md);
+    display: none;
+    align-items: center; justify-content: space-between;
+    font-size: var(--fs-12); color: var(--color-text-secondary);
+  }
+  .slice-exp.is-on { display: flex; }
+  .slice-exp__link {
+    color: var(--color-primary);
+    font-weight: var(--fw-medium);
+    text-decoration: none;
+  }
+
+  /* ============ Bottom action ============ */
+  .bottom-row {
+    display: flex; justify-content: flex-end;
+    padding-top: var(--sp-2);
+  }
+  .btn-primary-lg {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 48px; padding: 0 var(--sp-6);
+    border-radius: var(--r-pill);
+    background: var(--color-primary);
+    color: #fff; border: 0;
+    font-size: var(--fs-14); font-weight: var(--fw-semibold);
+    cursor: pointer;
+    box-shadow: var(--shadow-card);
+  }
+  .btn-primary-lg:hover { background: var(--color-primary-dark); }
+
+  /* ============ 密度徽章(仅 lite 原型用于说明) ============ */
+  .density-badge {
+    position: fixed; right: 16px; bottom: 16px;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-pill);
+    padding: 6px 12px;
+    font-size: var(--fs-12); color: var(--color-text-secondary);
+    box-shadow: var(--shadow-float);
+    z-index: 40;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .density-badge .ok { color: var(--color-success); font-weight: var(--fw-semibold); }
+  .density-badge__tip {
+    font-size: 11px; color: var(--color-text-muted);
+    margin-left: 6px;
+  }
+
+  @media (max-width: 960px) {
+    .timer-row { grid-template-columns: 1fr; }
+    .slice-grid { grid-template-columns: repeat(2, 1fr); }
+    .slice-extra { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-shell">
+
+  <!-- Sidebar (同 main-today.html,chrome 不计入信息块数) -->
+  <aside class="sidebar" aria-label="主导航">
+    <div class="logo">F</div>
+    <div class="nav-item is-active" data-tip="今日" aria-label="今日" role="button" tabindex="0">
+      <span data-icon="home"></span>
+    </div>
+    <div class="nav-item" data-tip="任务" aria-label="任务" role="button" tabindex="0">
+      <span data-icon="list"></span>
+    </div>
+    <div class="nav-item" data-tip="长线目标" aria-label="长线目标" role="button" tabindex="0">
+      <span data-icon="target"></span>
+    </div>
+    <div class="nav-item" data-tip="数据分析" aria-label="数据分析" role="button" tabindex="0">
+      <span data-icon="bar-chart"></span>
+    </div>
+    <div class="nav-item" data-tip="日历" aria-label="日历" role="button" tabindex="0">
+      <span data-icon="calendar"></span>
+    </div>
+    <div class="nav-spacer"></div>
+    <div class="nav-item" data-tip="设置" aria-label="设置" role="button" tabindex="0">
+      <span data-icon="settings"></span>
+    </div>
+  </aside>
+
+  <!-- Main column -->
+  <div class="main-col">
+
+    <div class="titlebar">
+      <div class="left">
+        <span style="width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));display:inline-grid;place-items:center;color:#fff;font-weight:700;font-size:10px">F</span>
+        FocusLab
+        <span class="tiny-kbd-hint" style="margin-left:8px">v1.2 · lite 主屏 · ADR-010</span>
+      </div>
+      <div class="right">
+        <button class="btn-icon btn-sm" aria-label="命令面板"><span class="kbd">⌘K</span></button>
+        <a class="btn btn-ghost btn-sm" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回导航</a>
+        <a class="btn btn-ghost btn-sm" href="main-today.html" title="对比原版"><span data-icon="git-compare" data-size="14"></span> 对比现版</a>
+      </div>
+    </div>
+
+    <!-- Content: 核心 4 件 + 折叠卡 -->
+    <div class="content">
+
+      <!--
+        BLOCK ① + ② 焦点任务 + 番茄计时 (合并一张卡 = 1 个信息块)
+        当前任务的名字/象限/关联 + 番茄倒计时 + 控制 + 番茄点数
+      -->
+      <section class="focus-card" aria-label="焦点任务与番茄">
+        <div class="focus-top">
+          <span class="tiny-label">🍅 当前专注</span>
+          <div style="display:flex;gap:var(--sp-2)">
+            <button class="btn btn-ghost btn-sm" aria-label="切换任务">
+              <span data-icon="skip-forward" data-size="14"></span> 切换
+            </button>
+          </div>
+        </div>
+
+        <div class="focus-task-name">复现 baseline 代码</div>
+        <div class="focus-task-meta">
+          <span class="chip"><span class="q-dot"></span> 紧急重要</span>
+          <span class="chip chip-brand">🎯 论文 A · 里程碑 3</span>
+          <span class="chip">预估 2h</span>
+        </div>
+
+        <div class="timer-row">
+          <div class="ring-holder">
+            <svg class="ring" viewBox="0 0 240 240" aria-label="番茄钟倒计时">
+              <circle class="track" cx="120" cy="120" r="115" />
+              <circle class="progress-arc" cx="120" cy="120" r="115" />
+            </svg>
+            <div class="ring-center">
+              <div class="ring-time">18:32</div>
+              <div class="ring-phase">专注中</div>
+            </div>
+          </div>
+
+          <div class="focus-right">
+            <div class="focus-controls">
+              <button class="btn-main" aria-label="暂停">
+                <span data-icon="pause" data-size="16"></span> 暂停
+              </button>
+              <button class="btn-circle" aria-label="跳过">
+                <span data-icon="skip-forward" data-size="16"></span>
+              </button>
+              <button class="btn-circle" aria-label="结束">
+                <span data-icon="x" data-size="16"></span>
+              </button>
+            </div>
+
+            <div class="pomodoro-count">
+              <div class="dots">
+                <span class="dot is-done"></span>
+                <span class="dot is-done"></span>
+                <span class="dot is-done"></span>
+                <span class="dot is-current"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+              </div>
+              <span class="count-label">第 4 个番茄 · 目标 8 个</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!--
+        BLOCK ③ 今日任务列表 (单纯列表,无四象限 tab,象限信息用色点)
+      -->
+      <section class="task-panel" aria-label="今日任务">
+        <div class="task-head">
+          <h3>今日任务 <span class="count-hint">2 / 5 已完成</span></h3>
+          <button class="btn-soft"><span data-icon="plus" data-size="14"></span> 添加任务</button>
+        </div>
+
+        <div class="task-item is-done">
+          <span class="fl-check is-checked" role="checkbox" aria-checked="true">
+            <span data-icon="check" data-size="12"></span>
+          </span>
+          <div class="t-body">
+            <div class="t-name"><span class="t-dot q1"></span> 回复导师邮件</div>
+            <div class="t-meta">30 分钟 · 10:05 完成</div>
+          </div>
+          <div class="t-action">
+            <button class="btn-icon btn-sm" aria-label="更多"><span data-icon="more-horizontal" data-size="14"></span></button>
+          </div>
+        </div>
+
+        <div class="task-item is-active">
+          <span class="fl-check" role="checkbox" aria-checked="false"></span>
+          <div class="t-body">
+            <div class="t-name"><span class="t-dot q1"></span> 复现 baseline 代码</div>
+            <div class="t-meta">预估 2h · 已专注 1h 32m</div>
+          </div>
+          <div class="t-action">
+            <button class="btn-icon btn-sm" aria-label="更多"><span data-icon="more-horizontal" data-size="14"></span></button>
+          </div>
+        </div>
+
+        <div class="task-item">
+          <span class="fl-check" role="checkbox" aria-checked="false"></span>
+          <div class="t-body">
+            <div class="t-name"><span class="t-dot q2"></span> 阅读文献 2 篇</div>
+            <div class="t-meta">预估 1h · 关联论文 A</div>
+          </div>
+          <div class="t-action">
+            <button class="btn-icon btn-sm" aria-label="更多"><span data-icon="more-horizontal" data-size="14"></span></button>
+          </div>
+        </div>
+
+        <div class="task-item is-done">
+          <span class="fl-check is-checked" role="checkbox" aria-checked="true">
+            <span data-icon="check" data-size="12"></span>
+          </span>
+          <div class="t-body">
+            <div class="t-name"><span class="t-dot q3"></span> 填写报销单</div>
+            <div class="t-meta">15 分钟 · 09:40 完成</div>
+          </div>
+          <div class="t-action">
+            <button class="btn-icon btn-sm" aria-label="更多"><span data-icon="more-horizontal" data-size="14"></span></button>
+          </div>
+        </div>
+
+        <div class="task-item">
+          <span class="fl-check" role="checkbox" aria-checked="false"></span>
+          <div class="t-body">
+            <div class="t-name"><span class="t-dot q2"></span> 设计改进方案</div>
+            <div class="t-meta">预估 1.5h · 关联论文 A</div>
+          </div>
+          <div class="t-action">
+            <button class="btn-icon btn-sm" aria-label="更多"><span data-icon="more-horizontal" data-size="14"></span></button>
+          </div>
+        </div>
+      </section>
+
+      <!--
+        BLOCK ④ 今日切片折叠卡 (默认收起, 点击展开)
+        收起态只占 1 行, 展开后是既有右栏所有内容的容器
+      -->
+      <section class="slice-card" id="slice-card" aria-label="今日切片">
+        <div class="slice-head" id="slice-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="slice-body">
+          <div class="slice-head__left">
+            <span class="slice-head__caret" data-icon="chevron-right" data-size="16"></span>
+            <span class="slice-head__title">今日切片</span>
+          </div>
+          <div class="slice-head__summary">
+            <span>2 / 5 · 40%</span>
+            <span class="dot-sep">·</span>
+            <span>专注 3h 20m</span>
+            <span class="dot-sep">·</span>
+            <span>周五 上午</span>
+          </div>
+        </div>
+
+        <div class="slice-body" id="slice-body">
+
+          <!-- 数字切片 -->
+          <div class="slice-grid">
+            <div class="slice-tile">
+              <div class="k">完成 / 计划</div>
+              <div class="v">2 <span style="font-size:14px;font-weight:500;color:var(--color-text-muted)">/ 5</span></div>
+              <div class="s">40% 完成率</div>
+            </div>
+            <div class="slice-tile">
+              <div class="k">专注时长</div>
+              <div class="v">3h 20m</div>
+              <div class="s">目标 4h</div>
+            </div>
+            <div class="slice-tile">
+              <div class="k">番茄次数</div>
+              <div class="v">3 <span style="font-size:14px;font-weight:500;color:var(--color-text-muted)">/ 8</span></div>
+              <div class="s">被中断 1 次</div>
+            </div>
+            <div class="slice-tile">
+              <div class="k">当前能量</div>
+              <div class="v">😊 不错</div>
+              <div class="s">点击调整</div>
+            </div>
+          </div>
+
+          <!-- 关联长目标 / 昨日复盘 -->
+          <div class="slice-extra">
+            <div class="slice-chunk">
+              <h4>🎯 关联长线目标</h4>
+              <p>发表 SCI 论文 A · 已进行 23 天 · 里程碑 3 / 7 · 当前里程碑「方法论设计」</p>
+              <a class="slice-chunk__link" href="../goals/milestones.html">查看里程碑详情 →</a>
+            </div>
+            <div class="slice-chunk">
+              <h4>🌅 昨日复盘</h4>
+              <p>昨天完成 4 / 5 · 专注 4h 10m · A 级结算。唯一未完成的「设计改进方案」已挪到今天。</p>
+              <a class="slice-chunk__link" href="settlement.html">查看完整结算 →</a>
+            </div>
+          </div>
+
+          <!-- 实验功能: 心情打卡 (ADR-009 默认关闭) -->
+          <div class="slice-exp" id="mood-exp" data-on="false">
+            <span>
+              🧪 <strong>早晨意图打卡</strong> · 实验功能
+              <span style="color:var(--color-text-muted);margin-left:8px">今日未打卡</span>
+            </span>
+            <a class="slice-exp__link" href="mood-check.html">去打卡 →</a>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- 底部核心操作 ④: 结束今天 -->
+      <div class="bottom-row">
+        <button class="btn-primary-lg" aria-label="结束今天">
+          <span data-icon="moon" data-size="16"></span> 结束今天
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 密度说明徽章(仅 lite 原型展示用) -->
+<div class="density-badge" title="ADR-010 主屏密度约束">
+  <span>同屏信息块 <span class="ok">4</span> / 5</span>
+  <span class="density-badge__tip">符合 ADR-010</span>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  // 折叠切片卡
+  const card   = document.getElementById('slice-card');
+  const toggle = document.getElementById('slice-toggle');
+  toggle.addEventListener('click', () => {
+    const open = card.classList.toggle('is-open');
+    toggle.setAttribute('aria-expanded', String(open));
+  });
+  toggle.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle.click(); }
+  });
+
+  // 心情打卡入口(模拟设置读取;默认关闭)
+  // 真实产品: const moodEnabled = settings.experimental.moodCheck
+  const moodEnabled = false;
+  if (moodEnabled) {
+    document.getElementById('mood-exp').classList.add('is-on');
+  }
+</script>
+
+</body>
+</html>
