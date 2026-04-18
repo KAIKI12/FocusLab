@@ -13,20 +13,27 @@ import { useTimerStateStore } from "@/stores/useTimerStateStore";
 const { mode, accent, setMode, setAccent } = useTheme();
 
 const modes: ThemeMode[] = ["light", "dark", "auto"];
-const accents = [
-  "default",
-  "claude",
-  "green",
-  "lavender",
-  "blue-classic",
-  "graphite",
-  "sakura",
-  "candy",
-  "milktea",
-  "amber",
-  "teal",
-  "slate",
+
+/** 12 套色调主题 — id 与 tokens.css 的 data-accent-theme 严格对齐,
+ *  中文名取自 docs/05 §1.1.1 */
+const accents: { id: string; label: string }[] = [
+  { id: "default", label: "🌊 默认蓝" },
+  { id: "claude", label: "☁️ 奶油陶土" },
+  { id: "green", label: "🌿 护眼绿" },
+  { id: "lavender", label: "🪻 薰衣草紫" },
+  { id: "blue-classic", label: "🌊 静谧蓝" },
+  { id: "graphite", label: "🧊 极简石墨" },
+  { id: "sakura", label: "🌸 樱花粉" },
+  { id: "candy", label: "🎀 糖果粉紫" },
+  { id: "milktea", label: "🧋 奶茶棕粉" },
+  { id: "amber", label: "🍊 琥珀橙" },
+  { id: "teal", label: "🦆 水鸭青" },
+  { id: "slate", label: "🪨 石板蓝灰" },
 ];
+
+function onAccentChange(e: Event) {
+  setAccent((e.target as HTMLSelectElement).value);
+}
 
 // ---------- Week 1b · DEV 调试面板 ----------
 
@@ -102,17 +109,22 @@ async function showCurrent() {
 
     <div class="fl-setting-block">
       <div class="fl-setting-label">主题色调</div>
-      <div class="fl-accent-grid">
-        <button
-          v-for="a in accents"
-          :key="a"
-          type="button"
-          class="fl-accent-btn"
-          :class="{ 'is-active': accent === a }"
-          @click="setAccent(a)"
-        >
-          {{ a }}
-        </button>
+      <select
+        class="fl-accent-select"
+        :value="accent"
+        aria-label="主题色调选择"
+        @change="onAccentChange"
+      >
+        <option v-for="a in accents" :key="a.id" :value="a.id">
+          {{ a.label }}
+        </option>
+      </select>
+      <div class="fl-accent-swatch" aria-hidden="true">
+        <span class="fl-swatch-dot fl-swatch-primary"></span>
+        <span class="fl-swatch-dot fl-swatch-success"></span>
+        <span class="fl-swatch-dot fl-swatch-gold"></span>
+        <span class="fl-swatch-dot fl-swatch-q1"></span>
+        <span class="fl-swatch-label">当前色板预览</span>
       </div>
     </div>
 
@@ -207,32 +219,62 @@ async function showCurrent() {
   box-shadow: var(--shadow-card);
 }
 
-.fl-accent-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: var(--sp-2);
-}
-
-.fl-accent-btn {
-  padding: var(--sp-2) var(--sp-3);
+.fl-accent-select {
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
   background: var(--color-bg-subtle);
-  color: var(--color-text-secondary);
-  border-radius: var(--r-sm);
-  font-size: var(--fs-12);
-  cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-smooth);
-}
-
-.fl-accent-btn:hover {
-  border-color: var(--color-primary);
   color: var(--color-text-primary);
+  font-size: var(--fs-14);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238C8C8C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--sp-3) center;
+  padding-right: var(--sp-8);
+  transition:
+    border-color var(--dur-fast) var(--ease-smooth),
+    box-shadow var(--dur-fast) var(--ease-smooth);
 }
 
-.fl-accent-btn.is-active {
-  background: var(--color-primary);
-  color: var(--color-text-on-primary);
+.fl-accent-select:hover {
   border-color: var(--color-primary);
+}
+
+.fl-accent-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
+}
+
+.fl-accent-swatch {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--color-bg-subtle);
+  border-radius: var(--r-sm);
+}
+
+.fl-swatch-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+}
+
+.fl-swatch-primary { background: var(--color-primary); }
+.fl-swatch-success { background: var(--color-success); }
+.fl-swatch-gold    { background: var(--color-gold); }
+.fl-swatch-q1      { background: var(--color-q1); }
+
+.fl-swatch-label {
+  margin-left: auto;
+  font-size: var(--fs-12);
+  color: var(--color-text-muted);
 }
 
 /* ---------- Dev 面板 ---------- */
