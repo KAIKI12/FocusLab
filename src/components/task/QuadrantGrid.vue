@@ -16,6 +16,7 @@ import type { Task } from "@/types";
 defineProps<{
   tasksByQuadrant: Record<string, Task[]>;
   timerIdle: boolean;
+  goalLabels?: Record<string, string>;
 }>();
 
 const emit = defineEmits<{
@@ -39,14 +40,19 @@ const quadrantOrder = [
 ];
 
 // ---------- 拖拽状态 ----------
+// 用模块级变量保存拖拽数据,避免 WebView2 下 DataTransfer.getData() 不可靠的问题
+let draggedTaskId: string | null = null;
+let draggedFromQuadrant: string | null = null;
 
 const dragOverQuadrant = ref<string | null>(null);
 
 function onDragStart(e: DragEvent, task: Task) {
-  if (!e.dataTransfer) return;
-  e.dataTransfer.effectAllowed = "move";
-  e.dataTransfer.setData("text/plain", task.id);
-  e.dataTransfer.setData("application/x-quadrant", task.quadrant);
+  draggedTaskId = task.id;
+  draggedFromQuadrant = task.quadrant;
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", task.id);
+  }
 }
 
 function onDragOver(e: DragEvent, quadrant: string) {
@@ -63,18 +69,23 @@ function onDragLeave(quadrant: string) {
 
 function onDrop(e: DragEvent, targetQuadrant: string) {
   e.preventDefault();
+  e.stopPropagation();
   dragOverQuadrant.value = null;
-  if (!e.dataTransfer) return;
 
-  const taskId = e.dataTransfer.getData("text/plain");
-  const fromQuadrant = e.dataTransfer.getData("application/x-quadrant");
-
-  if (!taskId || fromQuadrant === targetQuadrant) return;
-  emit("changeQuadrant", taskId, targetQuadrant);
+  if (!draggedTaskId || draggedFromQuadrant === targetQuadrant) {
+    draggedTaskId = null;
+    draggedFromQuadrant = null;
+    return;
+  }
+  emit("changeQuadrant", draggedTaskId, targetQuadrant);
+  draggedTaskId = null;
+  draggedFromQuadrant = null;
 }
 
 function onDragEnd() {
   dragOverQuadrant.value = null;
+  draggedTaskId = null;
+  draggedFromQuadrant = null;
 }
 </script>
 
@@ -108,6 +119,7 @@ function onDragEnd() {
           @click="emit('edit', t)"
         >
           <span class="fl-qcell-name">{{ t.name }}</span>
+          <span v-if="t.milestone_id && goalLabels?.[t.milestone_id]" class="fl-qcell-goal">{{ goalLabels[t.milestone_id] }}</span>
           <button
             class="fl-qcell-play"
             type="button"
@@ -208,6 +220,16 @@ function onDragEnd() {
   font-size: var(--fs-12);
   color: var(--color-text-primary);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fl-qcell-goal {
+  font-size: 10px;
+  color: var(--color-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
 }

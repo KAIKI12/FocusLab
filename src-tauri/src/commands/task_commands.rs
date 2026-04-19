@@ -23,6 +23,7 @@ fn row_to_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
         estimated_minutes: row.get("estimated_minutes")?,
         due_date: row.get("due_date")?,
         is_background: row.get("is_background")?,
+        milestone_id: row.get("milestone_id")?,
         shelved_at: row.get("shelved_at")?,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
@@ -31,7 +32,7 @@ fn row_to_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
 }
 
 const SELECT_COLS: &str =
-    "id, name, description, quadrant, status, estimated_minutes, due_date, is_background, shelved_at, created_at, updated_at, completed_at";
+    "id, name, description, quadrant, status, estimated_minutes, due_date, is_background, milestone_id, shelved_at, created_at, updated_at, completed_at";
 
 /// 列出任务。status_filter=None 时返回所有非 completed、非 shelved 的任务。
 #[tauri::command]
@@ -112,6 +113,7 @@ pub fn create_task(input: CreateTaskInput, db: State<'_, Db>) -> AppResult<Task>
         estimated_minutes: None,
         due_date: None,
         is_background: false,
+        milestone_id: None,
         shelved_at: None,
         created_at: now.clone(),
         updated_at: now,
@@ -333,6 +335,44 @@ pub fn check_shelved_tasks(db: State<'_, Db>) -> AppResult<Vec<String>> {
     Ok(names)
 }
 
+/// 创建任务微复盘记录 — 番茄完成后记录时间偏差和原因。
+#[tauri::command]
+pub fn create_task_reflection(
+    task_id: String,
+    planned_minutes: Option<i64>,
+    actual_minutes: i64,
+    overtime_reason: Option<String>,
+    note: Option<String>,
+    db: State<'_, Db>,
+) -> AppResult<()> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let id = Uuid::new_v4().to_string();
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let now = Utc::now().to_rfc3339();
+
+    conn.execute(
+        "INSERT INTO task_reflections (id, task_id, plan_date, planned_minutes, actual_minutes, overtime_reason, note, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![id, task_id, today, planned_minutes, actual_minutes, overtime_reason, note, now],
+    )?;
+    Ok(())
+}
+
+/// 恢复搁置任务 — 清除 shelved_at。
+#[tauri::command]
+pub fn unshelve_task(id: String, db: State<'_, Db>) -> AppResult<()> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let now = Utc::now().to_rfc3339();
+    let affected = conn.execute(
+        "UPDATE tasks SET shelved_at = NULL, updated_at = ?1 WHERE id = ?2 AND shelved_at IS NOT NULL",
+        params![now, id],
+    )?;
+    if affected == 0 {
+        return Err(AppError::Custom(format!("task {id} not found or not shelved")));
+    }
+    Ok(())
+}
+
 /// 根据 ID 获取任务名(轻量查询,供悬浮球窗口使用)。
 #[tauri::command]
 pub fn get_task_name(id: String, db: State<'_, Db>) -> AppResult<Option<String>> {
@@ -360,7 +400,8 @@ mod tests {
                 quadrant TEXT DEFAULT 'important_not_urgent',
                 status TEXT DEFAULT 'pending',
                 estimated_minutes INTEGER, due_date DATE,
-                is_background BOOLEAN DEFAULT 0, shelved_at DATETIME,
+                is_background BOOLEAN DEFAULT 0, milestone_id TEXT,
+                shelved_at DATETIME,
                 created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
                 completed_at DATETIME, sort_order INTEGER DEFAULT 0
              );",

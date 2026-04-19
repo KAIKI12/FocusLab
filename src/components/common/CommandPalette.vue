@@ -52,7 +52,7 @@ const timerCmds: CmdItem[] = [
 const taskCmds: CmdItem[] = [
   {
     id: "cmd-add-task", label: "快速添加任务", hint: "任务", keys: "⌘N",
-    action: () => router.push("/today"),
+    action: () => { ui.showQuickAdd = true; },
   },
   {
     id: "cmd-settle", label: "结束今天 · 进入日结算", hint: "日结算", keys: "⌘⇧E",

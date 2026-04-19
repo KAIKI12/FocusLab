@@ -4,9 +4,12 @@
  * 左侧导航 + 右侧面板。
  */
 
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
+import AIPrivacyModal from "@/components/common/AIPrivacyModal.vue";
+import DangerConfirmModal from "@/components/common/DangerConfirmModal.vue";
+import ExportModal from "@/components/common/ExportModal.vue";
 import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useAIStore } from "@/stores/useAIStore";
 import { useTheme, type ThemeMode } from "@/composables/useTheme";
@@ -72,24 +75,58 @@ async function onTestAI() {
   } catch (e) { aiTestResult.value = `❌ 连接失败: ${e}`; }
 }
 
+// ---------- Pomodoro ----------
+const focusDuration = ref("25");
+const shortBreak = ref("5");
+const longBreakInterval = ref("4");
+
+async function setFocusDuration(v: string) {
+  focusDuration.value = v;
+  await invokeCmd("set_setting", { key: "pomodoro_focus_minutes", value: v }).catch(() => {});
+}
+async function setShortBreak(v: string) {
+  shortBreak.value = v;
+  await invokeCmd("set_setting", { key: "pomodoro_short_break", value: v }).catch(() => {});
+}
+async function setLongBreakInterval(v: string) {
+  longBreakInterval.value = v;
+  await invokeCmd("set_setting", { key: "pomodoro_long_break_interval", value: v }).catch(() => {});
+}
+
+// ---------- Notification ----------
+const notifySystem = ref(true);
+const notifySettle = ref(true);
+const notifyDue = ref(true);
+
+async function toggleNotify(key: string, current: boolean) {
+  const val = !current;
+  if (key === "system") notifySystem.value = val;
+  else if (key === "settle") notifySettle.value = val;
+  else if (key === "due") notifyDue.value = val;
+  await invokeCmd("set_setting", { key: `notify_${key}`, value: val ? "1" : "0" }).catch(() => {});
+}
+
+// ---------- Init ----------
+onMounted(async () => {
+  const load = async (key: string, fallback: string) => {
+    try {
+      const v = await invokeCmd<string | null>("get_setting", { key });
+      return v ?? fallback;
+    } catch { return fallback; }
+  };
+  focusDuration.value = await load("pomodoro_focus_minutes", "25");
+  shortBreak.value = await load("pomodoro_short_break", "5");
+  longBreakInterval.value = await load("pomodoro_long_break_interval", "4");
+  notifySystem.value = (await load("notify_system", "1")) === "1";
+  notifySettle.value = (await load("notify_settle", "1")) === "1";
+  notifyDue.value = (await load("notify_due", "1")) === "1";
+});
+
 // ---------- Data ----------
 const exportResult = ref("");
-
-async function exportTasksJson() {
-  try {
-    const ts = new Date().toISOString().slice(0, 10);
-    const msg = await invokeCmd<string>("export_tasks_json", { path: `focuslab_tasks_${ts}.json` });
-    exportResult.value = `✅ ${msg}`;
-  } catch (e) { exportResult.value = `❌ ${e}`; }
-}
-
-async function exportSessionsCsv() {
-  try {
-    const ts = new Date().toISOString().slice(0, 10);
-    const msg = await invokeCmd<string>("export_sessions_csv", { path: `focuslab_sessions_${ts}.csv` });
-    exportResult.value = `✅ ${msg}`;
-  } catch (e) { exportResult.value = `❌ ${e}`; }
-}
+const showExportModal = ref(false);
+const showDangerModal = ref(false);
+const showAIPrivacy = ref(false);
 </script>
 
 <template>
@@ -189,9 +226,7 @@ async function exportSessionsCsv() {
           </div>
           <div class="fl-set-control">
             <div class="fl-segmented">
-              <button class="fl-seg-btn is-active">25m</button>
-              <button class="fl-seg-btn">45m</button>
-              <button class="fl-seg-btn">90m</button>
+              <button v-for="v in ['25','45','90']" :key="v" class="fl-seg-btn" :class="{ 'is-active': focusDuration === v }" @click="setFocusDuration(v)">{{ v }}m</button>
             </div>
           </div>
         </div>
@@ -201,8 +236,7 @@ async function exportSessionsCsv() {
           </div>
           <div class="fl-set-control">
             <div class="fl-segmented">
-              <button class="fl-seg-btn is-active">5m</button>
-              <button class="fl-seg-btn">10m</button>
+              <button v-for="v in ['5','10']" :key="v" class="fl-seg-btn" :class="{ 'is-active': shortBreak === v }" @click="setShortBreak(v)">{{ v }}m</button>
             </div>
           </div>
         </div>
@@ -212,7 +246,9 @@ async function exportSessionsCsv() {
             <div class="fl-set-desc">每隔 N 个番茄进入长休息</div>
           </div>
           <div class="fl-set-control">
-            <span style="font-family:var(--font-mono);font-size:var(--fs-16)">4</span>
+            <div class="fl-segmented">
+              <button v-for="v in ['3','4','5']" :key="v" class="fl-seg-btn" :class="{ 'is-active': longBreakInterval === v }" @click="setLongBreakInterval(v)">{{ v }}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -226,7 +262,7 @@ async function exportSessionsCsv() {
             <div class="fl-set-desc">番茄完成、休息结束时推送</div>
           </div>
           <div class="fl-set-control">
-            <button class="fl-toggle is-on"><span class="fl-toggle-dot" /></button>
+            <button class="fl-toggle" :class="{ 'is-on': notifySystem }" @click="toggleNotify('system', notifySystem)"><span class="fl-toggle-dot" /></button>
           </div>
         </div>
         <div class="fl-set-row">
@@ -235,7 +271,7 @@ async function exportSessionsCsv() {
             <div class="fl-set-desc">每天 22:00 提醒结算</div>
           </div>
           <div class="fl-set-control">
-            <button class="fl-toggle is-on"><span class="fl-toggle-dot" /></button>
+            <button class="fl-toggle" :class="{ 'is-on': notifySettle }" @click="toggleNotify('settle', notifySettle)"><span class="fl-toggle-dot" /></button>
           </div>
         </div>
         <div class="fl-set-row">
@@ -244,7 +280,7 @@ async function exportSessionsCsv() {
             <div class="fl-set-desc">到期前一天 20:00 提醒</div>
           </div>
           <div class="fl-set-control">
-            <button class="fl-toggle is-on"><span class="fl-toggle-dot" /></button>
+            <button class="fl-toggle" :class="{ 'is-on': notifyDue }" @click="toggleNotify('due', notifyDue)"><span class="fl-toggle-dot" /></button>
           </div>
         </div>
       </div>
@@ -285,7 +321,9 @@ async function exportSessionsCsv() {
         <h2>隐私</h2>
         <div class="fl-privacy-info">
           <p>所有数据存储在本地 SQLite 数据库，不上传到任何服务器。</p>
-          <p>AI 功能需要发送任务名称到 AI 服务商（如 OpenAI），你可以随时关闭。</p>
+          <p>AI 功能需要发送任务名称到 AI 服务商（如 OpenAI），你可以随时关闭。
+            <a href="#" style="color:var(--color-primary);font-size:11px" @click.prevent="showAIPrivacy = true">查看隐私声明</a>
+          </p>
         </div>
         <div class="fl-set-row">
           <div class="fl-set-info">
@@ -353,18 +391,18 @@ async function exportSessionsCsv() {
       <div v-if="activeSection === 'data'" class="fl-set-group">
         <h2>数据</h2>
         <div class="fl-data-cards">
-          <div class="fl-data-card" @click="exportTasksJson">
-            <span class="fl-data-icon">📋</span>
+          <div class="fl-data-card" @click="showExportModal = true">
+            <span class="fl-data-icon">📦</span>
             <div>
-              <strong>导出任务</strong>
-              <span>JSON 格式</span>
+              <strong>导出数据</strong>
+              <span>JSON / Markdown / CSV</span>
             </div>
           </div>
-          <div class="fl-data-card" @click="exportSessionsCsv">
-            <span class="fl-data-icon">⏱️</span>
+          <div class="fl-data-card fl-data-danger" @click="showDangerModal = true">
+            <span class="fl-data-icon">⚠️</span>
             <div>
-              <strong>导出专注记录</strong>
-              <span>CSV 格式</span>
+              <strong>重置所有数据</strong>
+              <span>清除任务、目标、专注记录</span>
             </div>
           </div>
         </div>
@@ -383,6 +421,23 @@ async function exportSessionsCsv() {
       </div>
     </div>
   </section>
+
+  <ExportModal :visible="showExportModal" @close="showExportModal = false" />
+  <AIPrivacyModal :visible="showAIPrivacy" @close="showAIPrivacy = false" @accepted="showAIPrivacy = false" />
+  <DangerConfirmModal
+    :visible="showDangerModal"
+    title="重置所有数据"
+    description="此操作不可撤销，将永久删除以下所有数据"
+    :items="[
+      { label: '任务', count: '全部' },
+      { label: '目标 & 里程碑', count: '全部' },
+      { label: '专注记录', count: '全部' },
+      { label: '日结算', count: '全部' },
+    ]"
+    confirm-text="RESET"
+    @close="showDangerModal = false"
+    @confirmed="showDangerModal = false"
+  />
 </template>
 
 <style scoped>
@@ -522,6 +577,7 @@ async function exportSessionsCsv() {
   transition: all var(--dur-fast);
 }
 .fl-data-card:hover { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.fl-data-card.fl-data-danger:hover { border-color: #ef4444; background: color-mix(in srgb, #ef4444 8%, transparent); }
 .fl-data-icon { font-size: 24px; }
 .fl-data-card strong { font-size: var(--fs-14); display: block; }
 .fl-data-card span { font-size: var(--fs-12); color: var(--color-text-muted); }

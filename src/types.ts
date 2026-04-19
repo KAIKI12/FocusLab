@@ -19,6 +19,7 @@ export interface Task {
   estimated_minutes: number | null;
   due_date: string | null;
   is_background: boolean;
+  milestone_id: string | null;
   shelved_at: string | null;
   created_at: string;
   updated_at: string;

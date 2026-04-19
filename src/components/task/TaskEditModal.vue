@@ -7,13 +7,16 @@
 import { Save, X } from "lucide-vue-next";
 import { ref, watch } from "vue";
 
+import { invokeCmd } from "@/composables/useTauriInvoke";
+import { useGoalStore } from "@/stores/useGoalStore";
 import { useTaskStore } from "@/stores/useTaskStore";
-import type { Task } from "@/types";
+import type { Milestone, Task } from "@/types";
 
 const props = defineProps<{ task: Task | null }>();
 const emit = defineEmits<{ close: [] }>();
 
 const tasks = useTaskStore();
+const goals = useGoalStore();
 
 const name = ref("");
 const description = ref("");
@@ -21,6 +24,17 @@ const quadrant = ref("important_not_urgent");
 const estimatedMinutes = ref<number | null>(null);
 const dueDate = ref("");
 const recurrenceRule = ref("");
+const milestoneId = ref<string | null>(null);
+const selectedGoalId = ref<string | null>(null);
+const localMilestones = ref<Milestone[]>([]);
+
+// 选择目标后加载里程碑
+watch(selectedGoalId, async (gid) => {
+  if (!gid) { localMilestones.value = []; milestoneId.value = null; return; }
+  try {
+    localMilestones.value = await invokeCmd<Milestone[]>("list_milestones", { goalId: gid });
+  } catch { localMilestones.value = []; }
+});
 
 watch(
   () => props.task,
@@ -31,6 +45,14 @@ watch(
     quadrant.value = t.quadrant;
     estimatedMinutes.value = t.estimated_minutes;
     dueDate.value = t.due_date ?? "";
+    milestoneId.value = t.milestone_id ?? null;
+    // 根据 milestoneId 反推 goalId
+    if (t.milestone_id) {
+      const ms = goals.milestones.find((m) => m.id === t.milestone_id);
+      selectedGoalId.value = ms?.goal_id ?? null;
+    } else {
+      selectedGoalId.value = null;
+    }
   },
   { immediate: true },
 );
@@ -52,6 +74,7 @@ async function onSave() {
       quadrant: quadrant.value,
       estimatedMinutes: estimatedMinutes.value ?? undefined,
       dueDate: dueDate.value || undefined,
+      milestoneId: milestoneId.value ?? undefined,
     });
     emit("close");
   } catch (e) {
@@ -123,6 +146,23 @@ async function onSave() {
               <option value="monthly">每月</option>
             </select>
           </label>
+
+          <div class="fl-row">
+            <label class="fl-field fl-half">
+              <span class="fl-label">关联目标</span>
+              <select v-model="selectedGoalId" class="fl-input" @change="milestoneId = null">
+                <option :value="null">无</option>
+                <option v-for="g in goals.goals" :key="g.id" :value="g.id">{{ g.name }}</option>
+              </select>
+            </label>
+            <label class="fl-field fl-half">
+              <span class="fl-label">里程碑</span>
+              <select v-model="milestoneId" class="fl-input" :disabled="!selectedGoalId">
+                <option :value="null">无</option>
+                <option v-for="m in localMilestones" :key="m.id" :value="m.id">{{ m.name }}</option>
+              </select>
+            </label>
+          </div>
 
           <footer class="fl-modal-foot">
             <button class="fl-btn fl-btn-primary" type="submit" :disabled="!name.trim()">

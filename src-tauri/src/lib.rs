@@ -73,6 +73,8 @@ pub fn run() {
             commands::task_commands::get_task_name,
             commands::task_commands::generate_recurring_tasks,
             commands::task_commands::check_shelved_tasks,
+            commands::task_commands::create_task_reflection,
+            commands::task_commands::unshelve_task,
             // timer_state 低层 CRUD (Week 1b)
             commands::timer_commands::get_timer_state,
             commands::timer_commands::update_timer_state,
@@ -136,6 +138,11 @@ pub fn run() {
             commands::stats_commands::get_completion_trend,
             commands::stats_commands::get_time_by_category,
             commands::stats_commands::get_stats_overview,
+            // 窗口管理
+            commands::window_commands::show_main_window,
+            // 通用设置
+            commands::settings_commands::get_setting,
+            commands::settings_commands::set_setting,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

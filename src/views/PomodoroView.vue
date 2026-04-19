@@ -6,15 +6,20 @@
  */
 
 import { Maximize2, Pause, Play, SkipForward, Square } from "lucide-vue-next";
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
+import MicroReview from "@/components/task/MicroReview.vue";
+import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
 
 const timer = useTimerStore();
 const tasks = useTaskStore();
 const router = useRouter();
+
+const showReview = ref(false);
+const reviewDismissed = ref(false);
 
 /** 当前任务名 */
 const taskName = computed(() => {
@@ -86,6 +91,44 @@ const ringColor = computed(() => {
 
 function goBack() {
   router.push("/today");
+}
+
+// 进入 done 态时弹出 MicroReview
+watch(state, (s, old) => {
+  if (s === "done" && old !== "done") {
+    reviewDismissed.value = false;
+    showReview.value = true;
+  }
+});
+
+const currentTaskEstimate = computed(() => {
+  if (!timer.snapshot?.taskId) return null;
+  const t = tasks.tasks.find((x) => x.id === timer.snapshot!.taskId);
+  return t?.estimated_minutes ?? null;
+});
+
+const actualMinutes = computed(() =>
+  timer.snapshot ? Math.floor(timer.snapshot.elapsedSeconds / 60) : 0,
+);
+
+async function onReviewSubmit(data: { reason: string; note: string }) {
+  showReview.value = false;
+  reviewDismissed.value = true;
+  if (!timer.snapshot?.taskId) return;
+  try {
+    await invokeCmd("create_task_reflection", {
+      taskId: timer.snapshot.taskId,
+      plannedMinutes: currentTaskEstimate.value,
+      actualMinutes: actualMinutes.value,
+      overtimeReason: data.reason || null,
+      note: data.note || null,
+    });
+  } catch (e) { console.error("[review] save failed", e); }
+}
+
+function onReviewSkip() {
+  showReview.value = false;
+  reviewDismissed.value = true;
 }
 </script>
 
@@ -182,6 +225,16 @@ function goBack() {
       <span v-if="state === 'free'">🌀 不计入番茄钟数，计入专注时长 · 手动结束</span>
       <span v-else>今日第 {{ timer.snapshot?.pomodoroCount ?? 0 }} 个番茄钟</span>
     </div>
+
+    <!-- 微复盘弹窗 -->
+    <MicroReview
+      :visible="showReview"
+      :task-name="taskName"
+      :estimated-minutes="currentTaskEstimate"
+      :actual-minutes="actualMinutes"
+      @submit="onReviewSubmit"
+      @close="onReviewSkip"
+    />
   </section>
 </template>
 

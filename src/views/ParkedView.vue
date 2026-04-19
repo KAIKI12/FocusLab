@@ -2,6 +2,7 @@
 /**
  * ParkedView · 搁置区 — 对齐 prototype/screens/parked.html。
  * 搁置 ≠ 失败。展示已搁置任务,提供恢复/删除操作。
+ * onMounted 调用 check_shelved_tasks 执行 D30 自动归档。
  */
 
 import { onMounted, ref } from "vue";
@@ -13,16 +14,14 @@ import type { Task } from "@/types";
 const tasks = useTaskStore();
 const shelvedTasks = ref<Task[]>([]);
 const loading = ref(true);
+const staleWarnings = ref<string[]>([]);
 
 async function loadShelved() {
   loading.value = true;
   try {
-    // 查询所有 shelved 的任务
     const all = await invokeCmd<Task[]>("list_tasks", { statusFilter: "pending" });
-    // shelved_at 不为空的
     shelvedTasks.value = all.filter((t) => t.shelved_at);
   } catch {
-    // 如果过滤不行，用完整列表
     shelvedTasks.value = [];
   } finally {
     loading.value = false;
@@ -31,15 +30,21 @@ async function loadShelved() {
 
 async function restoreTask(task: Task) {
   try {
-    // 恢复 = 清除 shelved_at（通过 update）
-    await tasks.update({ id: task.id, name: task.name });
+    await invokeCmd("unshelve_task", { id: task.id });
     shelvedTasks.value = shelvedTasks.value.filter((t) => t.id !== task.id);
   } catch (e) {
     console.error("[parked] restore failed", e);
   }
 }
 
-onMounted(loadShelved);
+onMounted(async () => {
+  // 执行 D30 自动归档，D7-D29 返回提示列表
+  try {
+    const warnings = await invokeCmd<string[]>("check_shelved_tasks");
+    staleWarnings.value = warnings;
+  } catch { /* */ }
+  await loadShelved();
+});
 
 function daysSince(dateStr: string): number {
   const d = new Date(dateStr);
@@ -64,6 +69,14 @@ function daysSince(dateStr: string): number {
         <strong>搁置是一种智慧</strong>
         <p>不是所有任务都适合现在做。搁置它们,等到合适的时候再捡起来。</p>
       </div>
+    </div>
+
+    <!-- D7+ 提醒横幅 -->
+    <div v-if="staleWarnings.length" class="fl-stale-banner">
+      <strong>⏰ 以下任务已搁置超 7 天，考虑恢复或归档：</strong>
+      <ul>
+        <li v-for="(name, i) in staleWarnings" :key="i">{{ name }}</li>
+      </ul>
     </div>
 
     <div v-if="loading" class="fl-empty">载入中…</div>
@@ -141,6 +154,15 @@ function daysSince(dateStr: string): number {
 .fl-phil-icon { font-size: 24px; flex-shrink: 0; }
 .fl-parked-philosophy strong { font-size: var(--fs-14); }
 .fl-parked-philosophy p { font-size: var(--fs-12); color: var(--color-text-secondary); margin: 4px 0 0; }
+
+.fl-stale-banner {
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--color-q3) 10%, var(--color-bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--color-q3) 30%, var(--color-border));
+  border-radius: var(--r-md); font-size: var(--fs-12);
+}
+.fl-stale-banner strong { color: var(--color-q3); }
+.fl-stale-banner ul { margin: var(--sp-2) 0 0; padding-left: var(--sp-4); color: var(--color-text-secondary); }
 
 .fl-parked-list {
   list-style: none;

@@ -6,7 +6,7 @@
  * 右栏: 选中目标的里程碑时间线
  */
 
-import { Plus } from "lucide-vue-next";
+import { Pencil, Plus } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 
 import GoalCard from "@/components/goal/GoalCard.vue";
@@ -15,6 +15,10 @@ import { useGoalStore } from "@/stores/useGoalStore";
 
 const goals = useGoalStore();
 const newGoalName = ref("");
+const editingGoal = ref(false);
+const editGoalName = ref("");
+const editGoalDesc = ref("");
+const editGoalDate = ref("");
 
 const selectedGoal = computed(() =>
   goals.goals.find(g => g.id === goals.selectedGoalId) ?? null,
@@ -40,6 +44,27 @@ async function onAddGoal() {
   const created = await goals.createGoal({ name });
   newGoalName.value = "";
   await goals.selectGoal(created.id);
+}
+
+function startEditGoal() {
+  if (!selectedGoal.value) return;
+  editGoalName.value = selectedGoal.value.name;
+  editGoalDesc.value = selectedGoal.value.description ?? "";
+  editGoalDate.value = selectedGoal.value.target_date ?? "";
+  editingGoal.value = true;
+}
+
+async function saveGoalEdit() {
+  if (!selectedGoal.value || !editGoalName.value.trim()) return;
+  try {
+    await goals.updateGoal({
+      id: selectedGoal.value.id,
+      name: editGoalName.value.trim(),
+      description: editGoalDesc.value || undefined,
+      targetDate: editGoalDate.value || undefined,
+    });
+    editingGoal.value = false;
+  } catch (e) { console.error(e); }
 }
 </script>
 
@@ -87,13 +112,36 @@ async function onAddGoal() {
         <!-- 目标 Hero 卡(对齐原型 milestones.html) -->
         <div v-if="selectedGoal" class="fl-goal-hero">
           <div class="fl-hero-tag">🎯 当前焦点</div>
-          <h2 class="fl-hero-name">{{ selectedGoal.name }}</h2>
-          <p v-if="selectedGoal.description" class="fl-hero-desc">{{ selectedGoal.description }}</p>
-          <div class="fl-hero-meta">
-            <span>已进行 {{ daysSinceCreated }} 天</span>
-            <span>里程碑 {{ goals.milestones.filter(m => m.status === 'completed').length }} / {{ goals.milestones.length }}</span>
-            <span>{{ selectedGoal.status }}</span>
-          </div>
+          <button class="fl-hero-edit-btn" title="编辑目标" @click="startEditGoal">
+            <Pencil :size="12" />
+          </button>
+
+          <!-- 编辑模式 -->
+          <template v-if="editingGoal">
+            <input v-model="editGoalName" class="fl-hero-input" type="text" maxlength="60" placeholder="目标名称" />
+            <textarea v-model="editGoalDesc" class="fl-hero-input fl-hero-textarea" rows="2" placeholder="目标描述(可选)" maxlength="300" />
+            <div class="fl-hero-edit-row">
+              <label class="fl-hero-date-label">
+                目标日期
+                <input v-model="editGoalDate" class="fl-hero-input fl-hero-date" type="date" />
+              </label>
+              <div class="fl-hero-edit-btns">
+                <button class="fl-hero-save" @click="saveGoalEdit">保存</button>
+                <button class="fl-hero-cancel" @click="editingGoal = false">取消</button>
+              </div>
+            </div>
+          </template>
+
+          <!-- 显示模式 -->
+          <template v-else>
+            <h2 class="fl-hero-name">{{ selectedGoal.name }}</h2>
+            <p v-if="selectedGoal.description" class="fl-hero-desc">{{ selectedGoal.description }}</p>
+            <div class="fl-hero-meta">
+              <span>📅 已进行 {{ daysSinceCreated }} 天</span>
+              <span>🏁 里程碑 {{ goals.milestones.filter(m => m.status === 'completed').length }} / {{ goals.milestones.length }}</span>
+              <span v-if="selectedGoal.target_date">🎯 预计 {{ selectedGoal.target_date }}</span>
+            </div>
+          </template>
         </div>
         <MilestoneTimeline />
       </div>
@@ -211,5 +259,37 @@ async function onAddGoal() {
 .fl-hero-meta {
   display: flex; gap: var(--sp-4); font-size: var(--fs-12); color: var(--color-text-muted);
   position: relative;
+}
+
+/* Hero 编辑 */
+.fl-hero-edit-btn {
+  position: absolute; top: var(--sp-3); right: var(--sp-3);
+  background: rgba(255,255,255,0.6); border: none; border-radius: var(--r-sm);
+  color: var(--color-text-muted); cursor: pointer; padding: 4px 6px;
+  opacity: 0; transition: opacity var(--dur-fast);
+}
+.fl-goal-hero:hover .fl-hero-edit-btn { opacity: 1; }
+.fl-hero-edit-btn:hover { color: var(--color-primary); }
+
+.fl-hero-input {
+  width: 100%; padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--color-border); border-radius: var(--r-md);
+  background: var(--color-bg-elevated); color: var(--color-text-primary);
+  font-size: var(--fs-14); outline: none; position: relative;
+}
+.fl-hero-input:focus { border-color: var(--color-primary); }
+.fl-hero-textarea { font-family: inherit; resize: vertical; font-size: var(--fs-12); margin-top: var(--sp-2); }
+.fl-hero-edit-row { display: flex; align-items: flex-end; gap: var(--sp-3); margin-top: var(--sp-2); position: relative; }
+.fl-hero-date-label { font-size: 11px; color: var(--color-text-muted); display: flex; flex-direction: column; gap: 4px; }
+.fl-hero-date { width: 160px; font-size: var(--fs-12); }
+.fl-hero-edit-btns { display: flex; gap: 6px; margin-left: auto; }
+.fl-hero-save {
+  padding: 4px 14px; border-radius: var(--r-md); border: none;
+  background: var(--color-primary); color: #fff; font-size: 11px; cursor: pointer;
+}
+.fl-hero-cancel {
+  padding: 4px 14px; border-radius: var(--r-md);
+  border: 1px solid var(--color-border); background: transparent;
+  color: var(--color-text-secondary); font-size: 11px; cursor: pointer;
 }
 </style>

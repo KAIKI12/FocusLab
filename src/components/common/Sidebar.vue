@@ -8,6 +8,7 @@
 
 import {
   Archive,
+  Award,
   Calendar,
   CalendarCheck,
   ChevronLeft,
@@ -15,6 +16,7 @@ import {
   Settings,
   Target,
   TrendingUp,
+  User,
 } from "lucide-vue-next";
 import { useRoute } from "vue-router";
 
@@ -29,6 +31,8 @@ const nav = [
   { to: "/calendar", label: "日历", icon: Calendar },
   { to: "/stats", label: "数据洞察", icon: TrendingUp },
   { to: "/parked", label: "搁置区", icon: Archive },
+  { to: "/badges", label: "成就", icon: Award },
+  { to: "/persona", label: "人格", icon: User },
   { to: "/settings", label: "设置", icon: Settings },
 ];
 </script>

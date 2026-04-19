@@ -15,6 +15,7 @@ import MorningGuide from "@/components/common/MorningGuide.vue";
 import { invokeCmd } from "@/composables/useTauriInvoke";
 import PresetSwitcher from "@/components/timer/PresetSwitcher.vue";
 import QuadrantGrid from "@/components/task/QuadrantGrid.vue";
+import QuickAddModal from "@/components/task/QuickAddModal.vue";
 import TaskEditModal from "@/components/task/TaskEditModal.vue";
 import YesterdayCard from "@/components/settlement/YesterdayCard.vue";
 import { useBubble } from "@/composables/useBubble";
@@ -23,6 +24,8 @@ import { useGoalStore } from "@/stores/useGoalStore";
 import { useSettlementStore } from "@/stores/useSettlementStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
+import { useUIStore } from "@/stores/useUIStore";
+import { useAIStore } from "@/stores/useAIStore";
 import type { Task } from "@/types";
 
 const tasks = useTaskStore();
@@ -30,6 +33,8 @@ const assignments = useAssignmentStore();
 const timer = useTimerStore();
 const settlement = useSettlementStore();
 const goals = useGoalStore();
+const ui = useUIStore();
+const ai = useAIStore();
 const { open: openBubble } = useBubble();
 const router = useRouter();
 
@@ -39,6 +44,9 @@ const viewMode = ref<"list" | "quadrant">("list");
 const editingTask = ref<Task | null>(null);
 const showManualSession = ref(false);
 const showMorningGuide = ref(false);
+const goalLabels = ref<Record<string, string>>({});
+const aiSuggestion = ref("优先处理紧急重要象限的任务，上午注意力最佳时段可一鼓作气拿下核心任务。");
+const aiLoading = ref(false);
 
 onMounted(async () => {
   // 到期任务自动置顶 + 重复任务生成
@@ -47,12 +55,30 @@ onMounted(async () => {
     invokeCmd("generate_recurring_tasks").catch(() => {}),
   ]);
   await Promise.all([tasks.load(), assignments.load(), goals.loadGoals()]);
+  // 构建 milestone_id → 目标名 映射
+  for (const g of goals.goals) {
+    try {
+      const ms = await invokeCmd<Array<{ id: string }>>( "list_milestones", { goalId: g.id });
+      for (const m of ms) { goalLabels.value[m.id] = `🎯 ${g.name}`; }
+    } catch { /* */ }
+  }
   // 每日自动弹出晨起引导(当日未完成过)
   const today = new Date().toISOString().slice(0, 10);
   if (!localStorage.getItem(`fl-morning-${today}`)) {
     showMorningGuide.value = true;
   }
+  // 获取 AI 建议(异步，不阻塞)
+  loadAISuggestion();
 });
+
+async function loadAISuggestion() {
+  aiLoading.value = true;
+  try {
+    const text = await ai.dailySuggestions();
+    if (text) aiSuggestion.value = text;
+  } catch { /* fallback 保持默认文案 */ }
+  finally { aiLoading.value = false; }
+}
 
 const assignedTaskIds = computed(
   () => new Set(assignments.assignments.map((a) => a.taskId)),
@@ -274,6 +300,7 @@ function fmtMin(m: number): string {
             v-if="viewMode === 'quadrant' && tasks.tasks.length"
             :tasks-by-quadrant="tasks.tasksByQuadrant"
             :timer-idle="timer.isIdle"
+            :goal-labels="goalLabels"
             @edit="editingTask = $event"
             @start="onStartPomodoro($event)"
             @change-quadrant="onChangeQuadrant"
@@ -307,6 +334,7 @@ function fmtMin(m: number): string {
                       <span v-if="t.estimated_minutes">{{ t.estimated_minutes }}m</span>
                       <span v-if="t.is_background" class="fl-chip fl-chip-bg">后台</span>
                       <span v-if="t.due_date" class="fl-chip fl-chip-due">📅 {{ t.due_date.slice(5) }}</span>
+                      <span v-if="t.milestone_id && goalLabels[t.milestone_id]" class="fl-chip fl-chip-goal">{{ goalLabels[t.milestone_id] }}</span>
                     </div>
                   </div>
                   <div class="fl-t-actions">
@@ -346,7 +374,7 @@ function fmtMin(m: number): string {
             <input
               v-model="name"
               type="text"
-              placeholder="添加新任务…"
+              placeholder="添加新任务… (⌘N 详细添加)"
               maxlength="80"
             />
             <label class="fl-bg-toggle" :title="isBackground ? '后台任务' : '主动任务'">
@@ -354,6 +382,7 @@ function fmtMin(m: number): string {
               <span class="fl-bg-chip" :class="{ 'is-on': isBackground }">后台</span>
             </label>
             <button type="submit" :disabled="!name.trim()">添加</button>
+            <button type="button" class="fl-quick-add-btn" @click="ui.showQuickAdd = true" title="⌘N 快速添加">+</button>
           </form>
         </div>
       </div>
@@ -364,12 +393,13 @@ function fmtMin(m: number): string {
         <div class="fl-ai-card">
           <div class="fl-ai-head">
             <div class="fl-ai-avatar">✨</div>
-            <div>
+            <div style="flex:1">
               <div class="fl-ai-title">今日小建议</div>
-              <div class="fl-ai-text">
-                优先处理紧急重要象限的任务，上午注意力最佳时段可一鼓作气拿下核心任务。
+              <div class="fl-ai-text" :class="{ 'is-loading': aiLoading }">
+                {{ aiLoading ? '正在生成建议...' : aiSuggestion }}
               </div>
             </div>
+            <button class="fl-ai-refresh" title="刷新建议" :disabled="aiLoading" @click="loadAISuggestion">🔄</button>
           </div>
           <div v-if="settlement.yesterday" class="fl-ai-yesterday">
             🌅 昨日 {{ settlement.yesterday.completedTasks }}/{{ settlement.yesterday.totalTasks }}
@@ -437,6 +467,7 @@ function fmtMin(m: number): string {
 
     <!-- 弹窗 -->
     <TaskEditModal :task="editingTask" @close="editingTask = null" />
+    <QuickAddModal :visible="ui.showQuickAdd" @close="ui.showQuickAdd = false" @created="ui.showQuickAdd = false" />
     <ManualSessionModal :visible="showManualSession" @close="showManualSession = false" />
     <MorningGuide :visible="showMorningGuide" @close="showMorningGuide = false" />
   </section>
@@ -631,6 +662,7 @@ function fmtMin(m: number): string {
 .fl-chip { padding: 1px 6px; border-radius: var(--r-xs); font-size: 11px; }
 .fl-chip-bg { background: color-mix(in srgb, var(--color-q4) 12%, transparent); color: var(--color-q4); }
 .fl-chip-due { background: color-mix(in srgb, var(--color-q3) 12%, transparent); color: var(--color-q3); }
+.fl-chip-goal { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); }
 
 .fl-t-actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--dur-fast); }
 .fl-task-item:hover .fl-t-actions { opacity: 1; }
@@ -674,6 +706,16 @@ function fmtMin(m: number): string {
   transition: all var(--dur-fast);
 }
 .fl-bg-chip.is-on { border-color: var(--color-q4); color: var(--color-q4); background: color-mix(in srgb, var(--color-q4) 12%, transparent); }
+
+.fl-quick-add-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary); color: #fff;
+  font-size: 16px; font-weight: 600;
+  cursor: pointer; display: grid; place-items: center;
+  transition: opacity var(--dur-fast);
+}
+.fl-quick-add-btn:hover { opacity: 0.85; }
 .fl-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
 
 /* ---------- Right Rail ---------- */
@@ -690,6 +732,14 @@ function fmtMin(m: number): string {
 }
 .fl-ai-title { font-weight: var(--fw-medium); margin-bottom: 2px; font-size: var(--fs-14); }
 .fl-ai-text { font-size: var(--fs-12); color: var(--color-text-secondary); line-height: 1.6; }
+.fl-ai-text.is-loading { opacity: 0.5; font-style: italic; }
+.fl-ai-refresh {
+  background: none; border: none; font-size: 14px;
+  cursor: pointer; padding: 4px; border-radius: var(--r-sm);
+  flex-shrink: 0; align-self: flex-start;
+}
+.fl-ai-refresh:hover { background: var(--color-bg-hover); }
+.fl-ai-refresh:disabled { opacity: 0.3; cursor: not-allowed; }
 .fl-ai-yesterday {
   font-size: var(--fs-12); color: var(--color-text-secondary);
   padding-top: var(--sp-2); border-top: 1px solid color-mix(in srgb, var(--color-primary) 14%, transparent);

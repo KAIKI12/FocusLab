@@ -3,10 +3,10 @@
  * BubbleView · 悬浮球 — 拖拽零延迟 + Mini Panel 对齐原型浅色设计。
  */
 
-import { listen, emit, type UnlistenFn } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { getCurrentWindow, getAllWindows } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LogicalSize, LogicalPosition } from "@tauri-apps/api/dpi";
 
 import type { TimerSnapshot, TimerStatus } from "@/types";
@@ -177,16 +177,7 @@ async function onSkipBreak() { try { await invoke("skip_break"); } catch {} }
 
 async function focusMainWindow() {
   try {
-    // 方式1: 发事件让主窗口自己激活
-    await emit("bubble:open-main", {});
-    // 方式2: 直接操作窗口(备选)
-    const all = await getAllWindows();
-    const main = all.find(w => w.label !== "bubble");
-    if (main) {
-      await main.show();
-      await main.unminimize();
-      await main.setFocus();
-    }
+    await invoke("show_main_window");
   } catch (e) { console.error("[bubble] focusMainWindow failed", e); }
 }
 
@@ -354,7 +345,7 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
 
 /* ===== 圆球 ===== */
 .fl-orb {
-  width: 64px; height: 64px; border-radius: 50%;
+  width: 100%; height: 100%; border-radius: 50%;
   position: relative; cursor: pointer; user-select: none;
   display: flex; align-items: center; justify-content: center;
 }
@@ -376,7 +367,7 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
   50% { box-shadow: 0 4px 28px rgba(82,196,26,0.8), 0 0 0 6px rgba(82,196,26,0.2); }
 }
 
-.fl-orb-ring { position: absolute; inset: 0; width: 64px; height: 64px; }
+.fl-orb-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
 .fl-free-ring {
   position: absolute; inset: -3px; border-radius: 50%;
   border: 2px dashed rgba(255,255,255,0.6);

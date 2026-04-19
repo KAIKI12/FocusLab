@@ -8,6 +8,7 @@ import { ref } from "vue";
 export const useUIStore = defineStore("ui", () => {
   const sidebarCollapsed = ref(false);
   const showInterruptionDialog = ref(false);
+  const showQuickAdd = ref(false);
   const soundEnabled = ref(true);
 
   function toggleSidebar() {
@@ -18,5 +19,5 @@ export const useUIStore = defineStore("ui", () => {
     soundEnabled.value = !soundEnabled.value;
   }
 
-  return { sidebarCollapsed, toggleSidebar, showInterruptionDialog, soundEnabled, toggleSound };
+  return { sidebarCollapsed, toggleSidebar, showInterruptionDialog, showQuickAdd, soundEnabled, toggleSound };
 });

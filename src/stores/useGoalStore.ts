@@ -47,6 +47,16 @@ export const useGoalStore = defineStore("goal", () => {
     }
   }
 
+  async function updateGoal(input: { id: string; name?: string; description?: string; targetDate?: string }) {
+    await invokeCmd<void>("update_goal", { input });
+    const target = goals.value.find((g) => g.id === input.id);
+    if (target) {
+      if (input.name) target.name = input.name;
+      if (input.description !== undefined) target.description = input.description || null;
+      if (input.targetDate !== undefined) target.target_date = input.targetDate || null;
+    }
+  }
+
   async function createMilestone(input: CreateMilestoneInput) {
     const created = await invokeCmd<Milestone>("create_milestone", { input });
     milestones.value.push(created);
@@ -62,6 +72,16 @@ export const useGoalStore = defineStore("goal", () => {
     }
   }
 
+  async function updateMilestone(input: { id: string; name?: string; description?: string; status?: string }) {
+    await invokeCmd<void>("update_milestone", { input });
+    const target = milestones.value.find((m) => m.id === input.id);
+    if (target) {
+      if (input.name) target.name = input.name;
+      if (input.description !== undefined) target.description = input.description || null;
+      if (input.status) target.status = input.status;
+    }
+  }
+
   return {
     goals,
     milestones,
@@ -72,7 +92,9 @@ export const useGoalStore = defineStore("goal", () => {
     selectGoal,
     createGoal,
     archiveGoal,
+    updateGoal,
     createMilestone,
     completeMilestone,
+    updateMilestone,
   };
 });

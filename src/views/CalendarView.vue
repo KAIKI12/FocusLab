@@ -184,7 +184,9 @@ watch([year, month], loadMonth);
 
     <!-- Day Detail 面板 -->
     <aside v-if="selectedDate" class="fl-day-detail">
-      <h2 class="fl-dd-title">{{ selectedDate }}</h2>
+      <h2 class="fl-dd-title">
+        {{ new Date(selectedDate + 'T00:00').toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }) }}
+      </h2>
 
       <!-- 评级摘要 -->
       <div v-if="summaryMap.has(selectedDate)" class="fl-dd-summary">
@@ -200,6 +202,16 @@ watch([year, month], loadMonth);
         <span class="fl-dd-stat">
           {{ summaryMap.get(selectedDate)!.totalFocusMinutes }} 分钟专注
         </span>
+        <div class="fl-dd-progress">
+          <div
+            class="fl-dd-progress-fill"
+            :style="{
+              width: (summaryMap.get(selectedDate)!.totalTasks > 0
+                ? Math.round(summaryMap.get(selectedDate)!.completedTasks / summaryMap.get(selectedDate)!.totalTasks * 100)
+                : 0) + '%'
+            }"
+          />
+        </div>
       </div>
       <div v-else class="fl-dd-no-settle">未结算</div>
 
@@ -416,6 +428,16 @@ watch([year, month], loadMonth);
   padding: 2px var(--sp-2);
   background: var(--color-bg-subtle);
   border-radius: var(--r-pill);
+}
+
+.fl-dd-progress {
+  width: 100%; height: 4px; border-radius: 2px;
+  background: var(--color-bg-hover); margin-top: var(--sp-2);
+}
+.fl-dd-progress-fill {
+  height: 100%; border-radius: 2px;
+  background: var(--color-primary);
+  transition: width 0.3s var(--ease-smooth);
 }
 
 .fl-dd-no-settle {
