@@ -1,43 +1,71 @@
 <script setup lang="ts">
 /**
- * SettlementDialog · 日结算弹窗(3 步 flow)。
- *
- * Step 1: 数据摘要(任务/专注时长/番茄数)
- * Step 2: 评级展示 + AI 叙事占位
- * Step 3: 完成(关闭)
+ * SettlementDialog · 日结算弹窗 — 对齐 prototype/screens/settlement.html。
+ * S/A/B/C 四套渐变头部 + 详细数据 + 时间分布 + AI 寄语 + 感想 + 温和未完成处理。
  */
 
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 
-import GradeBadge from "@/components/settlement/GradeBadge.vue";
 import ParticleEffect from "@/components/settlement/ParticleEffect.vue";
+import { useAIStore } from "@/stores/useAIStore";
 import { useSettlementStore } from "@/stores/useSettlementStore";
 
 const store = useSettlementStore();
-const step = ref(1);
-
+const ai = useAIStore();
 const s = computed(() => store.settlement);
+const reflection = ref("");
+const aiNarrative = ref("");
+const loadingAI = ref(false);
 
-function nextStep() {
-  if (step.value < 3) {
-    step.value++;
-  } else {
-    step.value = 1;
-    store.closeDialog();
-  }
-}
+// 结算打开时尝试生成 AI 叙事
+watch(
+  () => store.showDialog,
+  async (v) => {
+    if (v && s.value) {
+      reflection.value = "";
+      aiNarrative.value = "";
+      try {
+        loadingAI.value = true;
+        aiNarrative.value = await ai.generateNarrative(
+          s.value.grade, s.value.completedTasks, s.value.totalTasks,
+          s.value.totalFocusMinutes,
+        );
+      } catch { /* AI 可选 */ } finally { loadingAI.value = false; }
+    }
+  },
+);
 
-function fmtMinutes(min: number): string {
-  if (min < 60) return `${min} 分钟`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m > 0 ? `${h} 小时 ${m} 分` : `${h} 小时`;
-}
+const GRADE_CONFIG: Record<string, {
+  emoji: string; title: string; desc: string; heroCls: string;
+}> = {
+  S: { emoji: "✨", title: "超额完成 · 加冕日", desc: "你今天真的很棒", heroCls: "fl-hero-s" },
+  A: { emoji: "🌟", title: "完美完成", desc: "计划内全部搞定", heroCls: "fl-hero-a" },
+  B: { emoji: "☁️", title: "基本完成", desc: "也是扎实的一天", heroCls: "fl-hero-b" },
+  C: { emoji: "🌱", title: "今天有点忙", desc: "没关系 · 明天重新开始", heroCls: "fl-hero-c" },
+};
+
+const cfg = computed(() => GRADE_CONFIG[s.value?.grade ?? "C"] ?? GRADE_CONFIG.C);
 
 const rateText = computed(() => {
   if (!s.value) return "0%";
   return `${Math.round(s.value.completionRate * 100)}%`;
 });
+
+const barWidth = computed(() => {
+  if (!s.value) return "0%";
+  return `${Math.min(Math.round(s.value.completionRate * 100), 120)}%`;
+});
+
+function fmtMin(m: number): string {
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return r > 0 ? `${h}h ${r}m` : `${h}h`;
+}
+
+function onClose() {
+  store.closeDialog();
+}
 </script>
 
 <template>
@@ -48,61 +76,87 @@ const rateText = computed(() => {
       role="presentation"
     >
       <div class="fl-sd-card" role="dialog" aria-modal="true">
-        <!-- S/A 级粒子特效 -->
-        <ParticleEffect v-if="step === 2 && (s.grade === 'S' || s.grade === 'A')" :grade="s.grade" />
-        <!-- Step 1: 数据摘要 -->
-        <template v-if="step === 1">
-          <h2 class="fl-sd-title">今日回顾</h2>
-          <div class="fl-sd-stats">
-            <div class="fl-sd-stat">
-              <span class="fl-sd-num">{{ s.completedTasks }}</span>
-              <span class="fl-sd-label">完成任务</span>
+        <!-- Hero 头部(按等级变色) -->
+        <div class="fl-sd-hero" :class="cfg.heroCls">
+          <!-- S/A 级粒子特效 -->
+          <ParticleEffect v-if="s.grade === 'S' || s.grade === 'A'" :grade="s.grade" />
+
+          <div class="fl-hero-date">{{ s.settleDate }}</div>
+          <div class="fl-hero-title">{{ cfg.emoji }} {{ cfg.title }}</div>
+          <div class="fl-hero-grade">{{ s.grade }}</div>
+          <div class="fl-hero-desc">{{ cfg.desc }}</div>
+
+          <!-- 进度条 -->
+          <div class="fl-hero-progress">
+            <div class="fl-hero-bar" :style="{ width: barWidth }" />
+          </div>
+          <div class="fl-hero-pct">
+            {{ rateText }}
+            <small>{{ s.completedTasks }} / {{ s.totalTasks - s.extraTasks }}
+              <template v-if="s.extraTasks > 0"> + {{ s.extraTasks }} 额外</template>
+            </small>
+          </div>
+        </div>
+
+        <!-- 数据区 -->
+        <div class="fl-sd-body">
+          <div class="fl-section-label">📊 今日数据</div>
+          <div class="fl-data-rows">
+            <div class="fl-data-row">
+              <span class="fl-data-label">总专注</span>
+              <span class="fl-data-value">{{ fmtMin(s.totalFocusMinutes) }}</span>
             </div>
-            <div class="fl-sd-stat">
-              <span class="fl-sd-num">{{ fmtMinutes(s.totalFocusMinutes) }}</span>
-              <span class="fl-sd-label">专注时长</span>
+            <div class="fl-data-row fl-data-sub">
+              <span>🍅 番茄</span>
+              <span>{{ s.totalPomodoros }} 个</span>
             </div>
-            <div class="fl-sd-stat">
-              <span class="fl-sd-num">{{ s.totalPomodoros }}</span>
-              <span class="fl-sd-label">番茄钟</span>
+            <div class="fl-data-row">
+              <span class="fl-data-label">完成任务</span>
+              <span class="fl-data-value">
+                {{ s.completedTasks }} / {{ s.totalTasks }}
+              </span>
+            </div>
+            <div class="fl-data-row">
+              <span class="fl-data-label">中断次数</span>
+              <span class="fl-data-value">{{ s.totalInterruptions }} 次</span>
+            </div>
+            <div v-if="s.longestFocusMinutes" class="fl-data-row">
+              <span class="fl-data-label">最久专注</span>
+              <span class="fl-data-value">{{ fmtMin(s.longestFocusMinutes) }}</span>
             </div>
           </div>
-          <p class="fl-sd-detail">
-            计划 {{ s.totalTasks - s.extraTasks }} 项,完成率 {{ rateText }}
-            <template v-if="s.extraTasks > 0">
-              · 额外完成 {{ s.extraTasks }} 项
-            </template>
-          </p>
-        </template>
 
-        <!-- Step 2: 评级 -->
-        <template v-else-if="step === 2">
-          <h2 class="fl-sd-title">评级</h2>
-          <div class="fl-sd-grade-area">
-            <GradeBadge :grade="s.grade as 'S' | 'A' | 'B' | 'C'" />
-            <div class="fl-sd-grade-text">
-              <template v-if="s.grade === 'S'">太棒了!完成全部计划还做了额外任务</template>
-              <template v-else-if="s.grade === 'A'">完美!今天计划全部完成</template>
-              <template v-else-if="s.grade === 'B'">不错,完成了大部分计划</template>
-              <template v-else>计划赶不上变化,调整一下明天继续</template>
+          <!-- AI 寄语 -->
+          <div v-if="aiNarrative || loadingAI" class="fl-ai-msg">
+            <div class="fl-ai-avatar">✨</div>
+            <div class="fl-ai-body">
+              <template v-if="loadingAI">正在生成…</template>
+              <template v-else>{{ aiNarrative }}</template>
             </div>
           </div>
-          <div v-if="s.aiSummary" class="fl-sd-ai">
-            {{ s.aiSummary }}
+
+          <!-- 感想输入 -->
+          <div class="fl-reflect">
+            <span style="color:var(--color-text-muted)">✏️</span>
+            <input
+              v-model="reflection"
+              type="text"
+              :placeholder="s.grade === 'C' ? '写给明天的自己...' : '今日感想 (可选)'"
+              maxlength="120"
+            />
+            <span class="fl-reflect-count">{{ reflection.length }} / 120</span>
           </div>
-        </template>
+        </div>
 
-        <!-- Step 3: 完成 -->
-        <template v-else>
-          <h2 class="fl-sd-title">结算完成</h2>
-          <p class="fl-sd-done">
-            未完成的计划任务已自动带入明天。休息好,明天继续加油!
-          </p>
-        </template>
-
-        <button class="fl-sd-next" type="button" @click="nextStep">
-          {{ step < 3 ? '下一步' : '关闭' }}
-        </button>
+        <!-- 底部操作 -->
+        <div class="fl-sd-foot">
+          <button class="fl-sd-btn fl-sd-btn-ghost" type="button" @click="onClose">
+            关闭
+          </button>
+          <button class="fl-sd-btn fl-sd-btn-primary" type="button" @click="onClose">
+            保存结算
+          </button>
+        </div>
       </div>
     </div>
   </Transition>
@@ -120,103 +174,127 @@ const rateText = computed(() => {
 }
 
 .fl-sd-card {
-  position: relative;
-  overflow: hidden;
-  width: min(440px, 100%);
+  width: min(480px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-modal);
-  padding: var(--sp-6);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--sp-5);
+}
+
+/* ---------- Hero ---------- */
+.fl-sd-hero {
+  position: relative;
+  padding: var(--sp-6) var(--sp-5) var(--sp-5);
   text-align: center;
+  overflow: hidden;
+  color: #fff;
 }
 
-.fl-sd-title {
-  margin: 0;
-  font-size: var(--fs-20, 20px);
-  font-weight: var(--fw-semibold);
-  color: var(--color-text-primary);
+.fl-hero-s { background: linear-gradient(135deg, var(--color-gold, #FAAD14), var(--color-q3, #FF8C00) 60%, var(--color-q1, #F56C6C)); }
+.fl-hero-a { background: linear-gradient(135deg, var(--color-gold, #FAAD14), #FFD666); }
+.fl-hero-b { background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)); }
+.fl-hero-c { background: linear-gradient(135deg, #8C8C8C, #B2B6C2); }
+
+.fl-hero-date { font-size: var(--fs-12); opacity: 0.85; margin-bottom: var(--sp-3); }
+.fl-hero-title { font-size: var(--fs-16); font-weight: var(--fw-medium); margin-bottom: var(--sp-3); }
+.fl-hero-grade {
+  font-size: 80px; font-weight: var(--fw-bold); line-height: 1;
+  letter-spacing: -3px; margin-bottom: var(--sp-2);
+  text-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.fl-hero-s .fl-hero-grade {
+  background: linear-gradient(180deg, #FFF8E1, #FFE58F);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 16px rgba(255,235,130,0.5));
+}
+.fl-hero-desc { font-size: var(--fs-14); opacity: 0.95; }
+
+.fl-hero-progress {
+  margin-top: var(--sp-4); height: 10px;
+  background: rgba(255,255,255,0.3); border-radius: var(--r-pill); overflow: hidden;
+}
+.fl-hero-bar { height: 100%; border-radius: var(--r-pill); }
+.fl-hero-s .fl-hero-bar {
+  background: linear-gradient(90deg, #FFB347, #FFD700, #FF7A7A, #B87FFF, var(--color-primary));
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+  box-shadow: 0 0 16px rgba(255,221,102,0.7);
+}
+@keyframes shimmer { 0% { background-position: 0% 0; } 100% { background-position: 200% 0; } }
+.fl-hero-a .fl-hero-bar { background: #FFF8E1; box-shadow: 0 0 12px rgba(255,235,130,0.8); }
+.fl-hero-b .fl-hero-bar { background: rgba(255,255,255,0.92); }
+.fl-hero-c .fl-hero-bar { background: rgba(255,255,255,0.7); }
+
+.fl-hero-pct {
+  margin-top: var(--sp-3); font-family: var(--font-mono);
+  font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.5px;
+}
+.fl-hero-pct small { font-size: var(--fs-12); opacity: 0.7; font-family: var(--font-sans); margin-left: 6px; }
+
+/* ---------- Body ---------- */
+.fl-sd-body {
+  padding: var(--sp-5);
+  display: flex; flex-direction: column; gap: var(--sp-4);
 }
 
-.fl-sd-stats {
-  display: flex;
-  gap: var(--sp-5);
-}
-.fl-sd-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-1);
-}
-.fl-sd-num {
-  font-size: var(--fs-20, 20px);
-  font-weight: var(--fw-semibold);
-  color: var(--color-primary);
-}
-.fl-sd-label {
-  font-size: var(--fs-12);
-  color: var(--color-text-muted);
+.fl-section-label {
+  font-size: var(--fs-12); text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--color-text-muted); font-weight: var(--fw-medium);
 }
 
-.fl-sd-detail {
-  margin: 0;
-  font-size: var(--fs-12);
-  color: var(--color-text-secondary);
-}
-
-.fl-sd-grade-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-3);
-}
-.fl-sd-grade-text {
+.fl-data-rows { display: flex; flex-direction: column; gap: 8px; }
+.fl-data-row {
+  display: flex; align-items: center; justify-content: space-between;
   font-size: var(--fs-14);
-  color: var(--color-text-secondary);
-  max-width: 300px;
 }
+.fl-data-label { color: var(--color-text-secondary); }
+.fl-data-value { font-family: var(--font-mono); font-weight: var(--fw-semibold); }
+.fl-data-sub { padding-left: var(--sp-4); font-size: var(--fs-12); color: var(--color-text-secondary); }
 
-.fl-sd-ai {
-  font-size: var(--fs-12);
-  color: var(--color-text-secondary);
-  padding: var(--sp-3) var(--sp-4);
+.fl-ai-msg {
+  display: flex; gap: var(--sp-2); padding: var(--sp-3);
+  border-radius: var(--r-sm); background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border); font-size: var(--fs-12); line-height: 1.6;
+}
+.fl-ai-avatar {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--color-primary), #B87FFF);
+  display: grid; place-items: center; font-size: 14px;
+}
+.fl-ai-body { color: var(--color-text-secondary); }
+
+.fl-reflect {
+  display: flex; gap: var(--sp-2); align-items: center;
+  padding: 10px 12px; background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border); border-radius: var(--r-sm);
+}
+.fl-reflect input {
+  flex: 1; border: none; outline: none; background: transparent;
+  font-size: var(--fs-14); color: var(--color-text-primary);
+}
+.fl-reflect input::placeholder { color: var(--color-text-muted); }
+.fl-reflect-count { font-size: 11px; color: var(--color-text-muted); font-family: var(--font-mono); }
+
+/* ---------- Footer ---------- */
+.fl-sd-foot {
+  display: flex; gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--color-border);
   background: var(--color-bg-subtle);
-  border-radius: var(--r-md);
-  text-align: left;
-  line-height: 1.6;
 }
+.fl-sd-btn {
+  flex: 1; padding: var(--sp-2) var(--sp-4); border-radius: var(--r-md);
+  font-size: var(--fs-12); font-weight: var(--fw-medium); cursor: pointer; border: none;
+}
+.fl-sd-btn-primary { background: var(--color-primary); color: #fff; }
+.fl-sd-btn-primary:hover { background: var(--color-primary-dark); }
+.fl-sd-btn-ghost { background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border); }
 
-.fl-sd-done {
-  margin: 0;
-  font-size: var(--fs-14);
-  color: var(--color-text-secondary);
-}
-
-.fl-sd-next {
-  padding: var(--sp-3) var(--sp-6);
-  border-radius: var(--r-md);
-  border: none;
-  background: var(--color-primary);
-  color: var(--color-text-on-primary);
-  font-size: var(--fs-14);
-  font-weight: var(--fw-medium);
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-smooth);
-}
-.fl-sd-next:hover {
-  background: var(--color-primary-dark);
-}
-
-.fl-fade-enter-active,
-.fl-fade-leave-active {
-  transition: opacity var(--dur-base) var(--ease-smooth);
-}
-.fl-fade-enter-from,
-.fl-fade-leave-to {
-  opacity: 0;
-}
+/* ---------- Transitions ---------- */
+.fl-fade-enter-active, .fl-fade-leave-active { transition: opacity var(--dur-base) var(--ease-smooth); }
+.fl-fade-enter-from, .fl-fade-leave-to { opacity: 0; }
 </style>
