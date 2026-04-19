@@ -76,8 +76,10 @@ function onClose() {
 }
 
 async function carryOver(a: AssignmentWithTask) {
-  // 标记为 carried_forward，后端 settle_day 已处理 carry-over
-  pendingTasks.value = pendingTasks.value.filter(t => t.id !== a.id);
+  try {
+    await invokeCmd("update_assignment_status", { id: a.id, dayStatus: "carried_forward" });
+    pendingTasks.value = pendingTasks.value.filter(t => t.id !== a.id);
+  } catch (e) { console.error("[settle] carryOver failed", e); }
 }
 
 async function shelveTask(a: AssignmentWithTask) {
