@@ -6,8 +6,7 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { getCurrentWindow, getAllWindows } from "@tauri-apps/api/window";
 import { LogicalSize, LogicalPosition } from "@tauri-apps/api/dpi";
 
 import type { TimerSnapshot, TimerStatus } from "@/types";
@@ -160,9 +159,15 @@ async function onSkipBreak() { try { await invoke("skip_break"); } catch {} }
 
 async function focusMainWindow() {
   try {
-    const main = await WebviewWindow.getByLabel("main");
-    if (main) { await main.unminimize(); await main.setFocus(); }
-  } catch {}
+    // getAllWindows 返回 Window[] (有 show/unminimize/setFocus)
+    const all = await getAllWindows();
+    const main = all.find(w => w.label !== "bubble");
+    if (main) {
+      await main.show();
+      await main.unminimize();
+      await main.setFocus();
+    }
+  } catch (e) { console.error("[bubble] focusMainWindow failed", e); }
 }
 
 async function closeBubble() { await appWindow.close(); }
