@@ -41,6 +41,8 @@ export interface UpdateTaskInput {
   dueDate?: string;
   isBackground?: boolean;
   milestoneId?: string;
+  /** 三态轮转:pending | in_progress | completed */
+  status?: "pending" | "in_progress" | "completed";
 }
 
 // ---------- TimerState ----------
@@ -161,6 +163,8 @@ export interface AssignmentWithTask {
   taskId: string;
   taskName: string;
   taskQuadrant: string;
+  /** 任务全局生命周期:pending | in_progress | completed */
+  taskStatus: "pending" | "in_progress" | "completed";
   isPlanned: boolean;
   source: AssignmentSource;
   dayStatus: DayStatus;

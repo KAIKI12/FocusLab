@@ -26,7 +26,7 @@ import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
 import { useUIStore } from "@/stores/useUIStore";
 import { useAIStore } from "@/stores/useAIStore";
-import type { Task } from "@/types";
+import type { AssignmentWithTask, Task } from "@/types";
 
 const tasks = useTaskStore();
 const assignments = useAssignmentStore();
@@ -165,6 +165,42 @@ async function onStartPomodoro(taskId: string) {
 
 async function onChangeQuadrant(taskId: string, quadrant: string) {
   try { await tasks.update({ id: taskId, quadrant }); } catch (e) { console.error(e); }
+}
+
+/** 三态轮转的提示文字 */
+const CYCLE_TITLE: Record<string, string> = {
+  pending: "点击进入进行中",
+  in_progress: "点击标记完成",
+  completed: "点击恢复待办",
+};
+function cycleTitle(status: string): string {
+  return CYCLE_TITLE[status] ?? "切换状态";
+}
+
+async function onCycleTask(t: Task) {
+  try {
+    const next = await tasks.cycleStatus(t.id, t.status);
+    // 列表 A/B 存在任务实体共享的情况:同步今日计划里的 taskStatus 快照
+    const a = assignments.assignments.find((x: AssignmentWithTask) => x.taskId === t.id);
+    if (a) await syncAssignmentAfterCycle(a, next);
+  } catch (e) { console.error(e); }
+}
+
+async function onCycleAssignment(a: AssignmentWithTask) {
+  try {
+    const next = await tasks.cycleStatus(a.taskId, a.taskStatus);
+    await syncAssignmentAfterCycle(a, next);
+  } catch (e) { console.error(e); }
+}
+
+/** 双写:taskStatus → completed 时连带 dayStatus=completed;回退则 dayStatus=pending */
+async function syncAssignmentAfterCycle(a: AssignmentWithTask, next: "pending" | "in_progress" | "completed") {
+  a.taskStatus = next;
+  if (next === "completed") {
+    if (a.dayStatus !== "completed") await assignments.setStatus(a.id, "completed");
+  } else if (a.dayStatus === "completed") {
+    await assignments.setStatus(a.id, "pending");
+  }
 }
 
 function fmtMin(m: number): string {
@@ -325,8 +361,17 @@ function fmtMin(m: number): string {
                   class="fl-task-item"
                   :class="{ 'is-done': t.status === 'completed' }"
                 >
-                  <button class="fl-check" type="button" @click="tasks.complete(t.id)">
-                    <Check :size="12" />
+                  <button
+                    class="fl-check"
+                    type="button"
+                    :class="{
+                      'is-checked': t.status === 'completed',
+                      'is-progress': t.status === 'in_progress',
+                    }"
+                    :title="cycleTitle(t.status)"
+                    @click="onCycleTask(t)"
+                  >
+                    <Check v-if="t.status === 'completed'" :size="12" />
                   </button>
                   <div class="fl-t-body">
                     <div class="fl-t-name">{{ t.name }}</div>
@@ -439,14 +484,18 @@ function fmtMin(m: number): string {
               v-for="a in assignments.assignments"
               :key="a.id"
               class="fl-plan-item"
-              :class="{ 'is-done': a.dayStatus === 'completed' }"
+              :class="{ 'is-done': a.taskStatus === 'completed' }"
             >
               <button
                 class="fl-check fl-check-sm"
-                :class="{ 'is-checked': a.dayStatus === 'completed' }"
-                @click="assignments.setStatus(a.id, a.dayStatus === 'completed' ? 'pending' : 'completed')"
+                :class="{
+                  'is-checked': a.taskStatus === 'completed',
+                  'is-progress': a.taskStatus === 'in_progress',
+                }"
+                :title="cycleTitle(a.taskStatus)"
+                @click="onCycleAssignment(a)"
               >
-                <Check :size="10" />
+                <Check v-if="a.taskStatus === 'completed'" :size="10" />
               </button>
               <span class="fl-plan-name">{{ a.taskName }}</span>
               <button class="fl-t-btn" @click="assignments.remove(a.id)"><X :size="10" /></button>
@@ -653,7 +702,18 @@ function fmtMin(m: number): string {
 .fl-check:hover, .fl-check.is-checked {
   border-color: var(--color-success); background: var(--color-success); color: #fff;
 }
+.fl-check.is-progress {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  color: var(--color-primary);
+  position: relative;
+}
+.fl-check.is-progress::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--color-primary);
+}
 .fl-check-sm { width: 16px; height: 16px; flex: 0 0 16px; }
+.fl-check-sm.is-progress::before { width: 5px; height: 5px; }
 
 .fl-t-body { flex: 1; min-width: 0; }
 .fl-t-name { font-size: var(--fs-14); font-weight: var(--fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

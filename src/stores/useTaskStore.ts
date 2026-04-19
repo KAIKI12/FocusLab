@@ -43,6 +43,17 @@ export const useTaskStore = defineStore("task", () => {
     return updated;
   }
 
+  /** 三态轮转:pending → in_progress → completed → pending */
+  const STATUS_CYCLE = ["pending", "in_progress", "completed"] as const;
+  type CycleStatus = (typeof STATUS_CYCLE)[number];
+
+  async function cycleStatus(id: string, current: string): Promise<CycleStatus> {
+    const idx = STATUS_CYCLE.indexOf(current as CycleStatus);
+    const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+    await update({ id, status: next });
+    return next;
+  }
+
   async function remove(id: string) {
     await invokeCmd<void>("delete_task", { id });
     tasks.value = tasks.value.filter((t) => t.id !== id);
@@ -63,5 +74,5 @@ export const useTaskStore = defineStore("task", () => {
     return groups;
   });
 
-  return { tasks, loading, load, create, complete, update, remove, tasksByQuadrant };
+  return { tasks, loading, load, create, complete, update, cycleStatus, remove, tasksByQuadrant };
 });

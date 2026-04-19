@@ -155,6 +155,8 @@ pub struct UpdateTaskInput {
     pub due_date: Option<String>,
     pub is_background: Option<bool>,
     pub milestone_id: Option<String>,
+    /// 三态轮转:pending | in_progress | completed
+    pub status: Option<String>,
 }
 
 /// 部分更新任务字段。
@@ -164,6 +166,13 @@ pub fn update_task(input: UpdateTaskInput, db: State<'_, Db>) -> AppResult<Task>
     if let Some(ref n) = input.name {
         if n.trim().is_empty() {
             return Err(AppError::Custom("任务名不能为空".into()));
+        }
+    }
+
+    // 验证 status 取值
+    if let Some(ref s) = input.status {
+        if !matches!(s.as_str(), "pending" | "in_progress" | "completed") {
+            return Err(AppError::Custom(format!("非法 status: {s}")));
         }
     }
 
@@ -188,6 +197,17 @@ pub fn update_task(input: UpdateTaskInput, db: State<'_, Db>) -> AppResult<Task>
     push_set!(input.due_date, "due_date");
     push_set!(input.is_background, "is_background");
     push_set!(input.milestone_id, "milestone_id");
+    push_set!(input.status, "status");
+    // status 变化时同步 completed_at
+    if let Some(ref s) = input.status {
+        if s == "completed" {
+            sets.push(format!("completed_at = ?{idx}"));
+            idx += 1;
+        } else {
+            // pending / in_progress 清空完成时间
+            sets.push("completed_at = NULL".to_string());
+        }
+    }
 
     let sql = format!(
         "UPDATE tasks SET {} WHERE id = ?{} AND shelved_at IS NULL",
@@ -196,7 +216,7 @@ pub fn update_task(input: UpdateTaskInput, db: State<'_, Db>) -> AppResult<Task>
     );
 
     // 绑定参数
-    let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now)];
+    let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now.clone())];
     if let Some(ref v) = input.name {
         param_values.push(Box::new(v.clone()));
     }
@@ -217,6 +237,12 @@ pub fn update_task(input: UpdateTaskInput, db: State<'_, Db>) -> AppResult<Task>
     }
     if let Some(ref v) = input.milestone_id {
         param_values.push(Box::new(v.clone()));
+    }
+    if let Some(ref v) = input.status {
+        param_values.push(Box::new(v.clone()));
+        if v == "completed" {
+            param_values.push(Box::new(now));
+        }
     }
     param_values.push(Box::new(input.id.clone()));
 

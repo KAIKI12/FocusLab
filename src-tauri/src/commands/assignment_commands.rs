@@ -24,6 +24,7 @@ fn row_to_joined(row: &rusqlite::Row<'_>) -> rusqlite::Result<AssignmentWithTask
         task_id: row.get("task_id")?,
         task_name: row.get("task_name")?,
         task_quadrant: row.get("task_quadrant")?,
+        task_status: row.get("task_status")?,
         is_planned: row.get::<_, i64>("is_planned")? != 0,
         source: row.get("source")?,
         day_status: row.get("day_status")?,
@@ -52,7 +53,7 @@ pub fn list_assignments(
     let mut stmt = conn.prepare(
         "SELECT dta.id, dta.plan_date, dta.task_id, dta.is_planned, dta.source,
                 dta.day_status, dta.added_at, dta.completed_at, dta.sort_order,
-                t.name AS task_name, t.quadrant AS task_quadrant
+                t.name AS task_name, t.quadrant AS task_quadrant, t.status AS task_status
            FROM daily_task_assignments dta
            JOIN tasks t ON t.id = dta.task_id
           WHERE dta.plan_date = ?1

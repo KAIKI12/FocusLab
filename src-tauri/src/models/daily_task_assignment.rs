@@ -29,6 +29,8 @@ pub struct AssignmentWithTask {
     pub task_id: String,
     pub task_name: String,
     pub task_quadrant: String,
+    /// 任务全局生命周期:pending | in_progress | completed
+    pub task_status: String,
     pub is_planned: bool,
     pub source: String,
     pub day_status: String,
