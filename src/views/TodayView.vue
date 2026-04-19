@@ -35,6 +35,7 @@ const settlement = useSettlementStore();
 const { open: openBubble } = useBubble();
 
 const name = ref("");
+const isBackground = ref(false);
 const viewMode = ref<"list" | "quadrant">("list");
 const editingTask = ref<Task | null>(null);
 const showManualSession = ref(false);
@@ -48,11 +49,20 @@ const assignedTaskIds = computed(
   () => new Set(assignments.assignments.map((a) => a.taskId)),
 );
 
+/** 后台任务排在主任务之后 */
+const sortedTasks = computed(() =>
+  [...tasks.tasks].sort((a, b) => Number(a.is_background) - Number(b.is_background)),
+);
+
 async function onAdd() {
   const trimmed = name.value.trim();
   if (!trimmed) return;
-  await tasks.create({ name: trimmed });
+  const created = await tasks.create({ name: trimmed });
+  if (isBackground.value) {
+    await tasks.update({ id: created.id, isBackground: true });
+  }
   name.value = "";
+  isBackground.value = false;
 }
 
 async function addToPlan(taskId: string) {
@@ -153,6 +163,10 @@ async function onChangeQuadrant(taskId: string, quadrant: string) {
           placeholder="添加任务…"
           maxlength="80"
         />
+        <label class="fl-bg-toggle" :title="isBackground ? '后台任务' : '主动任务'">
+          <input v-model="isBackground" type="checkbox" class="fl-sr-only" />
+          <span class="fl-bg-chip" :class="{ 'is-on': isBackground }">后台</span>
+        </label>
         <button class="fl-btn" type="submit" :disabled="!name.trim()">
           <Plus :size="14" />
           添加
@@ -172,7 +186,7 @@ async function onChangeQuadrant(taskId: string, quadrant: string) {
       <!-- 列表视图 -->
       <div v-else-if="tasks.loading" class="fl-empty">载入中…</div>
       <ul v-else-if="tasks.tasks.length && viewMode === 'list'" class="fl-list">
-        <li v-for="t in tasks.tasks" :key="t.id" class="fl-item">
+        <li v-for="t in sortedTasks" :key="t.id" class="fl-item">
           <button
             class="fl-check"
             type="button"
@@ -192,6 +206,7 @@ async function onChangeQuadrant(taskId: string, quadrant: string) {
             <Pencil :size="10" />
           </button>
           <button
+            v-if="!t.is_background"
             class="fl-mini-btn fl-mini-play"
             type="button"
             :disabled="!timer.isIdle"
@@ -490,6 +505,33 @@ async function onChangeQuadrant(taskId: string, quadrant: string) {
   background: color-mix(in srgb, var(--color-q4) 12%, transparent);
   text-transform: none;
   letter-spacing: 0;
+}
+
+.fl-bg-toggle {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.fl-bg-chip {
+  padding: 4px var(--sp-2);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  transition: all var(--dur-fast) var(--ease-smooth);
+  user-select: none;
+}
+.fl-bg-chip.is-on {
+  border-color: var(--color-q4);
+  color: var(--color-q4);
+  background: color-mix(in srgb, var(--color-q4) 12%, transparent);
+}
+.fl-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
 }
 
 .fl-mini-btn {

@@ -1,10 +1,14 @@
 <script setup lang="ts">
 /**
- * ParticleEffect · S 级结算庆祝粒子动画。
- * 使用 Canvas 2D 渲染,mount 时自动播放 ~2 秒后自动停止。
+ * ParticleEffect · 结算庆祝动画。
+ * - grade="S": 金色粒子飘散(~3s, 25 粒)
+ * - grade="A": 星星环绕(~2s, 12 粒)
+ * 尊重 prefers-reduced-motion，此时不播放。
  */
 
 import { onMounted, onUnmounted, ref } from "vue";
+
+const props = withDefaults(defineProps<{ grade?: string }>(), { grade: "S" });
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 let raf = 0;
@@ -22,33 +26,36 @@ interface Particle {
   rotationSpeed: number;
 }
 
-const COLORS = [
-  "#FFD700", "#FF6B6B", "#4ECDC4", "#45B7D1",
-  "#96CEB4", "#FFEAA7", "#DDA0DD", "#FF8C42",
-];
+// S 级：金色渐变系
+const GOLD_COLORS = ["#FAAD14", "#FFD700", "#FFC53D", "#F5A623", "#FFE58F"];
+// A 级：浅金 + 白
+const STAR_COLORS = ["#FFE58F", "#FFFBE6", "#FFF1B8", "#FFD700"];
 
-function createParticles(cx: number, cy: number, count: number): Particle[] {
+function createParticles(cx: number, cy: number, count: number, colors: string[]): Particle[] {
   const particles: Particle[] = [];
   for (let i = 0; i < count; i++) {
     const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
-    const speed = 2 + Math.random() * 6;
+    const speed = 1.5 + Math.random() * 4;
     particles.push({
       x: cx,
       y: cy,
       vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed - 2,
-      size: 3 + Math.random() * 5,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      vy: Math.sin(angle) * speed - 1.5,
+      size: 3 + Math.random() * 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
       alpha: 1,
-      decay: 0.008 + Math.random() * 0.008,
+      decay: 0.005 + Math.random() * 0.006, // ~3s lifetime
       rotation: Math.random() * Math.PI * 2,
-      rotationSpeed: (Math.random() - 0.5) * 0.2,
+      rotationSpeed: (Math.random() - 0.5) * 0.15,
     });
   }
   return particles;
 }
 
 onMounted(() => {
+  // 尊重 prefers-reduced-motion
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
   const el = canvas.value;
   if (!el) return;
   const ctx = el.getContext("2d");
@@ -63,12 +70,30 @@ onMounted(() => {
   const displayW = el.offsetWidth;
   const displayH = el.offsetHeight;
 
-  // 从顶部中央和两侧发射
-  let particles = [
-    ...createParticles(displayW * 0.5, displayH * 0.3, 40),
-    ...createParticles(displayW * 0.2, displayH * 0.4, 20),
-    ...createParticles(displayW * 0.8, displayH * 0.4, 20),
-  ];
+  let particles: Particle[];
+
+  if (props.grade === "S") {
+    // S 级：中央 25 粒金色粒子飘散
+    particles = createParticles(displayW * 0.5, displayH * 0.35, 25, GOLD_COLORS);
+  } else {
+    // A 级：12 粒浅金星星
+    particles = createParticles(displayW * 0.5, displayH * 0.4, 12, STAR_COLORS);
+  }
+
+  function drawStar(ctx: CanvasRenderingContext2D, size: number) {
+    const spikes = 5;
+    const outer = size;
+    const inner = size * 0.4;
+    ctx.beginPath();
+    for (let i = 0; i < spikes * 2; i++) {
+      const r = i % 2 === 0 ? outer : inner;
+      const a = (Math.PI * i) / spikes - Math.PI / 2;
+      if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
 
   function draw() {
     ctx!.clearRect(0, 0, displayW, displayH);
@@ -76,7 +101,7 @@ onMounted(() => {
     for (const p of particles) {
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.08; // gravity
+      p.vy += 0.06; // gentle gravity
       p.alpha -= p.decay;
       p.rotation += p.rotationSpeed;
 
@@ -87,8 +112,15 @@ onMounted(() => {
       ctx!.rotate(p.rotation);
       ctx!.globalAlpha = p.alpha;
       ctx!.fillStyle = p.color;
-      // 矩形 confetti
-      ctx!.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+
+      if (props.grade === "S") {
+        // S 级：矩形 confetti
+        ctx!.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+      } else {
+        // A 级：星星形状
+        drawStar(ctx!, p.size * 0.6);
+      }
+
       ctx!.restore();
     }
 

@@ -48,8 +48,8 @@ const rateText = computed(() => {
       role="presentation"
     >
       <div class="fl-sd-card" role="dialog" aria-modal="true">
-        <!-- S 级粒子特效 -->
-        <ParticleEffect v-if="step === 2 && s.grade === 'S'" />
+        <!-- S/A 级粒子特效 -->
+        <ParticleEffect v-if="step === 2 && (s.grade === 'S' || s.grade === 'A')" :grade="s.grade" />
         <!-- Step 1: 数据摘要 -->
         <template v-if="step === 1">
           <h2 class="fl-sd-title">今日回顾</h2>
