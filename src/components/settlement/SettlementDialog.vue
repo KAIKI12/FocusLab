@@ -10,6 +10,7 @@
 import { computed, ref } from "vue";
 
 import GradeBadge from "@/components/settlement/GradeBadge.vue";
+import ParticleEffect from "@/components/settlement/ParticleEffect.vue";
 import { useSettlementStore } from "@/stores/useSettlementStore";
 
 const store = useSettlementStore();
@@ -47,6 +48,8 @@ const rateText = computed(() => {
       role="presentation"
     >
       <div class="fl-sd-card" role="dialog" aria-modal="true">
+        <!-- S 级粒子特效 -->
+        <ParticleEffect v-if="step === 2 && s.grade === 'S'" />
         <!-- Step 1: 数据摘要 -->
         <template v-if="step === 1">
           <h2 class="fl-sd-title">今日回顾</h2>
@@ -117,6 +120,8 @@ const rateText = computed(() => {
 }
 
 .fl-sd-card {
+  position: relative;
+  overflow: hidden;
   width: min(440px, 100%);
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
