@@ -51,6 +51,18 @@ const router = createRouter({
       meta: { title: "搁置区" },
     },
     {
+      path: "/badges",
+      name: "badges",
+      component: () => import("@/views/BadgesView.vue"),
+      meta: { title: "成就徽章" },
+    },
+    {
+      path: "/persona",
+      name: "persona",
+      component: () => import("@/views/PersonaView.vue"),
+      meta: { title: "科研人格" },
+    },
+    {
       path: "/minimal",
       name: "minimal",
       component: () => import("@/views/MinimalView.vue"),
