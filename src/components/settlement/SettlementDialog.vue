@@ -54,6 +54,29 @@ const GRADE_CONFIG: Record<string, {
 
 const cfg = computed(() => GRADE_CONFIG[s.value?.grade ?? "C"] ?? GRADE_CONFIG.C);
 
+const MORNING_INTENT_LABELS: Record<number, { emoji: string; label: string }> = {
+  1: { emoji: "🌙", label: "保养档" },
+  2: { emoji: "🌤", label: "温和档" },
+  3: { emoji: "☀️", label: "常规档" },
+  4: { emoji: "⚡", label: "进阶档" },
+  5: { emoji: "🔥", label: "冲刺档" },
+};
+const EVENING_MOOD_LABELS: Record<number, { emoji: string; label: string }> = {
+  1: { emoji: "😔", label: "疲惫" },
+  2: { emoji: "😕", label: "一般" },
+  3: { emoji: "😐", label: "还行" },
+  4: { emoji: "🙂", label: "不错" },
+  5: { emoji: "😍", label: "很好" },
+};
+
+const morningIntent = computed(() =>
+  s.value?.morningIntent ? MORNING_INTENT_LABELS[s.value.morningIntent] : null,
+);
+const eveningMood = computed(() =>
+  s.value?.eveningMood ? EVENING_MOOD_LABELS[s.value.eveningMood] : null,
+);
+const hasMood = computed(() => !!(morningIntent.value || eveningMood.value));
+
 const rateText = computed(() => {
   if (!s.value) return "0%";
   return `${Math.round(s.value.completionRate * 100)}%`;
@@ -163,6 +186,27 @@ async function markDone(a: AssignmentWithTask) {
               <template v-else>{{ aiNarrative }}</template>
             </div>
           </div>
+
+          <!-- 今日心情 -->
+          <template v-if="hasMood">
+            <div class="fl-section-label">🌤 今日心情</div>
+            <div class="fl-mood-pair">
+              <div v-if="morningIntent" class="fl-mood-slot">
+                <span class="fl-mood-emoji">{{ morningIntent.emoji }}</span>
+                <div class="fl-mood-txt">
+                  <small>早晨意图</small>
+                  <strong>{{ morningIntent.label }}</strong>
+                </div>
+              </div>
+              <div v-if="eveningMood" class="fl-mood-slot">
+                <span class="fl-mood-emoji">{{ eveningMood.emoji }}</span>
+                <div class="fl-mood-txt">
+                  <small>晚间情绪</small>
+                  <strong>{{ eveningMood.label }}</strong>
+                </div>
+              </div>
+            </div>
+          </template>
 
           <!-- 感想输入 -->
           <div class="fl-reflect">
@@ -317,6 +361,22 @@ async function markDone(a: AssignmentWithTask) {
   display: grid; place-items: center; font-size: 14px;
 }
 .fl-ai-body { color: var(--color-text-secondary); }
+
+/* 今日心情 pair */
+.fl-mood-pair {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2);
+}
+.fl-mood-pair .fl-mood-slot {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+}
+.fl-mood-pair .fl-mood-emoji { font-size: 22px; line-height: 1; }
+.fl-mood-txt { display: flex; flex-direction: column; min-width: 0; }
+.fl-mood-txt small { font-size: 10px; color: var(--color-text-muted); }
+.fl-mood-txt strong { font-size: var(--fs-12); font-weight: var(--fw-medium); }
 
 .fl-reflect {
   display: flex; gap: var(--sp-2); align-items: center;

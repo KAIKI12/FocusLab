@@ -12,14 +12,17 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import Sidebar from "@/components/common/Sidebar.vue";
 import CommandPalette from "@/components/common/CommandPalette.vue";
+import MoodCheck from "@/components/common/MoodCheck.vue";
 import RecoveryDialog from "@/components/recovery/RecoveryDialog.vue";
 import SettlementDialog from "@/components/settlement/SettlementDialog.vue";
 import BreakEndDialog from "@/components/timer/BreakEndDialog.vue";
 import { useRecovery } from "@/composables/useRecovery";
+import { useSettlementStore } from "@/stores/useSettlementStore";
 
 const { checkOnMount } = useRecovery();
 const route = useRoute();
 const router = useRouter();
+const settlement = useSettlementStore();
 
 const hideLayout = computed(() => route.meta.hideLayout === true);
 
@@ -55,6 +58,12 @@ onMounted(() => {
       <BreakEndDialog />
       <SettlementDialog />
       <CommandPalette />
+      <MoodCheck
+        :visible="settlement.showMoodPrompt"
+        mode="evening"
+        @select="(v) => settlement.confirmMood(v)"
+        @close="settlement.confirmMood(null)"
+      />
     </template>
   </div>
 </template>

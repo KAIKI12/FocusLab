@@ -35,6 +35,8 @@ pub struct SettleInput {
     pub plan_date: Option<String>,
     pub trigger_type: Option<String>,
     pub user_reflection: Option<String>,
+    pub evening_mood: Option<i64>,
+    pub morning_intent: Option<i64>,
 }
 
 /// 执行日结算:计算评级 + 写 settlements 行 + carry-over 未完成任务
@@ -125,8 +127,9 @@ pub fn settle_day(input: SettleInput, db: State<'_, Db>) -> AppResult<Settlement
             (id, settle_date, total_tasks, completed_tasks, extra_tasks, shelved_tasks,
              completion_rate, total_focus_minutes, total_pomodoros, total_interruptions,
              grade, longest_focus_task_id, longest_focus_minutes,
-             user_reflection, trigger_type, created_at)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16)",
+             user_reflection, trigger_type, created_at,
+             evening_mood, morning_intent)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18)",
         params![
             id,
             target_date,
@@ -144,6 +147,8 @@ pub fn settle_day(input: SettleInput, db: State<'_, Db>) -> AppResult<Settlement
             input.user_reflection,
             trigger,
             now,
+            input.evening_mood,
+            input.morning_intent,
         ],
     )?;
 
@@ -196,6 +201,8 @@ pub fn settle_day(input: SettleInput, db: State<'_, Db>) -> AppResult<Settlement
         user_reflection: input.user_reflection,
         trigger_type: trigger,
         created_at: now,
+        evening_mood: input.evening_mood,
+        morning_intent: input.morning_intent,
     })
 }
 
@@ -210,7 +217,8 @@ pub fn get_settlement(plan_date: Option<String>, db: State<'_, Db>) -> AppResult
         "SELECT id, settle_date, total_tasks, completed_tasks, extra_tasks, shelved_tasks,
                 completion_rate, total_focus_minutes, total_pomodoros, total_interruptions,
                 grade, longest_focus_task_id, longest_focus_minutes,
-                ai_summary, user_reflection, trigger_type, created_at
+                ai_summary, user_reflection, trigger_type, created_at,
+                evening_mood, morning_intent
          FROM settlements WHERE settle_date = ?1",
         params![target],
         |r| {
@@ -232,6 +240,8 @@ pub fn get_settlement(plan_date: Option<String>, db: State<'_, Db>) -> AppResult
                 user_reflection: r.get(14)?,
                 trigger_type: r.get(15)?,
                 created_at: r.get(16)?,
+                evening_mood: r.get(17)?,
+                morning_intent: r.get(18)?,
             })
         },
     );

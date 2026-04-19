@@ -246,6 +246,10 @@ export interface Settlement {
   userReflection: string | null;
   triggerType: string;
   createdAt: string;
+  /** 晚间情绪 1-5,NULL = 未打卡 */
+  eveningMood: number | null;
+  /** 早晨意图档位 1-5,NULL = 未打卡 */
+  morningIntent: number | null;
 }
 
 export interface YesterdaySummary {
@@ -264,6 +268,8 @@ export interface SettleInput {
   planDate?: string;
   triggerType?: string;
   userReflection?: string;
+  eveningMood?: number | null;
+  morningIntent?: number | null;
 }
 
 // ---------- ManualSession (手动补录) ----------

@@ -22,6 +22,10 @@ pub struct Settlement {
     pub user_reflection: Option<String>,
     pub trigger_type: String,
     pub created_at: String,
+    /// 晚间情绪 1-5 (1=疲惫 .. 5=很好),NULL = 未打卡或开关关闭
+    pub evening_mood: Option<i64>,
+    /// 早晨意图档位 1-5 (1=保养 .. 5=冲刺),NULL = 未打卡或开关关闭
+    pub morning_intent: Option<i64>,
 }
 
 /// 昨日摘要(前端 YesterdayCard 用)

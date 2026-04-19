@@ -14,10 +14,16 @@ struct Migration {
     sql: &'static str,
 }
 
-const MIGRATIONS: &[Migration] = &[Migration {
-    version: "001_init",
-    sql: include_str!("migrations/001_init.sql"),
-}];
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: "001_init",
+        sql: include_str!("migrations/001_init.sql"),
+    },
+    Migration {
+        version: "002_mood_checkin",
+        sql: include_str!("migrations/002_mood_checkin.sql"),
+    },
+];
 
 pub fn run(conn: &mut Connection) -> AppResult<()> {
     conn.execute(

@@ -14,7 +14,51 @@ export const useSettlementStore = defineStore("settlement", () => {
   const showDialog = ref(false);
   const settling = ref(false);
 
+  // 心情打卡前置流程(exp_mood_checkin 开启时)
+  const showMoodPrompt = ref(false);
+  const pendingInput = ref<SettleInput | null>(null);
+
+  function readMorningIntent(): number | null {
+    const today = new Date().toISOString().slice(0, 10);
+    const v = localStorage.getItem(`fl-mood-morning-${today}`);
+    return v ? Number(v) || null : null;
+  }
+
+  async function isMoodEnabled(): Promise<boolean> {
+    try {
+      const v = await invokeCmd<string | null>("get_setting", { key: "exp_mood_checkin" });
+      return v !== "0"; // 默认开启(未设置时按 on 处理)
+    } catch {
+      return true;
+    }
+  }
+
   async function settle(input: SettleInput = {}) {
+    // 若已提供 eveningMood(例如测试场景)或开关关闭,直接 settle
+    if (input.eveningMood !== undefined || !(await isMoodEnabled())) {
+      await settleInternal({
+        ...input,
+        morningIntent: input.morningIntent ?? readMorningIntent(),
+      });
+      return;
+    }
+    // 先弹 evening mood,选择/跳过后再 settle
+    pendingInput.value = input;
+    showMoodPrompt.value = true;
+  }
+
+  async function confirmMood(eveningMood: number | null) {
+    const base = pendingInput.value ?? {};
+    showMoodPrompt.value = false;
+    pendingInput.value = null;
+    await settleInternal({
+      ...base,
+      eveningMood,
+      morningIntent: base.morningIntent ?? readMorningIntent(),
+    });
+  }
+
+  async function settleInternal(input: SettleInput) {
     settling.value = true;
     try {
       settlement.value = await invokeCmd<Settlement>("settle_day", { input });
@@ -45,7 +89,9 @@ export const useSettlementStore = defineStore("settlement", () => {
     yesterday,
     showDialog,
     settling,
+    showMoodPrompt,
     settle,
+    confirmMood,
     loadSettlement,
     loadYesterday,
     closeDialog,
