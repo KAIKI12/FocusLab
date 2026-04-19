@@ -15,6 +15,7 @@ const snapshot = ref<TimerSnapshot | null>(null);
 const expanded = ref(false);
 const taskName = ref("FocusLab");
 const showComplete = ref(false);
+const otherTasks = ref<Array<{ id: string; name: string; quadrant: string }>>([]);
 let unlisteners: UnlistenFn[] = [];
 
 const appWindow = getCurrentWindow();
@@ -58,12 +59,23 @@ const progress = computed(() => {
 const phaseLabel = computed(() => {
   const s = snapshot.value;
   if (!s || s.status === "idle") return "FocusLab";
-  if (s.mode === "free") return "🌀 自由计时";
+  if (s.mode === "free") return `🌀 自由计时`;
   if (s.status === "running") return `专注中 · 第 ${s.pomodoroCount} 番茄`;
-  if (s.status === "paused") return "⏸ 已暂停";
+  if (s.status === "paused") return `⏸ 已暂停 · 第 ${s.pomodoroCount} 番茄`;
   if (s.status === "break") return "☕ 休息中";
   if (s.status === "break_ended") return "☕ 休息结束";
   return "";
+});
+
+const focusedTime = computed(() => {
+  const s = snapshot.value;
+  if (!s) return "";
+  const m = s.elapsedSeconds;
+  if (m < 60) return `已专注 ${m}s`;
+  const min = Math.floor(m / 60);
+  if (min < 60) return `已专注 ${min}m`;
+  const h = Math.floor(min / 60);
+  return `已专注 ${h}h ${min % 60}m`;
 });
 
 // =============================================
@@ -134,7 +146,7 @@ onUnmounted(() => {
 });
 
 // =============================================
-// 手势：单击暂停/继续，双击展开面板
+// 手势(对齐原型)：单击展开面板，双击暂停/继续
 // =============================================
 
 let clickTimer: ReturnType<typeof setTimeout> | null = null;
@@ -145,17 +157,19 @@ function onOrbClick() {
   clickCount++;
   if (clickCount === 1) {
     clickTimer = setTimeout(() => {
-      onSingleClick();
+      // 单击 → 展开/收缩 Mini Panel
+      expanded.value = !expanded.value;
       clickCount = 0;
     }, 250);
   } else if (clickCount === 2) {
     if (clickTimer) clearTimeout(clickTimer);
     clickCount = 0;
-    expanded.value = !expanded.value;
+    // 双击 → 暂停/继续(专注中) 或 打开主窗口(idle)
+    onDoubleClick();
   }
 }
 
-async function onSingleClick() {
+async function onDoubleClick() {
   if (isRunning.value || isPaused.value) await togglePause();
   else if (isIdle.value) await focusMainWindow();
 }
@@ -217,6 +231,13 @@ async function refreshTaskName() {
     const name = await invoke<string | null>("get_task_name", { id });
     taskName.value = name ?? "(任务)";
   } catch { taskName.value = "(任务)"; }
+  // 加载其他任务(快速切换用)
+  try {
+    const tasks = await invoke<Array<{ id: string; name: string; quadrant: string }>>(
+      "list_tasks", { statusFilter: null }
+    );
+    otherTasks.value = tasks.filter(t => t.id !== id).slice(0, 3);
+  } catch { otherTasks.value = []; }
 }
 
 watch(() => snapshot.value?.taskId, () => refreshTaskName());
@@ -286,7 +307,7 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
       </div>
     </div>
 
-    <!-- ===== 展开态:浅色 Mini Panel(对齐原型) ===== -->
+    <!-- ===== Mini Panel(对齐原型 op-panel) ===== -->
     <div v-else class="fl-mp">
       <div class="fl-mp-head" @mousedown="onMouseDown">
         <div class="fl-mp-phase">
@@ -295,39 +316,35 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
         </div>
         <button class="fl-mp-close" @click="expanded = false">✕</button>
       </div>
-
       <div class="fl-mp-body">
         <div class="fl-mp-task">{{ taskName }}</div>
-        <div class="fl-mp-meta">
-          <span v-if="snapshot?.mode === 'pomodoro'">🎯 番茄模式 · 已专注</span>
-          <span v-else>🌀 自由模式</span>
-        </div>
-
-        <!-- 进度环 -->
+        <div class="fl-mp-meta">{{ focusedTime }}</div>
         <div class="fl-mp-ring">
           <svg viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--color-border, #e5e7eb)" stroke-width="6" />
+            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--color-border,#e5e7eb)" stroke-width="6" />
             <circle v-if="!isFree" cx="60" cy="60" r="50" fill="none"
-              stroke="var(--color-primary, #4f8cff)" stroke-width="6" stroke-linecap="round"
+              stroke="var(--color-primary,#4f8cff)" stroke-width="6" stroke-linecap="round"
               :stroke-dasharray="314" :stroke-dashoffset="314 * (1 - progress)"
               style="transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .3s" />
           </svg>
-          <div class="fl-mp-ring-text">{{ timeText || "--:--" }}</div>
+          <div class="fl-mp-ring-center">{{ timeText || "--:--" }}</div>
         </div>
-
-        <!-- 控制按钮 -->
         <div class="fl-mp-ctrl">
-          <button class="fl-mp-btn-circle" title="结束" @click="onAbandon">◼</button>
-          <button class="fl-mp-btn-main" @click="togglePause">
-            {{ isPaused ? '▶' : '⏸' }}
-          </button>
-          <button v-if="isBreak" class="fl-mp-btn-circle" title="跳过" @click="onSkipBreak">⏭</button>
+          <button v-if="!isIdle" class="fl-mp-cbtn" title="结束" @click="onAbandon">◼</button>
+          <button v-if="isRunning||isPaused" class="fl-mp-cbtn fl-mp-main" @click="togglePause">{{ isPaused ? '▶' : '⏸' }}</button>
+          <button v-if="isBreak" class="fl-mp-cbtn" title="跳过" @click="onSkipBreak">⏭</button>
+        </div>
+        <div v-if="otherTasks.length && !isIdle" class="fl-mp-switch">
+          <div class="fl-mp-sw-label">快速切换</div>
+          <div v-for="t in otherTasks" :key="t.id" class="fl-mp-sw-item">
+            <span class="fl-mp-sw-dot" />
+            <span class="fl-mp-sw-name">{{ t.name }}</span>
+          </div>
         </div>
       </div>
-
       <div class="fl-mp-foot">
         <button @click="focusMainWindow">🏠 打开主窗口</button>
-        <button class="fl-mp-foot-close" @click="closeBubble">✕ 关闭悬浮球</button>
+        <button @click="closeBubble">✕ 关闭悬浮球</button>
       </div>
     </div>
   </div>
@@ -433,7 +450,7 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
   margin: 4px 0;
 }
 .fl-mp-ring svg { width: 100%; height: 100%; }
-.fl-mp-ring-text {
+.fl-mp-ring-center {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   font-family: ui-monospace, monospace;
@@ -441,28 +458,33 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
   color: var(--color-text-primary, #1a1a2e);
 }
 
-/* 控制 */
-.fl-mp-ctrl {
-  display: flex; gap: 8px; align-items: center; justify-content: center;
-}
-.fl-mp-btn-circle {
+/* 控制(圆形按钮) */
+.fl-mp-ctrl { display: flex; gap: 8px; align-items: center; justify-content: center; }
+.fl-mp-cbtn {
   width: 36px; height: 36px; border-radius: 50%;
-  background: var(--color-bg-hover, #f5f5f5);
-  border: none; cursor: pointer; font-size: 14px;
-  color: var(--color-text-secondary, #666);
-  display: grid; place-items: center;
-  transition: all 0.15s;
+  background: var(--color-bg-hover, #f5f5f5); border: none;
+  cursor: pointer; font-size: 14px; color: var(--color-text-secondary, #666);
+  display: grid; place-items: center; transition: all 0.15s;
 }
-.fl-mp-btn-circle:hover { background: color-mix(in srgb, var(--color-primary, #4f8cff) 15%, transparent); color: var(--color-primary, #4f8cff); }
-.fl-mp-btn-main {
-  width: 44px; height: 44px; border-radius: 50%;
-  background: var(--color-primary, #4f8cff); color: #fff;
-  border: none; cursor: pointer; font-size: 18px;
-  display: grid; place-items: center;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary, #4f8cff) 30%, transparent);
-  transition: all 0.15s;
+.fl-mp-cbtn:hover { background: color-mix(in srgb, var(--color-primary,#4f8cff) 15%, transparent); color: var(--color-primary,#4f8cff); }
+.fl-mp-main {
+  width: 44px; height: 44px;
+  background: var(--color-primary,#4f8cff); color: #fff;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary,#4f8cff) 30%, transparent);
+  font-size: 18px;
 }
-.fl-mp-btn-main:hover { transform: scale(1.05); }
+.fl-mp-main:hover { transform: scale(1.05); background: var(--color-primary,#4f8cff); color: #fff; }
+
+/* 快速切换 */
+.fl-mp-switch { width: 100%; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--color-border,#e5e7eb); }
+.fl-mp-sw-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-muted,#999); margin-bottom: 6px; }
+.fl-mp-sw-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: background 0.15s;
+}
+.fl-mp-sw-item:hover { background: var(--color-bg-hover,#f5f5f5); }
+.fl-mp-sw-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-primary,#4f8cff); flex-shrink: 0; }
+.fl-mp-sw-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 底部 */
 .fl-mp-foot {
