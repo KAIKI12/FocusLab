@@ -12,7 +12,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 let bubble: WebviewWindow | null = null;
 
 const POS_KEY = "fl-bubble-pos";
-const BUBBLE_SIZE = 72;
+const BUBBLE_SIZE = 64;
 
 function loadPosition(): { x: number; y: number } {
   try {
