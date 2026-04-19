@@ -10,6 +10,7 @@ import { Calendar, Check, Clock, Grid2X2, List, Minimize2, Moon, Pause, Pencil, 
 import { computed, onMounted, ref } from "vue";
 
 import ManualSessionModal from "@/components/timer/ManualSessionModal.vue";
+import MorningGuide from "@/components/common/MorningGuide.vue";
 import PresetSwitcher from "@/components/timer/PresetSwitcher.vue";
 import QuadrantGrid from "@/components/task/QuadrantGrid.vue";
 import TaskEditModal from "@/components/task/TaskEditModal.vue";
@@ -34,9 +35,15 @@ const isBackground = ref(false);
 const viewMode = ref<"list" | "quadrant">("list");
 const editingTask = ref<Task | null>(null);
 const showManualSession = ref(false);
+const showMorningGuide = ref(false);
 
 onMounted(async () => {
   await Promise.all([tasks.load(), assignments.load(), goals.loadGoals()]);
+  // 每日自动弹出晨起引导(当日未完成过)
+  const today = new Date().toISOString().slice(0, 10);
+  if (!localStorage.getItem(`fl-morning-${today}`)) {
+    showMorningGuide.value = true;
+  }
 });
 
 const assignedTaskIds = computed(
@@ -417,6 +424,7 @@ function fmtMin(m: number): string {
     <!-- 弹窗 -->
     <TaskEditModal :task="editingTask" @close="editingTask = null" />
     <ManualSessionModal :visible="showManualSession" @close="showManualSession = false" />
+    <MorningGuide :visible="showMorningGuide" @close="showMorningGuide = false" />
   </section>
 </template>
 

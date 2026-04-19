@@ -50,6 +50,12 @@ const router = createRouter({
       component: () => import("@/views/ParkedView.vue"),
       meta: { title: "搁置区" },
     },
+    {
+      path: "/minimal",
+      name: "minimal",
+      component: () => import("@/views/MinimalView.vue"),
+      meta: { title: "极简模式", hideLayout: true },
+    },
   ],
 });
 
