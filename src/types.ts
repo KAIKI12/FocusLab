@@ -28,6 +28,7 @@ export interface Task {
 export interface CreateTaskInput {
   name: string;
   quadrant?: string;
+  recurrenceRule?: string;
 }
 
 export interface UpdateTaskInput {

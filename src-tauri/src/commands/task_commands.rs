@@ -68,6 +68,7 @@ pub struct CreateTaskInput {
     pub name: String,
     #[serde(default = "default_quadrant")]
     pub quadrant: String,
+    pub recurrence_rule: Option<String>,
 }
 
 fn default_quadrant() -> String {
@@ -85,10 +86,12 @@ pub fn create_task(input: CreateTaskInput, db: State<'_, Db>) -> AppResult<Task>
     let now = Utc::now().to_rfc3339();
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
 
+    let is_recurring = input.recurrence_rule.is_some();
+
     conn.execute(
-        "INSERT INTO tasks (id, name, quadrant, status, created_at, updated_at)
-         VALUES (?1, ?2, ?3, 'pending', ?4, ?4)",
-        params![id, input.name, input.quadrant, now],
+        "INSERT INTO tasks (id, name, quadrant, status, is_recurring, recurrence_rule, created_at, updated_at)
+         VALUES (?1, ?2, ?3, 'pending', ?4, ?5, ?6, ?6)",
+        params![id, input.name, input.quadrant, is_recurring, input.recurrence_rule, now],
     )?;
 
     Ok(Task {
@@ -235,6 +238,61 @@ pub fn delete_task(id: String, db: State<'_, Db>) -> AppResult<()> {
         return Err(AppError::Custom(format!("task {id} not found or already deleted")));
     }
     Ok(())
+}
+
+/// 为当日生成重复任务的 DTA 记录。
+/// 规则格式: "daily" | "weekdays" | "weekly" | "monthly"
+#[tauri::command]
+pub fn generate_recurring_tasks(db: State<'_, Db>) -> AppResult<i64> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let weekday = chrono::Utc::now().format("%u").to_string(); // 1=Mon..7=Sun
+
+    let mut stmt = conn.prepare(
+        "SELECT id, recurrence_rule FROM tasks
+         WHERE is_recurring = 1 AND recurrence_rule IS NOT NULL
+         AND shelved_at IS NULL AND status != 'completed'",
+    )?;
+
+    let tasks: Vec<(String, String)> = stmt
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    let mut count = 0i64;
+    let now = Utc::now().to_rfc3339();
+
+    for (task_id, rule) in &tasks {
+        let should_create = match rule.as_str() {
+            "daily" => true,
+            "weekdays" => weekday != "6" && weekday != "7", // 排除周六日
+            "weekly" => weekday == "1", // 每周一
+            "monthly" => today.ends_with("-01"), // 每月1号
+            _ => false,
+        };
+
+        if !should_create { continue; }
+
+        // 检查今天是否已有该任务的 DTA
+        let exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) > 0 FROM daily_task_assignments WHERE plan_date = ?1 AND task_id = ?2",
+                params![today, task_id],
+                |r| r.get(0),
+            )
+            .unwrap_or(false);
+
+        if exists { continue; }
+
+        let dta_id = Uuid::new_v4().to_string();
+        conn.execute(
+            "INSERT INTO daily_task_assignments (id, plan_date, task_id, is_planned, source, day_status, added_at, sort_order)
+             VALUES (?1, ?2, ?3, 1, 'recurring', 'pending', ?4, 0)",
+            params![dta_id, today, task_id, now],
+        )?;
+        count += 1;
+    }
+
+    Ok(count)
 }
 
 /// 根据 ID 获取任务名(轻量查询,供悬浮球窗口使用)。

@@ -29,32 +29,59 @@ const CATEGORIES = [
   { id: "hidden", label: "🎭 彩蛋" },
 ];
 
-// 示例徽章数据(实际应从后端 check_badges 查询)
+// 45 枚徽章 × 6 分类(对齐原型 persona-badges.html)
 const ALL_BADGES: Badge[] = [
-  // 番茄修行
+  // 🍅 番茄修行(7 枚)
   { id: "p1", emoji: "🌱", name: "初次专注", description: "完成第一个番茄钟", condition: "完成 1 个番茄", rarity: "bronze", category: "pomodoro", unlocked: true, unlockedAt: "2026-04-10", quote: "千里之行，始于足下" },
   { id: "p2", emoji: "🍅", name: "番茄农夫", description: "累计 50 个番茄钟", condition: "完成 50 个番茄", rarity: "silver", category: "pomodoro", unlocked: true },
   { id: "p3", emoji: "🏆", name: "番茄大师", description: "累计 500 个番茄钟", condition: "完成 500 个番茄", rarity: "gold", category: "pomodoro", unlocked: false },
   { id: "p4", emoji: "👑", name: "番茄帝王", description: "累计 2000 个番茄钟", condition: "完成 2000 个番茄", rarity: "diamond", category: "pomodoro", unlocked: false },
-  // 连续打卡
+  { id: "p5", emoji: "⏱️", name: "深度潜水", description: "完成一个 90 分钟番茄", condition: "完成 immersive_90", rarity: "silver", category: "pomodoro", unlocked: false },
+  { id: "p6", emoji: "🌊", name: "自由之风", description: "累计 10 次自由计时", condition: "自由模式 10 次", rarity: "bronze", category: "pomodoro", unlocked: false },
+  { id: "p7", emoji: "🔥", name: "四连番茄", description: "连续完成 4 个番茄钟无中断", condition: "4 连番茄", rarity: "gold", category: "pomodoro", unlocked: false },
+  // 🔥 连续打卡(7 枚)
   { id: "s1", emoji: "📅", name: "三天打鱼", description: "连续使用 3 天", condition: "连续 3 天结算", rarity: "bronze", category: "streak", unlocked: true },
   { id: "s2", emoji: "🔥", name: "一周坚持", description: "连续使用 7 天", condition: "连续 7 天结算", rarity: "silver", category: "streak", unlocked: false },
-  { id: "s3", emoji: "💎", name: "月度勇者", description: "连续使用 30 天", condition: "连续 30 天结算", rarity: "gold", category: "streak", unlocked: false },
-  { id: "s4", emoji: "🌟", name: "百日传说", description: "连续使用 100 天", condition: "连续 100 天结算", rarity: "diamond", category: "streak", unlocked: false },
-  // 结算荣耀
+  { id: "s3", emoji: "💪", name: "半月之约", description: "连续使用 15 天", condition: "连续 15 天结算", rarity: "silver", category: "streak", unlocked: false },
+  { id: "s4", emoji: "💎", name: "月度勇者", description: "连续使用 30 天", condition: "连续 30 天结算", rarity: "gold", category: "streak", unlocked: false },
+  { id: "s5", emoji: "🌟", name: "百日传说", description: "连续使用 100 天", condition: "连续 100 天结算", rarity: "diamond", category: "streak", unlocked: false },
+  { id: "s6", emoji: "🎖️", name: "半年老兵", description: "连续使用 180 天", condition: "连续 180 天", rarity: "diamond", category: "streak", unlocked: false },
+  { id: "s7", emoji: "🏛️", name: "年度传奇", description: "连续使用 365 天", condition: "连续 365 天", rarity: "diamond", category: "streak", unlocked: false },
+  // 📊 结算荣耀(7 枚)
   { id: "g1", emoji: "✨", name: "首个 S 级", description: "获得第一个 S 级评价", condition: "获得 S 级", rarity: "silver", category: "settle", unlocked: false },
   { id: "g2", emoji: "💯", name: "五连 A", description: "连续 5 天 A 级或以上", condition: "连续 5 天 ≥A", rarity: "gold", category: "settle", unlocked: false },
   { id: "g3", emoji: "🏅", name: "月度 S 王", description: "单月获得 10 个 S 级", condition: "月内 10 个 S 级", rarity: "diamond", category: "settle", unlocked: false },
-  // 目标猎人
+  { id: "g4", emoji: "📈", name: "稳步提升", description: "连续 3 天评级上升", condition: "连续 3 天评级 ↑", rarity: "silver", category: "settle", unlocked: false },
+  { id: "g5", emoji: "🎯", name: "零中断", description: "某日结算中断次数为 0", condition: "当日 0 中断", rarity: "gold", category: "settle", unlocked: false },
+  { id: "g6", emoji: "🌈", name: "满勤月", description: "整月每天都结算", condition: "月满勤", rarity: "diamond", category: "settle", unlocked: false },
+  { id: "g7", emoji: "⭐", name: "首个 A 级", description: "获得第一个 A 级评价", condition: "获得 A 级", rarity: "bronze", category: "settle", unlocked: false },
+  // 🎯 目标猎人(6 枚)
   { id: "t1", emoji: "🎯", name: "立下目标", description: "创建第一个长线目标", condition: "创建目标", rarity: "bronze", category: "goal", unlocked: true },
   { id: "t2", emoji: "🏔️", name: "里程碑达成", description: "完成第一个里程碑", condition: "完成里程碑", rarity: "silver", category: "goal", unlocked: false },
-  // 时段
+  { id: "t3", emoji: "🗻", name: "目标达成", description: "完成第一个长线目标", condition: "目标状态→completed", rarity: "gold", category: "goal", unlocked: false },
+  { id: "t4", emoji: "🌍", name: "多线作战", description: "同时推进 3 个目标", condition: "3 个活跃目标", rarity: "silver", category: "goal", unlocked: false },
+  { id: "t5", emoji: "🧩", name: "拆解大师", description: "使用 AI 拆解 10 个任务", condition: "AI 拆解 10 次", rarity: "silver", category: "goal", unlocked: false },
+  { id: "t6", emoji: "💫", name: "目标收割者", description: "累计完成 5 个长线目标", condition: "完成 5 个目标", rarity: "diamond", category: "goal", unlocked: false },
+  // 🌙 时段(6 枚)
   { id: "m1", emoji: "🌅", name: "早鸟", description: "6:00-8:00 完成番茄", condition: "清晨专注", rarity: "bronze", category: "time", unlocked: false },
   { id: "m2", emoji: "🦉", name: "夜猫子", description: "22:00-2:00 完成番茄", condition: "深夜专注", rarity: "bronze", category: "time", unlocked: false },
   { id: "m3", emoji: "🏃", name: "马拉松", description: "单日专注超过 8 小时", condition: "日专注 ≥8h", rarity: "gold", category: "time", unlocked: false },
-  // 彩蛋
-  { id: "h1", emoji: "🎃", name: "万圣节彩蛋", description: "在 10 月 31 日使用", condition: "万圣节当天", rarity: "gold", category: "hidden", unlocked: false },
-  { id: "h2", emoji: "❓", name: "???", description: "未知解锁条件", condition: "???", rarity: "diamond", category: "hidden", unlocked: false },
+  { id: "m4", emoji: "☀️", name: "黄金上午", description: "9-12 点完成 3 个番茄", condition: "上午 3 番茄", rarity: "silver", category: "time", unlocked: false },
+  { id: "m5", emoji: "🌆", name: "夕阳冲刺", description: "17-19 点完成 2 个番茄", condition: "傍晚 2 番茄", rarity: "bronze", category: "time", unlocked: false },
+  { id: "m6", emoji: "🌙", name: "午夜学者", description: "0:00-3:00 完成番茄", condition: "凌晨专注", rarity: "gold", category: "time", unlocked: false },
+  // 🎭 彩蛋(12 枚)
+  { id: "h1", emoji: "🎃", name: "万圣节", description: "在 10 月 31 日使用", condition: "万圣节当天", rarity: "gold", category: "hidden", unlocked: false },
+  { id: "h2", emoji: "🎄", name: "圣诞快乐", description: "在 12 月 25 日使用", condition: "圣诞节当天", rarity: "gold", category: "hidden", unlocked: false },
+  { id: "h3", emoji: "🎆", name: "新年快乐", description: "在 1 月 1 日使用", condition: "元旦当天", rarity: "gold", category: "hidden", unlocked: false },
+  { id: "h4", emoji: "🐉", name: "龙年大吉", description: "在春节期间使用", condition: "春节期间", rarity: "diamond", category: "hidden", unlocked: false },
+  { id: "h5", emoji: "🌙", name: "中秋团圆", description: "在中秋节使用", condition: "中秋当天", rarity: "gold", category: "hidden", unlocked: false },
+  { id: "h6", emoji: "💘", name: "情人节", description: "在 2 月 14 日使用", condition: "情人节当天", rarity: "silver", category: "hidden", unlocked: false },
+  { id: "h7", emoji: "🎓", name: "毕业季", description: "在 6-7 月使用", condition: "6 或 7 月", rarity: "bronze", category: "hidden", unlocked: false },
+  { id: "h8", emoji: "🕐", name: "凌晨 3 点", description: "在凌晨 3:00 完成番茄", condition: "3:00 AM", rarity: "diamond", category: "hidden", unlocked: false },
+  { id: "h9", emoji: "🔢", name: "666", description: "累计专注 666 分钟", condition: "总专注 666m", rarity: "silver", category: "hidden", unlocked: false },
+  { id: "h10", emoji: "🎵", name: "1024", description: "累计 1024 个番茄", condition: "1024 番茄", rarity: "diamond", category: "hidden", unlocked: false },
+  { id: "h11", emoji: "🐱", name: "猫咪日", description: "在 2 月 22 日使用", condition: "猫之日", rarity: "silver", category: "hidden", unlocked: false },
+  { id: "h12", emoji: "❓", name: "???", description: "未知解锁条件", condition: "???", rarity: "diamond", category: "hidden", unlocked: false },
 ];
 
 const activeCategory = ref("all");

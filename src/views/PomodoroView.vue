@@ -159,6 +159,9 @@ function goBack() {
         <button class="fl-pomo-choice" @click="timer.abandon()">
           结束任务
         </button>
+        <div class="fl-pomo-ai-hint">
+          ✨ 休息后继续同一任务效率最高，建议趁热打铁
+        </div>
       </div>
 
       <!-- 番茄点数 -->
@@ -176,7 +179,8 @@ function goBack() {
 
     <!-- 底部统计 -->
     <div v-if="state !== 'idle'" class="fl-pomo-bottom">
-      <span>今日第 {{ timer.snapshot?.pomodoroCount ?? 0 }} 个番茄钟</span>
+      <span v-if="state === 'free'">🌀 不计入番茄钟数，计入专注时长 · 手动结束</span>
+      <span v-else>今日第 {{ timer.snapshot?.pomodoroCount ?? 0 }} 个番茄钟</span>
     </div>
   </section>
 </template>
@@ -303,6 +307,13 @@ function goBack() {
   font-weight: var(--fw-medium);
 }
 .fl-pomo-choice-primary:hover { background: var(--color-primary-dark); }
+
+.fl-pomo-ai-hint {
+  font-size: 12px; color: var(--color-text-muted);
+  text-align: center; margin-top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: rgba(255,255,255,0.5); border-radius: var(--r-sm);
+}
 
 /* Dots */
 .fl-pomo-dots { display: flex; gap: 8px; }

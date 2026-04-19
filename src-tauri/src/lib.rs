@@ -71,6 +71,7 @@ pub fn run() {
             commands::task_commands::update_task,
             commands::task_commands::delete_task,
             commands::task_commands::get_task_name,
+            commands::task_commands::generate_recurring_tasks,
             // timer_state 低层 CRUD (Week 1b)
             commands::timer_commands::get_timer_state,
             commands::timer_commands::update_timer_state,

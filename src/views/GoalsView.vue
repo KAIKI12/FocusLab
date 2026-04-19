@@ -7,7 +7,7 @@
  */
 
 import { Plus } from "lucide-vue-next";
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 import GoalCard from "@/components/goal/GoalCard.vue";
 import MilestoneTimeline from "@/components/goal/MilestoneTimeline.vue";
@@ -15,6 +15,16 @@ import { useGoalStore } from "@/stores/useGoalStore";
 
 const goals = useGoalStore();
 const newGoalName = ref("");
+
+const selectedGoal = computed(() =>
+  goals.goals.find(g => g.id === goals.selectedGoalId) ?? null,
+);
+
+const daysSinceCreated = computed(() => {
+  if (!selectedGoal.value) return 0;
+  const created = new Date(selectedGoal.value.created_at);
+  return Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24));
+});
 
 onMounted(async () => {
   await goals.loadGoals();
@@ -72,8 +82,19 @@ async function onAddGoal() {
         </div>
       </div>
 
-      <!-- 右栏:里程碑时间线 -->
+      <!-- 右栏:Hero卡 + 里程碑时间线 -->
       <div class="fl-goals-right">
+        <!-- 目标 Hero 卡(对齐原型 milestones.html) -->
+        <div v-if="selectedGoal" class="fl-goal-hero">
+          <div class="fl-hero-tag">🎯 当前焦点</div>
+          <h2 class="fl-hero-name">{{ selectedGoal.name }}</h2>
+          <p v-if="selectedGoal.description" class="fl-hero-desc">{{ selectedGoal.description }}</p>
+          <div class="fl-hero-meta">
+            <span>已进行 {{ daysSinceCreated }} 天</span>
+            <span>里程碑 {{ goals.milestones.filter(m => m.status === 'completed').length }} / {{ goals.milestones.length }}</span>
+            <span>{{ selectedGoal.status }}</span>
+          </div>
+        </div>
         <MilestoneTimeline />
       </div>
     </div>
@@ -165,5 +186,30 @@ async function onAddGoal() {
   padding: var(--sp-6);
   color: var(--color-text-muted);
   font-size: var(--fs-12);
+}
+
+/* Hero 卡 */
+.fl-goal-hero {
+  background: linear-gradient(180deg, var(--color-primary-soft) 0%, var(--color-bg-elevated) 100%);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  border-radius: var(--r-lg); padding: var(--sp-5);
+  position: relative; overflow: hidden; margin-bottom: var(--sp-4);
+}
+.fl-goal-hero::before {
+  content: ""; position: absolute; top: -60px; right: -60px;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, var(--color-primary-light), transparent 60%);
+  opacity: 0.2; pointer-events: none;
+}
+.fl-hero-tag {
+  font-size: var(--fs-12); color: var(--color-primary-dark); font-weight: var(--fw-medium);
+  padding: 3px 10px; background: rgba(255,255,255,0.6); border-radius: var(--r-pill);
+  display: inline-block; margin-bottom: var(--sp-3); position: relative;
+}
+.fl-hero-name { font-size: var(--fs-20, 20px); font-weight: var(--fw-semibold); margin: 0 0 var(--sp-2); position: relative; }
+.fl-hero-desc { font-size: var(--fs-14); color: var(--color-text-secondary); margin: 0 0 var(--sp-3); position: relative; line-height: 1.6; }
+.fl-hero-meta {
+  display: flex; gap: var(--sp-4); font-size: var(--fs-12); color: var(--color-text-muted);
+  position: relative;
 }
 </style>

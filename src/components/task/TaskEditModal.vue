@@ -20,6 +20,7 @@ const description = ref("");
 const quadrant = ref("important_not_urgent");
 const estimatedMinutes = ref<number | null>(null);
 const dueDate = ref("");
+const recurrenceRule = ref("");
 
 watch(
   () => props.task,
@@ -111,6 +112,17 @@ async function onSave() {
               <input v-model="dueDate" class="fl-input" type="date" />
             </label>
           </div>
+
+          <label class="fl-field">
+            <span class="fl-label">重复规则</span>
+            <select v-model="recurrenceRule" class="fl-input">
+              <option value="">不重复</option>
+              <option value="daily">每天</option>
+              <option value="weekdays">工作日</option>
+              <option value="weekly">每周</option>
+              <option value="monthly">每月</option>
+            </select>
+          </label>
 
           <footer class="fl-modal-foot">
             <button class="fl-btn fl-btn-primary" type="submit" :disabled="!name.trim()">
