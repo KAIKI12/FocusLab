@@ -9,6 +9,12 @@ const router = createRouter({
   routes: [
     { path: "/", redirect: "/today" },
     {
+      path: "/ftue",
+      name: "ftue",
+      component: () => import("@/views/FTUEView.vue"),
+      meta: { title: "欢迎", hideLayout: true },
+    },
+    {
       path: "/today",
       name: "today",
       component: () => import("@/views/TodayView.vue"),
@@ -37,6 +43,12 @@ const router = createRouter({
       name: "settings",
       component: () => import("@/views/SettingsView.vue"),
       meta: { title: "设置" },
+    },
+    {
+      path: "/parked",
+      name: "parked",
+      component: () => import("@/views/ParkedView.vue"),
+      meta: { title: "搁置区" },
     },
   ],
 });

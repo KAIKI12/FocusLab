@@ -1,13 +1,12 @@
 <script setup lang="ts">
 /**
  * App · 主窗口布局。
- * - 左:Sidebar
- * - 右:路由视图(RouterView)
- * - 最外层挂 RecoveryDialog,受 useRecoveryStore 控制
- * - onMounted 触发崩溃恢复检查(Week 1b 起)
+ * - FTUE 未完成时全屏展示引导,隐藏 Sidebar
+ * - 正常模式:左 Sidebar + 右路由视图
  */
 
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 import Sidebar from "@/components/common/Sidebar.vue";
 import CommandPalette from "@/components/common/CommandPalette.vue";
@@ -17,8 +16,18 @@ import BreakEndDialog from "@/components/timer/BreakEndDialog.vue";
 import { useRecovery } from "@/composables/useRecovery";
 
 const { checkOnMount } = useRecovery();
+const route = useRoute();
+const router = useRouter();
+
+const hideLayout = computed(() => route.meta.hideLayout === true);
 
 onMounted(() => {
+  // FTUE 检查：首次使用时跳转引导
+  const ftueDone = localStorage.getItem("fl-ftue-done");
+  if (!ftueDone && route.path !== "/ftue") {
+    router.replace("/ftue");
+  }
+
   checkOnMount().catch((err) => {
     console.error("[recovery] checkOnMount failed", err);
   });
@@ -26,20 +35,21 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="fl-app">
-    <Sidebar />
+  <div class="fl-app" :class="{ 'is-fullscreen': hideLayout }">
+    <Sidebar v-if="!hideLayout" />
     <main class="fl-main">
       <RouterView />
     </main>
-    <RecoveryDialog />
-    <BreakEndDialog />
-    <SettlementDialog />
-    <CommandPalette />
+    <template v-if="!hideLayout">
+      <RecoveryDialog />
+      <BreakEndDialog />
+      <SettlementDialog />
+      <CommandPalette />
+    </template>
   </div>
 </template>
 
 <style>
-/* 全局根容器:占满视口,Flex 行布局 */
 html,
 body,
 #app {
@@ -62,9 +72,17 @@ body,
   overflow: hidden;
 }
 
+.fl-app.is-fullscreen {
+  flex-direction: column;
+}
+
 .fl-main {
   flex: 1;
   overflow: auto;
   padding: var(--sp-6) var(--sp-8);
+}
+
+.fl-app.is-fullscreen .fl-main {
+  padding: 0;
 }
 </style>

@@ -7,6 +7,7 @@
  */
 
 import {
+  Archive,
   Calendar,
   CalendarCheck,
   ChevronLeft,
@@ -27,6 +28,7 @@ const nav = [
   { to: "/goals", label: "长线目标", icon: Target },
   { to: "/calendar", label: "日历", icon: Calendar },
   { to: "/stats", label: "数据洞察", icon: TrendingUp },
+  { to: "/parked", label: "搁置区", icon: Archive },
   { to: "/settings", label: "设置", icon: Settings },
 ];
 </script>
