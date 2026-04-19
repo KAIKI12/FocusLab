@@ -70,5 +70,25 @@ export const useAIStore = defineStore("ai", () => {
     }
   }
 
-  return { loading, configured, configure, testConnection, decomposeTask, generateNarrative };
+  async function dailySuggestions(energyLevel?: string): Promise<string> {
+    loading.value = true;
+    try {
+      return await invokeCmd<string>("ai_daily_suggestions", {
+        input: { energyLevel: energyLevel ?? "正常" },
+      });
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function classifyQuadrant(taskName: string, description?: string): Promise<string> {
+    return invokeCmd<string>("ai_classify_quadrant", {
+      input: { taskName, description: description ?? "" },
+    });
+  }
+
+  return {
+    loading, configured, configure, testConnection,
+    decomposeTask, generateNarrative, dailySuggestions, classifyQuadrant,
+  };
 });

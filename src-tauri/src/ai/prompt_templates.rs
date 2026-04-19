@@ -52,3 +52,18 @@ pub fn daily_suggestion_prompt(
         回复限 200 字以内。"
     )
 }
+
+/// 四象限自动分类模板
+pub fn classify_quadrant_prompt(task_name: &str, description: &str) -> String {
+    format!(
+        "你是一个艾森豪威尔矩阵分类助手。请判断以下任务属于哪个象限。\n\n\
+        任务名称: {task_name}\n\
+        描述: {description}\n\n\
+        四个象限:\n\
+        - important_urgent: 重要且紧急\n\
+        - important_not_urgent: 重要不紧急\n\
+        - not_important_urgent: 紧急不重要\n\
+        - not_important_not_urgent: 不紧急不重要\n\n\
+        只回复象限的英文标识(如 important_urgent),不要其他文字。"
+    )
+}
