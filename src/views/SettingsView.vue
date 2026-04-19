@@ -26,6 +26,8 @@ const sections = [
   { id: "notification", label: "通知", icon: "🔔" },
   { id: "ai", label: "AI 助手", icon: "✨" },
   { id: "privacy", label: "隐私", icon: "🔒" },
+  { id: "shortcuts", label: "快捷键", icon: "⌨️" },
+  { id: "experiment", label: "实验功能", icon: "🧪" },
   { id: "data", label: "数据", icon: "💾" },
   { id: "about", label: "关于", icon: "ℹ️" },
 ];
@@ -296,6 +298,57 @@ async function exportSessionsCsv() {
         </div>
       </div>
 
+      <!-- 快捷键 -->
+      <div v-if="activeSection === 'shortcuts'" class="fl-set-group">
+        <h2>快捷键</h2>
+        <div class="fl-sc-list">
+          <div class="fl-sc-section">焦点/番茄钟</div>
+          <div class="fl-sc-row"><span>暂停 / 继续</span><kbd>Space</kbd></div>
+          <div class="fl-sc-row"><span>结束番茄钟</span><kbd>⌘⇧X</kbd></div>
+          <div class="fl-sc-section">任务/计划</div>
+          <div class="fl-sc-row"><span>快速添加任务</span><kbd>⌘N</kbd></div>
+          <div class="fl-sc-row"><span>结束今天</span><kbd>⌘⇧E</kbd></div>
+          <div class="fl-sc-section">视图/导航</div>
+          <div class="fl-sc-row"><span>今日计划</span><kbd>⌘1</kbd></div>
+          <div class="fl-sc-row"><span>长线目标</span><kbd>⌘2</kbd></div>
+          <div class="fl-sc-row"><span>日历视图</span><kbd>⌘3</kbd></div>
+          <div class="fl-sc-row"><span>数据分析</span><kbd>⌘4</kbd></div>
+          <div class="fl-sc-section">设置/模式</div>
+          <div class="fl-sc-row"><span>命令面板</span><kbd>⌘/</kbd></div>
+          <div class="fl-sc-row"><span>切换主题</span><kbd>⌘⇧T</kbd></div>
+          <div class="fl-sc-row"><span>打开设置</span><kbd>⌘,</kbd></div>
+        </div>
+      </div>
+
+      <!-- 实验功能 -->
+      <div v-if="activeSection === 'experiment'" class="fl-set-group">
+        <h2>实验功能</h2>
+        <p class="fl-exp-desc">以下功能为实验性质，默认关闭。开启后可在对应页面体验。</p>
+        <div class="fl-exp-list">
+          <div class="fl-exp-card">
+            <div class="fl-exp-head">
+              <span>🌤 心情打卡</span>
+              <button class="fl-toggle is-on"><span class="fl-toggle-dot" /></button>
+            </div>
+            <div class="fl-exp-body">早晨意图档位 + 晚间情绪记录</div>
+          </div>
+          <div class="fl-exp-card">
+            <div class="fl-exp-head">
+              <span>🧬 科研人格图鉴</span>
+              <button class="fl-toggle"><span class="fl-toggle-dot" /></button>
+            </div>
+            <div class="fl-exp-body">30 型人格 · 7 天孵化 · 社交分享</div>
+          </div>
+          <div class="fl-exp-card">
+            <div class="fl-exp-head">
+              <span>🏆 成就徽章</span>
+              <button class="fl-toggle is-on"><span class="fl-toggle-dot" /></button>
+            </div>
+            <div class="fl-exp-body">45 枚徽章 · 4 稀有度 · 6 分类</div>
+          </div>
+        </div>
+      </div>
+
       <!-- 数据 -->
       <div v-if="activeSection === 'data'" class="fl-set-group">
         <h2>数据</h2>
@@ -484,4 +537,19 @@ async function exportSessionsCsv() {
 .fl-about-name { font-size: var(--fs-20, 20px); font-weight: var(--fw-semibold); }
 .fl-about-ver { font-size: var(--fs-12); color: var(--color-text-muted); font-family: var(--font-mono); }
 .fl-about-desc { font-size: var(--fs-14); color: var(--color-text-secondary); margin: 0; }
+
+/* 快捷键 */
+.fl-sc-list { display: flex; flex-direction: column; gap: 4px; }
+.fl-sc-section { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-muted); font-weight: var(--fw-medium); margin-top: var(--sp-3); margin-bottom: var(--sp-1); }
+.fl-sc-section:first-child { margin-top: 0; }
+.fl-sc-row { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-2) 0; font-size: var(--fs-14); border-bottom: 1px solid var(--color-border); }
+.fl-sc-row span { color: var(--color-text-primary); }
+.fl-sc-row kbd { padding: 2px 8px; border: 1px solid var(--color-border); border-radius: 4px; font-size: 11px; font-family: var(--font-mono, monospace); background: var(--color-bg-subtle); color: var(--color-text-muted); }
+
+/* 实验功能 */
+.fl-exp-desc { font-size: var(--fs-14); color: var(--color-text-secondary); margin: 0 0 var(--sp-3); }
+.fl-exp-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+.fl-exp-card { border: 1px solid var(--color-border); border-radius: var(--r-md); overflow: hidden; }
+.fl-exp-head { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-3) var(--sp-4); font-size: var(--fs-14); font-weight: var(--fw-medium); }
+.fl-exp-body { padding: 0 var(--sp-4) var(--sp-3); font-size: var(--fs-12); color: var(--color-text-muted); }
 </style>

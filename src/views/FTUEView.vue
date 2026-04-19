@@ -145,6 +145,14 @@ const FEATURES = [
       </div>
 
       <div class="fl-pref-group">
+        <label class="fl-pref-label">工作模式</label>
+        <div class="fl-pill-row">
+          <button class="is-active">标准</button>
+          <button @click="$router.push('/minimal')">极简</button>
+        </div>
+      </div>
+
+      <div class="fl-pref-group">
         <label class="fl-pref-label">通知</label>
         <div class="fl-pill-row">
           <button :class="{ 'is-active': notifyMode === 'on' }" @click="notifyMode = 'on'">开启</button>
@@ -165,6 +173,34 @@ const FEATURES = [
 
       <div class="fl-privacy-banner">
         🔒 AI 功能需要将任务名称发送到 AI 服务商。FocusLab 不存储你的数据。
+      </div>
+
+      <!-- 提供商卡片选择 -->
+      <div v-if="!skipAI" class="fl-provider-grid">
+        <button
+          class="fl-provider-card" :class="{ 'is-active': aiProvider === 'compatible' }"
+          @click="aiProvider = 'compatible'"
+        >
+          <span class="fl-provider-icon">🌐</span>
+          <strong>OpenAI 兼容</strong>
+          <span>DeepSeek / 智谱 / 代理</span>
+        </button>
+        <button
+          class="fl-provider-card" :class="{ 'is-active': aiProvider === 'openai' }"
+          @click="aiProvider = 'openai'"
+        >
+          <span class="fl-provider-icon">🤖</span>
+          <strong>OpenAI</strong>
+          <span>GPT-4o / GPT-4o-mini</span>
+        </button>
+        <button
+          class="fl-provider-card" :class="{ 'is-active': aiProvider === 'ollama' }"
+          @click="aiProvider = 'ollama'"
+        >
+          <span class="fl-provider-icon">🏠</span>
+          <strong>Ollama</strong>
+          <span>本地模型</span>
+        </button>
       </div>
 
       <label v-if="!skipAI" class="fl-input-field">
@@ -354,6 +390,18 @@ const FEATURES = [
   display: flex; align-items: center; gap: var(--sp-2);
   font-size: var(--fs-12); color: var(--color-text-secondary); cursor: pointer;
 }
+
+.fl-provider-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); text-align: left; }
+.fl-provider-card {
+  display: flex; flex-direction: column; gap: 2px; padding: var(--sp-3);
+  border: 1px solid var(--color-border); border-radius: var(--r-md);
+  background: transparent; cursor: pointer; transition: all var(--dur-fast);
+}
+.fl-provider-card:hover { border-color: var(--color-primary); }
+.fl-provider-card.is-active { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.fl-provider-icon { font-size: 20px; }
+.fl-provider-card strong { font-size: var(--fs-12); }
+.fl-provider-card span { font-size: 10px; color: var(--color-text-muted); }
 
 .fl-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
 .fl-summary-item {

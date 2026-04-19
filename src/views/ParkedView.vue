@@ -83,6 +83,7 @@ function daysSince(dateStr: string): number {
         </div>
         <div class="fl-parked-actions">
           <button class="fl-p-btn fl-p-restore" @click="restoreTask(t)">恢复</button>
+          <button class="fl-p-btn" title="拆分成更小任务">拆分</button>
           <button class="fl-p-btn fl-p-danger" @click="tasks.remove(t.id); shelvedTasks = shelvedTasks.filter(x => x.id !== t.id)">删除</button>
         </div>
       </li>

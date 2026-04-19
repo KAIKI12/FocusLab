@@ -148,6 +148,9 @@ function finish() {
               <div class="fl-mg-ai-avatar">✨</div>
               <div class="fl-mg-ai-text">{{ aiSuggestion }}</div>
             </div>
+            <button v-if="!loadingAI" class="fl-mg-regen" @click="loadAISuggestion">
+              🔄 重新生成
+            </button>
           </template>
 
           <!-- Step 5: 能量状态 -->
@@ -256,6 +259,13 @@ function finish() {
 }
 .fl-mg-ai-avatar { font-size: 20px; flex-shrink: 0; }
 .fl-mg-ai-text { font-size: var(--fs-14); color: var(--color-text-secondary); line-height: 1.6; }
+
+.fl-mg-regen {
+  background: none; border: 1px solid var(--color-border); border-radius: var(--r-sm);
+  padding: var(--sp-1) var(--sp-3); font-size: var(--fs-12); color: var(--color-text-muted);
+  cursor: pointer; margin-top: var(--sp-2);
+}
+.fl-mg-regen:hover { border-color: var(--color-primary); color: var(--color-primary); }
 
 /* Energy */
 .fl-mg-energy-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); }

@@ -242,6 +242,9 @@ function fmtMin(m: number): string {
           <div class="fl-ddl-text">
             <strong>{{ dueToday.length }} 个任务今日到期</strong>
           </div>
+          <button class="fl-ddl-link" @click="router.push('/calendar')">
+            日历视图 →
+          </button>
         </div>
 
         <!-- 任务面板 -->
@@ -550,6 +553,11 @@ function fmtMin(m: number): string {
 }
 .fl-ddl-text { flex: 1; }
 .fl-ddl-text strong { color: var(--color-q3); }
+.fl-ddl-link {
+  background: none; border: none; color: var(--color-primary);
+  font-size: var(--fs-12); cursor: pointer; white-space: nowrap;
+}
+.fl-ddl-link:hover { text-decoration: underline; }
 
 /* ---------- Task Panel ---------- */
 .fl-task-panel {
