@@ -98,6 +98,8 @@ pub fn run() {
             commands::focus_commands::extend_break,
             commands::focus_commands::start_free,
             commands::focus_commands::complete_free,
+            // 手动补录
+            commands::focus_commands::create_manual_session,
             // 中断记录 (Week 2b)
             commands::interruption_commands::create_interruption,
             commands::interruption_commands::end_interruption,

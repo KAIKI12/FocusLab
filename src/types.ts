@@ -263,3 +263,12 @@ export interface SettleInput {
   triggerType?: string;
   userReflection?: string;
 }
+
+// ---------- ManualSession (手动补录) ----------
+
+export interface ManualSessionInput {
+  taskId: string;
+  startTime: string;
+  durationMinutes: number;
+  mode?: string;
+}

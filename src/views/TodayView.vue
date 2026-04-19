@@ -12,9 +12,10 @@
  *   ・✕ 从计划移除(删 dta,不影响 task)
  */
 
-import { Calendar, Check, Grid2X2, List, Lock, Minimize2, Moon, Pencil, Play, Plus, Trash2, X } from "lucide-vue-next";
+import { Calendar, Check, Clock, Grid2X2, List, Lock, Minimize2, Moon, Pencil, Play, Plus, Trash2, X } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 
+import ManualSessionModal from "@/components/timer/ManualSessionModal.vue";
 import YesterdayCard from "@/components/settlement/YesterdayCard.vue";
 import QuadrantGrid from "@/components/task/QuadrantGrid.vue";
 import TaskEditModal from "@/components/task/TaskEditModal.vue";
@@ -36,6 +37,7 @@ const { open: openBubble } = useBubble();
 const name = ref("");
 const viewMode = ref<"list" | "quadrant">("list");
 const editingTask = ref<Task | null>(null);
+const showManualSession = ref(false);
 
 onMounted(async () => {
   await Promise.all([tasks.load(), assignments.load()]);
@@ -99,6 +101,9 @@ async function onChangeQuadrant(taskId: string, quadrant: string) {
         </p>
       </div>
       <div class="fl-page-actions">
+        <button class="fl-bubble-entry" type="button" title="补录记录" @click="showManualSession = true">
+          <Clock :size="14" /> 补录
+        </button>
         <button class="fl-bubble-entry" type="button" title="悬浮球" @click="openBubble">
           <Minimize2 :size="14" /> 悬浮球
         </button>
@@ -299,6 +304,9 @@ async function onChangeQuadrant(taskId: string, quadrant: string) {
 
     <!-- 编辑弹窗 -->
     <TaskEditModal :task="editingTask" @close="editingTask = null" />
+
+    <!-- 手动补录弹窗 -->
+    <ManualSessionModal :visible="showManualSession" @close="showManualSession = false" />
   </section>
 </template>
 

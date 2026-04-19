@@ -1,11 +1,17 @@
-//! 番茄钟控制命令 — 对接 TimerService。
+//! 番茄钟控制命令 — 对接 TimerService + 手动补录。
 //!
 //! 命令均为 async,因为 TimerService 的内部状态锁是 tokio 异步锁。
 
+use chrono::Utc;
+use rusqlite::params;
+use serde::Deserialize;
 use tauri::State;
+use uuid::Uuid;
 
+use crate::db::Db;
+use crate::models::session::Session;
 use crate::services::timer_service::{TimerService, TimerSnapshot};
-use crate::utils::errors::AppResult;
+use crate::utils::errors::{AppError, AppResult};
 
 #[tauri::command]
 pub async fn start_pomodoro(
@@ -85,4 +91,78 @@ pub async fn start_free(
 #[tauri::command]
 pub async fn complete_free(timer: State<'_, TimerService>) -> AppResult<()> {
     timer.complete_free().await
+}
+
+// ---------- 手动补录 ----------
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ManualSessionInput {
+    pub task_id: String,
+    pub start_time: String,
+    pub duration_minutes: i64,
+    pub mode: Option<String>,
+}
+
+/// 手动补录一条已完成的专注记录。
+#[tauri::command]
+pub fn create_manual_session(input: ManualSessionInput, db: State<'_, Db>) -> AppResult<Session> {
+    if input.duration_minutes <= 0 {
+        return Err(AppError::Custom("时长必须大于 0".into()));
+    }
+
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+
+    // 校验 task 存在
+    let exists: bool = conn
+        .query_row(
+            "SELECT COUNT(*) > 0 FROM tasks WHERE id = ?1 AND shelved_at IS NULL",
+            params![input.task_id],
+            |r| r.get(0),
+        )
+        .unwrap_or(false);
+    if !exists {
+        return Err(AppError::Custom("任务不存在".into()));
+    }
+
+    let id = Uuid::new_v4().to_string();
+    let now = Utc::now().to_rfc3339();
+    let mode = input.mode.as_deref().unwrap_or("free");
+
+    // 计算 end_time
+    let start = chrono::DateTime::parse_from_rfc3339(&input.start_time)
+        .map_err(|e| AppError::Custom(format!("无效的起始时间: {e}")))?;
+    let end = start + chrono::Duration::minutes(input.duration_minutes);
+    let end_time = end.to_rfc3339();
+
+    conn.execute(
+        "INSERT INTO sessions
+            (id, task_id, start_time, end_time, planned_duration_minutes,
+             actual_duration_minutes, mode, status, is_manual_entry, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6, 'completed', 1, ?7)",
+        params![
+            id,
+            input.task_id,
+            input.start_time,
+            end_time,
+            input.duration_minutes,
+            mode,
+            now,
+        ],
+    )?;
+
+    Ok(Session {
+        id: id.clone(),
+        task_id: input.task_id,
+        start_time: input.start_time,
+        end_time: Some(end_time),
+        planned_duration_minutes: Some(input.duration_minutes),
+        actual_duration_minutes: Some(input.duration_minutes),
+        mode: mode.to_string(),
+        pomodoro_preset: None,
+        status: "completed".into(),
+        is_manual_entry: true,
+        abandon_reason: None,
+        created_at: now,
+    })
 }
