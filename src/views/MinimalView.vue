@@ -4,8 +4,9 @@
  * 420×640 精简界面：仅任务列表 + 番茄环 + 基础统计。
  */
 
-import { Check, Moon, Pause, Play, Plus, Square } from "lucide-vue-next";
+import { Check, Maximize2, Moon, Pause, Play, Plus, Square } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 
 import { useAssignmentStore } from "@/stores/useAssignmentStore";
 import { useSettlementStore } from "@/stores/useSettlementStore";
@@ -16,6 +17,7 @@ const tasks = useTaskStore();
 const timer = useTimerStore();
 const assignments = useAssignmentStore();
 const settlement = useSettlementStore();
+const router = useRouter();
 
 const name = ref("");
 
@@ -64,9 +66,9 @@ async function startTask(taskId: string) {
       <div class="fl-min-date">
         {{ new Date().toLocaleDateString("zh-CN", { month: "long", day: "numeric" }) }}
       </div>
-      <div class="fl-min-time">
-        {{ new Date().toLocaleDateString("zh-CN", { weekday: "short" }) }}
-      </div>
+      <button class="fl-min-back" title="返回标准模式" @click="router.push('/today')">
+        <Maximize2 :size="14" />
+      </button>
     </header>
 
     <!-- 任务列表 -->
@@ -162,7 +164,14 @@ async function startTask(taskId: string) {
   justify-content: space-between;
 }
 .fl-min-date { font-size: var(--fs-20, 20px); font-weight: var(--fw-semibold); }
-.fl-min-time { font-size: var(--fs-12); color: var(--color-text-muted); }
+.fl-min-back {
+  width: 32px; height: 32px; border-radius: var(--r-sm);
+  border: 1px solid var(--color-border); background: transparent;
+  color: var(--color-text-muted); cursor: pointer;
+  display: grid; place-items: center;
+  transition: all var(--dur-fast);
+}
+.fl-min-back:hover { border-color: var(--color-primary); color: var(--color-primary); }
 
 .fl-min-section-title {
   font-size: var(--fs-12); color: var(--color-text-muted);
