@@ -38,3 +38,14 @@ pub struct YesterdaySummary {
     pub longest_focus_task_name: Option<String>,
     pub carried_over_count: i64,
 }
+
+/// 日历视图用的轻量日摘要
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DaySummary {
+    pub settle_date: String,
+    pub completed_tasks: i64,
+    pub total_tasks: i64,
+    pub grade: String,
+    pub total_focus_minutes: i64,
+}

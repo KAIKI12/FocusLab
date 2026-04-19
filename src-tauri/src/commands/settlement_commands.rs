@@ -7,7 +7,7 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::db::Db;
-use crate::models::settlement::{Settlement, YesterdaySummary};
+use crate::models::settlement::{DaySummary, Settlement, YesterdaySummary};
 use crate::models::settings;
 use crate::utils::datetime::current_logical_date;
 use crate::utils::errors::{AppError, AppResult};
@@ -241,6 +241,30 @@ pub fn get_settlement(plan_date: Option<String>, db: State<'_, Db>) -> AppResult
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(AppError::Custom(e.to_string())),
     }
+}
+
+/// 查询日期范围内的日摘要(日历视图用)
+#[tauri::command]
+pub fn list_day_summaries(from: String, to: String, db: State<'_, Db>) -> AppResult<Vec<DaySummary>> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let mut stmt = conn.prepare(
+        "SELECT settle_date, completed_tasks, total_tasks, grade, total_focus_minutes
+         FROM settlements
+         WHERE settle_date >= ?1 AND settle_date <= ?2
+         ORDER BY settle_date",
+    )?;
+    let rows = stmt
+        .query_map(params![from, to], |r| {
+            Ok(DaySummary {
+                settle_date: r.get(0)?,
+                completed_tasks: r.get(1)?,
+                total_tasks: r.get(2)?,
+                grade: r.get(3)?,
+                total_focus_minutes: r.get(4)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
 }
 
 /// 获取昨日摘要(打开应用时的 YesterdayCard 用)

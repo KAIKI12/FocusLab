@@ -272,3 +272,13 @@ export interface ManualSessionInput {
   durationMinutes: number;
   mode?: string;
 }
+
+// ---------- DaySummary (日历视图) ----------
+
+export interface DaySummary {
+  settleDate: string;
+  completedTasks: number;
+  totalTasks: number;
+  grade: "S" | "A" | "B" | "C";
+  totalFocusMinutes: number;
+}

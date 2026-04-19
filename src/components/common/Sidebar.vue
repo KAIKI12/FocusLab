@@ -7,6 +7,7 @@
  */
 
 import {
+  Calendar,
   CalendarCheck,
   ChevronLeft,
   ChevronRight,
@@ -24,6 +25,7 @@ const route = useRoute();
 const nav = [
   { to: "/today", label: "今日", icon: CalendarCheck },
   { to: "/goals", label: "长线目标", icon: Target },
+  { to: "/calendar", label: "日历", icon: Calendar },
   { to: "/stats", label: "数据洞察", icon: TrendingUp },
   { to: "/settings", label: "设置", icon: Settings },
 ];

@@ -116,6 +116,7 @@ pub fn run() {
             commands::settlement_commands::settle_day,
             commands::settlement_commands::get_settlement,
             commands::settlement_commands::get_yesterday_summary,
+            commands::settlement_commands::list_day_summaries,
             // AI (Phase 2)
             commands::ai_commands::configure_ai,
             commands::ai_commands::test_ai_connection,
