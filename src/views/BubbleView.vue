@@ -1,10 +1,6 @@
 <script setup lang="ts">
 /**
- * BubbleView · 悬浮球 — 自定义拖拽 + 真圆形 + 手势修正。
- *
- * 拖拽: mousedown 记录起点 → mousemove 算 delta → setPosition (不用 startDragging)
- * 手势: 单击暂停/继续, 双击展开面板
- * 圆形: 窗口 64px, 内容 CSS 圆形, body 透明
+ * BubbleView · 悬浮球 — 拖拽零延迟 + Mini Panel 对齐原型浅色设计。
  */
 
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -61,11 +57,10 @@ const progress = computed(() => {
 });
 
 const phaseLabel = computed(() => {
-  if (showComplete.value) return "完成!";
   const s = snapshot.value;
   if (!s || s.status === "idle") return "FocusLab";
   if (s.mode === "free") return "🌀 自由计时";
-  if (s.status === "running") return "🍅 专注中";
+  if (s.status === "running") return `专注中 · 第 ${s.pomodoroCount} 番茄`;
   if (s.status === "paused") return "⏸ 已暂停";
   if (s.status === "break") return "☕ 休息中";
   if (s.status === "break_ended") return "☕ 休息结束";
@@ -73,66 +68,49 @@ const phaseLabel = computed(() => {
 });
 
 // =============================================
-// 自定义拖拽 — 不用 startDragging / drag-region
+// 拖拽 — 缓存位置，零 await 延迟
 // =============================================
 
+let cachedWinX = 0;
+let cachedWinY = 0;
 let dragStartScreenX = 0;
 let dragStartScreenY = 0;
-let dragStartWinX = 0;
-let dragStartWinY = 0;
 let isDragging = false;
 let hasMoved = false;
 
-async function onMouseDown(e: MouseEvent) {
-  // 记录鼠标屏幕坐标和窗口位置
+function onMouseDown(e: MouseEvent) {
   dragStartScreenX = e.screenX;
   dragStartScreenY = e.screenY;
   isDragging = true;
   hasMoved = false;
-
-  try {
-    const pos = await appWindow.outerPosition();
-    dragStartWinX = pos.x;
-    dragStartWinY = pos.y;
-  } catch { /* */ }
+  // 用缓存位置，不 await
 }
 
-async function onMouseMove(e: MouseEvent) {
+function onMouseMove(e: MouseEvent) {
   if (!isDragging) return;
-
   const dx = e.screenX - dragStartScreenX;
   const dy = e.screenY - dragStartScreenY;
-
-  // 超过 3px 才算拖拽（区分点击和拖拽）
-  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-    hasMoved = true;
-  }
-
-  if (hasMoved) {
-    const newX = dragStartWinX + dx;
-    const newY = dragStartWinY + dy;
-    try {
-      await appWindow.setPosition(new LogicalPosition(newX, newY));
-    } catch { /* */ }
-  }
+  if (!hasMoved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+  hasMoved = true;
+  const newX = cachedWinX + dx;
+  const newY = cachedWinY + dy;
+  // fire-and-forget，不 await
+  appWindow.setPosition(new LogicalPosition(newX, newY));
 }
 
 function onMouseUp() {
-  isDragging = false;
-  // 拖拽结束保存位置
-  if (hasMoved) {
-    savePosition();
+  if (isDragging && hasMoved) {
+    // 更新缓存
+    cachedWinX += 0; // 重新读一次
+    appWindow.outerPosition().then(pos => {
+      cachedWinX = pos.x;
+      cachedWinY = pos.y;
+      try { localStorage.setItem("fl-bubble-pos", JSON.stringify({ x: pos.x, y: pos.y })); } catch {}
+    }).catch(() => {});
   }
+  isDragging = false;
 }
 
-async function savePosition() {
-  try {
-    const pos = await appWindow.outerPosition();
-    localStorage.setItem("fl-bubble-pos", JSON.stringify({ x: pos.x, y: pos.y }));
-  } catch { /* */ }
-}
-
-// 全局 mousemove/mouseup (挂在 document 上，防止鼠标移出窗口丢失)
 onMounted(() => {
   document.addEventListener("mousemove", onMouseMove);
   document.addEventListener("mouseup", onMouseUp);
@@ -150,7 +128,7 @@ let clickTimer: ReturnType<typeof setTimeout> | null = null;
 let clickCount = 0;
 
 function onOrbClick() {
-  if (hasMoved) return; // 拖拽后不触发点击
+  if (hasMoved) return;
   clickCount++;
   if (clickCount === 1) {
     clickTimer = setTimeout(() => {
@@ -165,16 +143,9 @@ function onOrbClick() {
 }
 
 async function onSingleClick() {
-  if (isRunning.value || isPaused.value) {
-    await togglePause();
-  } else if (isIdle.value) {
-    await focusMainWindow();
-  }
+  if (isRunning.value || isPaused.value) await togglePause();
+  else if (isIdle.value) await focusMainWindow();
 }
-
-// =============================================
-// 操作
-// =============================================
 
 async function togglePause() {
   if (!snapshot.value) return;
@@ -184,19 +155,14 @@ async function togglePause() {
   } catch (e) { console.error(e); }
 }
 
-async function onAbandon() {
-  try { await invoke("abandon_timer", { reason: null }); } catch (e) { console.error(e); }
-}
-
-async function onSkipBreak() {
-  try { await invoke("skip_break"); } catch (e) { console.error(e); }
-}
+async function onAbandon() { try { await invoke("abandon_timer", { reason: null }); } catch {} }
+async function onSkipBreak() { try { await invoke("skip_break"); } catch {} }
 
 async function focusMainWindow() {
   try {
     const main = await WebviewWindow.getByLabel("main");
     if (main) { await main.unminimize(); await main.setFocus(); }
-  } catch (e) { console.error(e); }
+  } catch {}
 }
 
 async function closeBubble() { await appWindow.close(); }
@@ -205,24 +171,19 @@ async function closeBubble() { await appWindow.close(); }
 // 窗口大小
 // =============================================
 
-const WIN_ORB = 64;
-const PANEL_W = 320;
-const PANEL_H = 380;
-
 watch(expanded, async (exp) => {
   if (exp) {
-    try {
-      const pos = await appWindow.outerPosition();
-      const sW = window.screen.width;
-      const sH = window.screen.height;
-      let x = Math.max(0, Math.min(pos.x, sW - PANEL_W));
-      let y = Math.max(0, Math.min(pos.y, sH - PANEL_H));
-      await appWindow.setPosition(new LogicalPosition(x, y));
-    } catch { /* */ }
-    await appWindow.setSize(new LogicalSize(PANEL_W, PANEL_H));
+    const sW = window.screen.width;
+    const sH = window.screen.height;
+    let x = Math.max(0, Math.min(cachedWinX, sW - 340));
+    let y = Math.max(0, Math.min(cachedWinY - 400, sH - 480));
+    if (y < 0) y = cachedWinY + 70;
+    await appWindow.setPosition(new LogicalPosition(x, y));
+    await appWindow.setSize(new LogicalSize(340, 460));
   } else {
-    await appWindow.setSize(new LogicalSize(WIN_ORB, WIN_ORB));
-    savePosition();
+    await appWindow.setSize(new LogicalSize(64, 64));
+    // 恢复原位
+    await appWindow.setPosition(new LogicalPosition(cachedWinX, cachedWinY));
   }
 });
 
@@ -240,19 +201,21 @@ async function refreshTaskName() {
 }
 
 watch(() => snapshot.value?.taskId, () => refreshTaskName());
-
-watch(
-  () => snapshot.value?.status,
-  (newSt, oldSt) => {
-    if (oldSt === "running" && (newSt === "break" || newSt === "break_ended")) {
-      showComplete.value = true;
-      setTimeout(() => { showComplete.value = false; }, 1200);
-    }
-  },
-);
+watch(() => snapshot.value?.status, (n, o) => {
+  if (o === "running" && (n === "break" || n === "break_ended")) {
+    showComplete.value = true;
+    setTimeout(() => { showComplete.value = false; }, 1200);
+  }
+});
 
 onMounted(async () => {
-  await appWindow.setSize(new LogicalSize(WIN_ORB, WIN_ORB));
+  await appWindow.setSize(new LogicalSize(64, 64));
+  // 初始化缓存位置
+  try {
+    const pos = await appWindow.outerPosition();
+    cachedWinX = pos.x;
+    cachedWinY = pos.y;
+  } catch {}
 
   try {
     const row = await invoke<{
@@ -269,8 +232,7 @@ onMounted(async () => {
       plannedSeconds: row.is_break ? (row.break_remaining ?? 0) : (row.planned_seconds ?? 0),
       pomodoroCount: row.pomodoro_count, isBreak: row.is_break,
     };
-  } catch { /* idle */ }
-
+  } catch {}
   await refreshTaskName();
 
   const handler = (ev: { payload: TimerSnapshot }) => { snapshot.value = ev.payload; };
@@ -278,13 +240,12 @@ onMounted(async () => {
   const u2 = await listen<TimerSnapshot>("timer:state_changed", handler);
   unlisteners = [u1, u2];
 });
-
 onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
 </script>
 
 <template>
-  <div class="fl-root" :data-state="visualState">
-    <!-- 收缩态 -->
+  <div class="fl-root" :data-state="visualState" :class="{ 'is-expanded': expanded }">
+    <!-- ===== 收缩态 ===== -->
     <div
       v-if="!expanded"
       class="fl-orb"
@@ -293,197 +254,210 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
       @dblclick.prevent
     >
       <svg v-if="visualState === 'focusing'" class="fl-orb-ring" viewBox="0 0 64 64">
-        <circle class="fl-ring-track" cx="32" cy="32" r="28" fill="none" stroke-width="3" />
-        <circle class="fl-ring-arc" cx="32" cy="32" r="28" fill="none" stroke-width="3"
-          stroke-linecap="round" :stroke-dasharray="176" :stroke-dashoffset="176 * progress" />
+        <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3" />
+        <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="3"
+          stroke-linecap="round" :stroke-dasharray="176" :stroke-dashoffset="176 * progress"
+          style="transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .3s" />
       </svg>
-      <div v-if="visualState === 'free'" class="fl-orb-free-ring" />
-      <div class="fl-orb-center">
-        <span v-if="visualState === 'complete'" class="fl-orb-check">✓</span>
-        <span v-else-if="visualState === 'breathing'" class="fl-orb-logo">F</span>
-        <span v-else class="fl-orb-time">{{ timeText }}</span>
+      <div v-if="visualState === 'free'" class="fl-free-ring" />
+      <div class="fl-orb-inner">
+        <span v-if="visualState === 'complete'">✓</span>
+        <span v-else-if="visualState === 'breathing'" class="fl-logo">F</span>
+        <span v-else class="fl-time">{{ timeText }}</span>
       </div>
     </div>
 
-    <!-- 展开态 -->
-    <div v-else class="fl-panel">
-      <div class="fl-panel-head" @mousedown="onMouseDown">
-        <span class="fl-panel-phase">{{ phaseLabel }}</span>
-        <button class="fl-panel-close" @click="expanded = false">×</button>
+    <!-- ===== 展开态:浅色 Mini Panel(对齐原型) ===== -->
+    <div v-else class="fl-mp">
+      <div class="fl-mp-head" @mousedown="onMouseDown">
+        <div class="fl-mp-phase">
+          <span class="fl-mp-dot" />
+          {{ phaseLabel }}
+        </div>
+        <button class="fl-mp-close" @click="expanded = false">✕</button>
       </div>
-      <div class="fl-panel-body">
-        <div class="fl-panel-task">{{ taskName }}</div>
-        <div v-if="snapshot && !isIdle" class="fl-panel-meta">
-          <span v-if="snapshot.mode === 'pomodoro'">🍅 第 {{ snapshot.pomodoroCount }} 个</span>
+
+      <div class="fl-mp-body">
+        <div class="fl-mp-task">{{ taskName }}</div>
+        <div class="fl-mp-meta">
+          <span v-if="snapshot?.mode === 'pomodoro'">🎯 番茄模式 · 已专注</span>
           <span v-else>🌀 自由模式</span>
-          <span v-if="isPaused" class="fl-panel-paused">已暂停</span>
         </div>
-        <div class="fl-panel-ring-wrap">
-          <svg class="fl-panel-ring" viewBox="0 0 130 130">
-            <circle class="fl-pring-track" cx="65" cy="65" r="56" fill="none" stroke-width="6" />
-            <circle v-if="!isFree" class="fl-pring-arc" cx="65" cy="65" r="56" fill="none"
-              stroke-width="6" stroke-linecap="round" :stroke-dasharray="351.9"
-              :stroke-dashoffset="351.9 * progress" />
+
+        <!-- 进度环 -->
+        <div class="fl-mp-ring">
+          <svg viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--color-border, #e5e7eb)" stroke-width="6" />
+            <circle v-if="!isFree" cx="60" cy="60" r="50" fill="none"
+              stroke="var(--color-primary, #4f8cff)" stroke-width="6" stroke-linecap="round"
+              :stroke-dasharray="314" :stroke-dashoffset="314 * (1 - progress)"
+              style="transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .3s" />
           </svg>
-          <div class="fl-panel-ring-center">
-            <span class="fl-pring-time">{{ timeText || "--:--" }}</span>
-          </div>
+          <div class="fl-mp-ring-text">{{ timeText || "--:--" }}</div>
         </div>
-        <div class="fl-panel-ctrl">
-          <button v-if="isRunning" class="fl-ctrl-btn" @click="togglePause">⏸ 暂停</button>
-          <button v-else-if="isPaused" class="fl-ctrl-btn fl-ctrl-primary" @click="togglePause">▶ 继续</button>
-          <button v-if="isBreak" class="fl-ctrl-btn" @click="onSkipBreak">⏭ 跳过</button>
-          <button v-if="!isIdle" class="fl-ctrl-btn fl-ctrl-danger" @click="onAbandon">✕ 放弃</button>
+
+        <!-- 控制按钮 -->
+        <div class="fl-mp-ctrl">
+          <button class="fl-mp-btn-circle" title="结束" @click="onAbandon">◼</button>
+          <button class="fl-mp-btn-main" @click="togglePause">
+            {{ isPaused ? '▶' : '⏸' }}
+          </button>
+          <button v-if="isBreak" class="fl-mp-btn-circle" title="跳过" @click="onSkipBreak">⏭</button>
         </div>
       </div>
-      <div class="fl-panel-foot">
-        <button class="fl-foot-btn" @click="focusMainWindow">🏠 主窗口</button>
-        <button class="fl-foot-btn fl-foot-close" @click="closeBubble">✕ 关闭</button>
+
+      <div class="fl-mp-foot">
+        <button @click="focusMainWindow">🏠 打开主窗口</button>
+        <button class="fl-mp-foot-close" @click="closeBubble">✕ 关闭悬浮球</button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* 关键：根容器裁剪为圆形，收缩态时隐藏方角 */
 .fl-root {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
 }
-/* 收缩态时整个根元素裁剪为圆 */
-.fl-root:not(:has(.fl-panel)) {
+.fl-root:not(.is-expanded) {
   border-radius: 50%;
   overflow: hidden;
 }
 
+/* ===== 圆球 ===== */
 .fl-orb {
-  width: 64px; height: 64px;
-  border-radius: 50%;
-  position: relative;
-  cursor: pointer;
-  user-select: none;
+  width: 64px; height: 64px; border-radius: 50%;
+  position: relative; cursor: pointer; user-select: none;
   display: flex; align-items: center; justify-content: center;
 }
+.fl-orb:hover { transform: scale(1.05); }
 
-/* 呼吸态 */
 [data-state="breathing"] .fl-orb {
   background: linear-gradient(135deg, #4f8cff, #7aabff);
   box-shadow: 0 4px 14px rgba(79,140,255,0.35);
   animation: breathe 4s ease-in-out infinite;
 }
 @keyframes breathe {
-  0%,100% { opacity: 0.8; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.03); }
+  0%,100% { opacity: 0.8; } 50% { opacity: 1; }
 }
-[data-state="focusing"] .fl-orb {
-  background: linear-gradient(135deg, #4f8cff, #3b7dff);
-  box-shadow: 0 4px 16px rgba(79,140,255,0.4);
-}
-[data-state="free"] .fl-orb {
-  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
-  box-shadow: 0 4px 16px rgba(139,92,246,0.45);
-}
-[data-state="break"] .fl-orb {
-  background: linear-gradient(135deg, #52c41a, #73d13d);
-  box-shadow: 0 4px 16px rgba(82,196,26,0.4);
-}
-[data-state="complete"] .fl-orb {
-  background: linear-gradient(135deg, #52c41a, #95de64);
-  animation: flashGreen 0.6s ease-out 2;
-}
-@keyframes flashGreen {
-  0%,100% { box-shadow: 0 4px 16px rgba(82,196,26,0.4); }
+[data-state="focusing"] .fl-orb { background: #4f8cff; box-shadow: 0 4px 16px rgba(79,140,255,0.4); }
+[data-state="free"] .fl-orb { background: linear-gradient(135deg, #8b5cf6, #a78bfa); box-shadow: 0 4px 16px rgba(139,92,246,0.45); }
+[data-state="break"] .fl-orb { background: linear-gradient(135deg, #52c41a, #73d13d); box-shadow: 0 4px 16px rgba(82,196,26,0.4); }
+[data-state="complete"] .fl-orb { background: linear-gradient(135deg, #52c41a, #95de64); animation: flash 0.6s ease-out 2; }
+@keyframes flash {
   50% { box-shadow: 0 4px 28px rgba(82,196,26,0.8), 0 0 0 6px rgba(82,196,26,0.2); }
 }
-.fl-orb:hover { transform: scale(1.06); }
 
-.fl-orb-ring {
-  position: absolute; inset: 0; width: 64px; height: 64px;
-  transform: rotate(-90deg);
+.fl-orb-ring { position: absolute; inset: 0; width: 64px; height: 64px; }
+.fl-free-ring {
+  position: absolute; inset: -3px; border-radius: 50%;
+  border: 2px dashed rgba(255,255,255,0.6);
+  animation: spin 12s linear infinite;
 }
-.fl-ring-track { stroke: rgba(255,255,255,0.2); }
-.fl-ring-arc { stroke: rgba(255,255,255,0.85); transition: stroke-dashoffset 0.3s ease; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.fl-orb-free-ring {
-  position: absolute; inset: -2px;
-  width: calc(100% + 4px); height: calc(100% + 4px);
-  border-radius: 50%; border: 2px dashed rgba(255,255,255,0.6);
-  animation: spin12 12s linear infinite;
-}
-@keyframes spin12 { to { transform: rotate(360deg); } }
+.fl-orb-inner { position: relative; z-index: 1; text-align: center; pointer-events: none; color: #fff; }
+.fl-logo { font-size: 22px; font-weight: 700; }
+.fl-time { font-family: ui-monospace, monospace; font-size: 13px; font-weight: 600; letter-spacing: -0.5px; }
 
-.fl-orb-center { position: relative; z-index: 1; text-align: center; pointer-events: none; }
-.fl-orb-time {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px; font-weight: 600; color: #fff;
-  letter-spacing: -0.5px; font-variant-numeric: tabular-nums;
+/* ===== Mini Panel · 浅色(对齐原型) ===== */
+.fl-mp {
+  width: 330px;
+  background: var(--color-bg-elevated, #fff);
+  border-radius: 12px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  color: var(--color-text-primary, #1a1a2e);
 }
-.fl-orb-logo { font-size: 22px; font-weight: 700; color: #fff; }
-.fl-orb-check { font-size: 24px; color: #fff; }
 
-/* ===== Mini Panel ===== */
-.fl-panel {
-  width: 310px; height: 370px;
-  background: rgba(24,24,28,0.94); backdrop-filter: blur(20px);
-  border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
-  display: flex; flex-direction: column; color: #fff; overflow: hidden;
-}
-.fl-panel-head {
+.fl-mp-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
   cursor: grab;
 }
-.fl-panel-phase { font-size: 13px; font-weight: 500; opacity: 0.9; }
-.fl-panel-close {
-  background: none; border: none; color: rgba(255,255,255,0.4);
-  font-size: 20px; cursor: pointer; padding: 0 4px; line-height: 1;
+.fl-mp-phase {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500;
+  color: var(--color-primary, #4f8cff);
 }
-.fl-panel-close:hover { color: #fff; }
+.fl-mp-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--color-primary, #4f8cff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #4f8cff) 25%, transparent);
+}
+.fl-mp-close {
+  background: none; border: none;
+  color: var(--color-text-muted, #999);
+  font-size: 14px; cursor: pointer; padding: 2px 4px;
+}
+.fl-mp-close:hover { color: var(--color-text-primary, #1a1a2e); }
 
-.fl-panel-body {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; padding: 10px 14px; gap: 6px;
+.fl-mp-body {
+  padding: 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
 }
-.fl-panel-task {
-  font-size: 14px; font-weight: 600; text-align: center;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+.fl-mp-task {
+  font-size: 14px; font-weight: 600;
+  text-align: center; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.fl-panel-meta { font-size: 11px; color: rgba(255,255,255,0.5); display: flex; gap: 8px; }
-.fl-panel-paused { color: #fbbf24; }
-
-.fl-panel-ring-wrap { position: relative; width: 120px; height: 120px; }
-.fl-panel-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
-.fl-pring-track { stroke: rgba(255,255,255,0.1); }
-.fl-pring-arc { stroke: rgba(255,255,255,0.75); transition: stroke-dashoffset 0.3s ease; }
-[data-state="focusing"] .fl-pring-arc { stroke: #4f8cff; }
-[data-state="free"] .fl-pring-arc { stroke: #8b5cf6; }
-[data-state="break"] .fl-pring-arc { stroke: #52c41a; }
-.fl-panel-ring-center {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-}
-.fl-pring-time {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums;
+.fl-mp-meta {
+  font-size: 12px; color: var(--color-text-muted, #999);
 }
 
-.fl-panel-ctrl { display: flex; gap: 6px; width: 100%; }
-.fl-ctrl-btn {
-  flex: 1; padding: 7px 8px; border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08);
-  color: #fff; font-size: 12px; cursor: pointer; transition: background 0.15s;
+/* 环 */
+.fl-mp-ring {
+  width: 120px; height: 120px; position: relative;
+  margin: 4px 0;
 }
-.fl-ctrl-btn:hover { background: rgba(255,255,255,0.16); }
-.fl-ctrl-primary { background: rgba(79,140,255,0.3); border-color: rgba(79,140,255,0.4); }
-.fl-ctrl-danger { border-color: rgba(239,68,68,0.3); color: #fca5a5; }
-.fl-ctrl-danger:hover { background: rgba(239,68,68,0.15); }
+.fl-mp-ring svg { width: 100%; height: 100%; }
+.fl-mp-ring-text {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: ui-monospace, monospace;
+  font-size: 24px; font-weight: 600;
+  color: var(--color-text-primary, #1a1a2e);
+}
 
-.fl-panel-foot { display: flex; border-top: 1px solid rgba(255,255,255,0.06); }
-.fl-foot-btn {
-  flex: 1; padding: 10px; background: none; border: none;
-  color: rgba(255,255,255,0.55); font-size: 11px; cursor: pointer;
+/* 控制 */
+.fl-mp-ctrl {
+  display: flex; gap: 8px; align-items: center; justify-content: center;
 }
-.fl-foot-btn:hover { color: #fff; }
-.fl-foot-close:hover { color: #fca5a5; }
-.fl-foot-btn + .fl-foot-btn { border-left: 1px solid rgba(255,255,255,0.06); }
+.fl-mp-btn-circle {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--color-bg-hover, #f5f5f5);
+  border: none; cursor: pointer; font-size: 14px;
+  color: var(--color-text-secondary, #666);
+  display: grid; place-items: center;
+  transition: all 0.15s;
+}
+.fl-mp-btn-circle:hover { background: color-mix(in srgb, var(--color-primary, #4f8cff) 15%, transparent); color: var(--color-primary, #4f8cff); }
+.fl-mp-btn-main {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--color-primary, #4f8cff); color: #fff;
+  border: none; cursor: pointer; font-size: 18px;
+  display: grid; place-items: center;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary, #4f8cff) 30%, transparent);
+  transition: all 0.15s;
+}
+.fl-mp-btn-main:hover { transform: scale(1.05); }
+
+/* 底部 */
+.fl-mp-foot {
+  display: flex;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-bg-subtle, #fafafa);
+}
+.fl-mp-foot button {
+  flex: 1; padding: 10px;
+  background: none; border: none;
+  font-size: 11px; cursor: pointer;
+  color: var(--color-text-muted, #999);
+}
+.fl-mp-foot button:hover { color: var(--color-primary, #4f8cff); }
+.fl-mp-foot-close:hover { color: #ef4444 !important; }
+.fl-mp-foot button + button { border-left: 1px solid var(--color-border, #e5e7eb); }
 </style>
