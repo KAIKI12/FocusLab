@@ -76,36 +76,50 @@ let dragStartScreenX = 0;
 let dragStartScreenY = 0;
 let isDragging = false;
 let hasMoved = false;
+const DRAG_PAD = 400; // 拖拽时窗口临时扩大的单边像素
 
-function onMouseDown(e: MouseEvent) {
+async function onMouseDown(e: MouseEvent) {
   dragStartScreenX = e.screenX;
   dragStartScreenY = e.screenY;
   isDragging = true;
   hasMoved = false;
-  // 用缓存位置，不 await
 }
 
-function onMouseMove(e: MouseEvent) {
+async function onMouseMove(e: MouseEvent) {
   if (!isDragging) return;
   const dx = e.screenX - dragStartScreenX;
   const dy = e.screenY - dragStartScreenY;
   if (!hasMoved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
-  hasMoved = true;
+
+  if (!hasMoved) {
+    hasMoved = true;
+    // 拖拽开始：临时扩大窗口到 (64+800)x(64+800)，向左上偏移 400px
+    // 这样鼠标在 800px 范围内都不会跑出窗口
+    const bigSize = 64 + DRAG_PAD * 2;
+    appWindow.setSize(new LogicalSize(bigSize, bigSize));
+    appWindow.setPosition(new LogicalPosition(cachedWinX - DRAG_PAD, cachedWinY - DRAG_PAD));
+    // 同步更新起点（因为窗口位置变了，但球在窗口中心，视觉不变）
+    cachedWinX = cachedWinX; // 球的逻辑位置不变
+  }
+
   const newX = cachedWinX + dx;
   const newY = cachedWinY + dy;
-  // fire-and-forget，不 await
-  appWindow.setPosition(new LogicalPosition(newX, newY));
+  // 移动大窗口，球在中心
+  appWindow.setPosition(new LogicalPosition(newX - DRAG_PAD, newY - DRAG_PAD));
 }
 
-function onMouseUp() {
+async function onMouseUp() {
   if (isDragging && hasMoved) {
-    // 更新缓存
-    cachedWinX += 0; // 重新读一次
-    appWindow.outerPosition().then(pos => {
-      cachedWinX = pos.x;
-      cachedWinY = pos.y;
-      try { localStorage.setItem("fl-bubble-pos", JSON.stringify({ x: pos.x, y: pos.y })); } catch {}
-    }).catch(() => {});
+    // 更新缓存的球位置
+    try {
+      const pos = await appWindow.outerPosition();
+      cachedWinX = pos.x + DRAG_PAD;
+      cachedWinY = pos.y + DRAG_PAD;
+    } catch {}
+    // 缩回 64x64，定位到球的真实位置
+    await appWindow.setSize(new LogicalSize(64, 64));
+    await appWindow.setPosition(new LogicalPosition(cachedWinX, cachedWinY));
+    try { localStorage.setItem("fl-bubble-pos", JSON.stringify({ x: cachedWinX, y: cachedWinY })); } catch {}
   }
   isDragging = false;
 }
