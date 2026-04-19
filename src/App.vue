@@ -10,6 +10,7 @@
 import { onMounted } from "vue";
 
 import Sidebar from "@/components/common/Sidebar.vue";
+import CommandPalette from "@/components/common/CommandPalette.vue";
 import RecoveryDialog from "@/components/recovery/RecoveryDialog.vue";
 import SettlementDialog from "@/components/settlement/SettlementDialog.vue";
 import BreakEndDialog from "@/components/timer/BreakEndDialog.vue";
@@ -33,6 +34,7 @@ onMounted(() => {
     <RecoveryDialog />
     <BreakEndDialog />
     <SettlementDialog />
+    <CommandPalette />
   </div>
 </template>
 
