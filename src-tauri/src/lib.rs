@@ -127,6 +127,11 @@ pub fn run() {
             // 数据导出
             commands::export_commands::export_tasks_json,
             commands::export_commands::export_sessions_csv,
+            // 数据洞察
+            commands::stats_commands::get_focus_heatmap,
+            commands::stats_commands::get_completion_trend,
+            commands::stats_commands::get_time_by_category,
+            commands::stats_commands::get_stats_overview,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

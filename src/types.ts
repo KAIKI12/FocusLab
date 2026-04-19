@@ -282,3 +282,35 @@ export interface DaySummary {
   grade: "S" | "A" | "B" | "C";
   totalFocusMinutes: number;
 }
+
+// ---------- Stats (数据洞察) ----------
+
+export interface HeatmapCell {
+  dayOfWeek: number;
+  hour: number;
+  minutes: number;
+}
+
+export interface TrendPoint {
+  date: string;
+  completionRate: number;
+  completed: number;
+  total: number;
+  focusMinutes: number;
+}
+
+export interface CategoryTime {
+  quadrant: string;
+  minutes: number;
+  sessionCount: number;
+}
+
+export interface StatsOverview {
+  totalFocusMinutes: number;
+  totalSessions: number;
+  totalPomodoros: number;
+  totalTasksCompleted: number;
+  avgDailyFocus: number;
+  bestGradeCount: number;
+  currentStreak: number;
+}
