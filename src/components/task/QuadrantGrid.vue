@@ -192,6 +192,7 @@ function onDragEnd() {
   padding: 4px var(--sp-2);
   border-radius: var(--r-sm);
   cursor: grab;
+  -webkit-user-drag: element;
   transition: background var(--dur-fast) var(--ease-smooth);
 }
 .fl-qcell-item:hover {

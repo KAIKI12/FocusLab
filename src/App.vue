@@ -7,6 +7,8 @@
 
 import { computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import Sidebar from "@/components/common/Sidebar.vue";
 import CommandPalette from "@/components/common/CommandPalette.vue";
@@ -22,7 +24,7 @@ const router = useRouter();
 const hideLayout = computed(() => route.meta.hideLayout === true);
 
 onMounted(() => {
-  // FTUE 检查：首次使用时跳转引导
+  // FTUE 检查
   const ftueDone = localStorage.getItem("fl-ftue-done");
   if (!ftueDone && route.path !== "/ftue") {
     router.replace("/ftue");
@@ -30,6 +32,14 @@ onMounted(() => {
 
   checkOnMount().catch((err) => {
     console.error("[recovery] checkOnMount failed", err);
+  });
+
+  // 监听悬浮球的"打开主窗口"事件
+  listen("bubble:open-main", async () => {
+    const win = getCurrentWindow();
+    await win.show();
+    await win.unminimize();
+    await win.setFocus();
   });
 });
 </script>

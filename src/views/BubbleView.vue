@@ -3,7 +3,7 @@
  * BubbleView · 悬浮球 — 拖拽零延迟 + Mini Panel 对齐原型浅色设计。
  */
 
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { listen, emit, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { getCurrentWindow, getAllWindows } from "@tauri-apps/api/window";
@@ -187,7 +187,9 @@ async function onSkipBreak() { try { await invoke("skip_break"); } catch {} }
 
 async function focusMainWindow() {
   try {
-    // getAllWindows 返回 Window[] (有 show/unminimize/setFocus)
+    // 方式1: 发事件让主窗口自己激活
+    await emit("bubble:open-main", {});
+    // 方式2: 直接操作窗口(备选)
     const all = await getAllWindows();
     const main = all.find(w => w.label !== "bubble");
     if (main) {
