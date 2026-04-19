@@ -6,8 +6,9 @@
  * 右栏 — AI 建议卡 + 目标卡 + 今日进度卡
  */
 
-import { Calendar, Check, Clock, Grid2X2, List, Minimize2, Moon, Pause, Pencil, Play, Plus, SkipForward, Square, Trash2, X } from "lucide-vue-next";
+import { Calendar, Check, Clock, Grid2X2, List, Maximize2, Minimize2, Moon, Pause, Pencil, Play, Plus, SkipForward, Square, Trash2, X } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 
 import ManualSessionModal from "@/components/timer/ManualSessionModal.vue";
 import MorningGuide from "@/components/common/MorningGuide.vue";
@@ -29,6 +30,7 @@ const timer = useTimerStore();
 const settlement = useSettlementStore();
 const goals = useGoalStore();
 const { open: openBubble } = useBubble();
+const router = useRouter();
 
 const name = ref("");
 const isBackground = ref(false);
@@ -172,6 +174,9 @@ function fmtMin(m: number): string {
             <span class="fl-focus-label">
               {{ timer.isFreeMode ? '🌀 自由计时' : '🍅 当前专注' }}
             </span>
+            <button class="fl-focus-immerse" @click="router.push('/pomodoro')">
+              <Maximize2 :size="12" /> 沉浸
+            </button>
           </div>
 
           <div class="fl-ring-wrap">
@@ -482,12 +487,20 @@ function fmtMin(m: number): string {
   background: radial-gradient(circle, var(--color-primary-light), transparent 60%);
   opacity: 0.3; pointer-events: none;
 }
-.fl-focus-head { margin-bottom: var(--sp-4); position: relative; }
+.fl-focus-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-4); position: relative; }
 .fl-focus-label {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: var(--fs-12); color: var(--color-primary-dark); font-weight: var(--fw-medium);
   padding: 4px 10px; background: rgba(255,255,255,0.6); border-radius: var(--r-pill);
 }
+.fl-focus-immerse {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: var(--r-pill);
+  background: rgba(255,255,255,0.6); border: none;
+  font-size: 11px; color: var(--color-text-secondary); cursor: pointer;
+  position: relative;
+}
+.fl-focus-immerse:hover { background: rgba(255,255,255,0.9); color: var(--color-primary); }
 
 .fl-ring-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); position: relative; }
 .fl-ring-holder { position: relative; width: 180px; height: 180px; display: grid; place-items: center; }

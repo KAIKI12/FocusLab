@@ -56,6 +56,12 @@ const router = createRouter({
       component: () => import("@/views/MinimalView.vue"),
       meta: { title: "极简模式", hideLayout: true },
     },
+    {
+      path: "/pomodoro",
+      name: "pomodoro",
+      component: () => import("@/views/PomodoroView.vue"),
+      meta: { title: "番茄钟沉浸", hideLayout: true },
+    },
   ],
 });
 
