@@ -1,11 +1,10 @@
 <script setup lang="ts">
 /**
- * BubbleView · 悬浮球窗口 — 修复版。
+ * BubbleView · 悬浮球 — 自定义拖拽 + 真圆形 + 手势修正。
  *
- * 手势:
- *   单击: running/paused → 暂停/继续; idle → 打开主窗口
- *   双击: 展开/收缩 Mini Panel
- *   拖拽: 整个窗口可拖(非 data-tauri-drag-region,改用 startDragging API)
+ * 拖拽: mousedown 记录起点 → mousemove 算 delta → setPosition (不用 startDragging)
+ * 手势: 单击暂停/继续, 双击展开面板
+ * 圆形: 窗口 64px, 内容 CSS 圆形, body 透明
  */
 
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -73,37 +72,94 @@ const phaseLabel = computed(() => {
   return "";
 });
 
-// ---------- 手势:单击暂停/继续,双击展开面板 ----------
+// =============================================
+// 自定义拖拽 — 不用 startDragging / drag-region
+// =============================================
 
-let clickTimer: ReturnType<typeof setTimeout> | null = null;
-let clickCount = 0;
+let dragStartScreenX = 0;
+let dragStartScreenY = 0;
+let dragStartWinX = 0;
+let dragStartWinY = 0;
 let isDragging = false;
+let hasMoved = false;
 
-function onOrbPointerDown() {
-  isDragging = false;
+async function onMouseDown(e: MouseEvent) {
+  // 记录鼠标屏幕坐标和窗口位置
+  dragStartScreenX = e.screenX;
+  dragStartScreenY = e.screenY;
+  isDragging = true;
+  hasMoved = false;
+
+  try {
+    const pos = await appWindow.outerPosition();
+    dragStartWinX = pos.x;
+    dragStartWinY = pos.y;
+  } catch { /* */ }
 }
 
-async function onOrbPointerMove() {
-  if (!isDragging) {
-    isDragging = true;
-    // 启动窗口拖拽
-    try { await appWindow.startDragging(); } catch { /* */ }
+async function onMouseMove(e: MouseEvent) {
+  if (!isDragging) return;
+
+  const dx = e.screenX - dragStartScreenX;
+  const dy = e.screenY - dragStartScreenY;
+
+  // 超过 3px 才算拖拽（区分点击和拖拽）
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+    hasMoved = true;
+  }
+
+  if (hasMoved) {
+    const newX = dragStartWinX + dx;
+    const newY = dragStartWinY + dy;
+    try {
+      await appWindow.setPosition(new LogicalPosition(newX, newY));
+    } catch { /* */ }
   }
 }
 
+function onMouseUp() {
+  isDragging = false;
+  // 拖拽结束保存位置
+  if (hasMoved) {
+    savePosition();
+  }
+}
+
+async function savePosition() {
+  try {
+    const pos = await appWindow.outerPosition();
+    localStorage.setItem("fl-bubble-pos", JSON.stringify({ x: pos.x, y: pos.y }));
+  } catch { /* */ }
+}
+
+// 全局 mousemove/mouseup (挂在 document 上，防止鼠标移出窗口丢失)
+onMounted(() => {
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+});
+onUnmounted(() => {
+  document.removeEventListener("mousemove", onMouseMove);
+  document.removeEventListener("mouseup", onMouseUp);
+});
+
+// =============================================
+// 手势：单击暂停/继续，双击展开面板
+// =============================================
+
+let clickTimer: ReturnType<typeof setTimeout> | null = null;
+let clickCount = 0;
+
 function onOrbClick() {
-  if (isDragging) return; // 拖拽后忽略
+  if (hasMoved) return; // 拖拽后不触发点击
   clickCount++;
   if (clickCount === 1) {
     clickTimer = setTimeout(() => {
-      // 单击 → 暂停/继续(有计时) 或打开主窗口(idle)
       onSingleClick();
       clickCount = 0;
     }, 250);
   } else if (clickCount === 2) {
     if (clickTimer) clearTimeout(clickTimer);
     clickCount = 0;
-    // 双击 → 展开 Mini Panel
     expanded.value = !expanded.value;
   }
 }
@@ -116,14 +172,16 @@ async function onSingleClick() {
   }
 }
 
-// ---------- 操作 ----------
+// =============================================
+// 操作
+// =============================================
 
 async function togglePause() {
   if (!snapshot.value) return;
   try {
     if (snapshot.value.status === "running") await invoke("pause_timer");
     else if (snapshot.value.status === "paused") await invoke("resume_timer");
-  } catch (e) { console.error("[bubble] toggle pause failed", e); }
+  } catch (e) { console.error(e); }
 }
 
 async function onAbandon() {
@@ -143,11 +201,13 @@ async function focusMainWindow() {
 
 async function closeBubble() { await appWindow.close(); }
 
-// ---------- 窗口大小 + 方向 ----------
+// =============================================
+// 窗口大小
+// =============================================
 
+const WIN_ORB = 64;
 const PANEL_W = 320;
 const PANEL_H = 380;
-const WIN_SIZE = 64; // 窗口=球大小，无间距
 
 watch(expanded, async (exp) => {
   if (exp) {
@@ -161,16 +221,14 @@ watch(expanded, async (exp) => {
     } catch { /* */ }
     await appWindow.setSize(new LogicalSize(PANEL_W, PANEL_H));
   } else {
-    await appWindow.setSize(new LogicalSize(WIN_SIZE, WIN_SIZE));
-    // 保存位置
-    try {
-      const pos = await appWindow.outerPosition();
-      localStorage.setItem("fl-bubble-pos", JSON.stringify({ x: pos.x, y: pos.y }));
-    } catch { /* */ }
+    await appWindow.setSize(new LogicalSize(WIN_ORB, WIN_ORB));
+    savePosition();
   }
 });
 
-// ---------- 任务名 ----------
+// =============================================
+// 任务名 + 完成闪光 + 生命周期
+// =============================================
 
 async function refreshTaskName() {
   const id = snapshot.value?.taskId;
@@ -183,8 +241,6 @@ async function refreshTaskName() {
 
 watch(() => snapshot.value?.taskId, () => refreshTaskName());
 
-// ---------- 完成闪光 ----------
-
 watch(
   () => snapshot.value?.status,
   (newSt, oldSt) => {
@@ -195,10 +251,8 @@ watch(
   },
 );
 
-// ---------- 生命周期 ----------
-
 onMounted(async () => {
-  await appWindow.setSize(new LogicalSize(WIN_SIZE, WIN_SIZE));
+  await appWindow.setSize(new LogicalSize(WIN_ORB, WIN_ORB));
 
   try {
     const row = await invoke<{
@@ -230,16 +284,14 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
 
 <template>
   <div class="fl-root" :data-state="visualState">
-    <!-- 收缩态:圆形 -->
+    <!-- 收缩态 -->
     <div
       v-if="!expanded"
       class="fl-orb"
-      @pointerdown="onOrbPointerDown"
-      @pointermove="onOrbPointerMove"
+      @mousedown="onMouseDown"
       @click="onOrbClick"
       @dblclick.prevent
     >
-      <!-- SVG 进度环 -->
       <svg v-if="visualState === 'focusing'" class="fl-orb-ring" viewBox="0 0 64 64">
         <circle class="fl-ring-track" cx="32" cy="32" r="28" fill="none" stroke-width="3" />
         <circle class="fl-ring-arc" cx="32" cy="32" r="28" fill="none" stroke-width="3"
@@ -248,20 +300,17 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
       <div v-if="visualState === 'free'" class="fl-orb-free-ring" />
       <div class="fl-orb-center">
         <span v-if="visualState === 'complete'" class="fl-orb-check">✓</span>
-        <template v-else-if="visualState === 'breathing'">
-          <span class="fl-orb-logo">F</span>
-        </template>
+        <span v-else-if="visualState === 'breathing'" class="fl-orb-logo">F</span>
         <span v-else class="fl-orb-time">{{ timeText }}</span>
       </div>
     </div>
 
-    <!-- 展开态:Mini Panel -->
+    <!-- 展开态 -->
     <div v-else class="fl-panel">
-      <div class="fl-panel-head" @pointerdown="appWindow.startDragging()">
+      <div class="fl-panel-head" @mousedown="onMouseDown">
         <span class="fl-panel-phase">{{ phaseLabel }}</span>
         <button class="fl-panel-close" @click="expanded = false">×</button>
       </div>
-
       <div class="fl-panel-body">
         <div class="fl-panel-task">{{ taskName }}</div>
         <div v-if="snapshot && !isIdle" class="fl-panel-meta">
@@ -269,8 +318,6 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
           <span v-else>🌀 自由模式</span>
           <span v-if="isPaused" class="fl-panel-paused">已暂停</span>
         </div>
-
-        <!-- 进度环 -->
         <div class="fl-panel-ring-wrap">
           <svg class="fl-panel-ring" viewBox="0 0 130 130">
             <circle class="fl-pring-track" cx="65" cy="65" r="56" fill="none" stroke-width="6" />
@@ -282,8 +329,6 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
             <span class="fl-pring-time">{{ timeText || "--:--" }}</span>
           </div>
         </div>
-
-        <!-- 控制 -->
         <div class="fl-panel-ctrl">
           <button v-if="isRunning" class="fl-ctrl-btn" @click="togglePause">⏸ 暂停</button>
           <button v-else-if="isPaused" class="fl-ctrl-btn fl-ctrl-primary" @click="togglePause">▶ 继续</button>
@@ -291,7 +336,6 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
           <button v-if="!isIdle" class="fl-ctrl-btn fl-ctrl-danger" @click="onAbandon">✕ 放弃</button>
         </div>
       </div>
-
       <div class="fl-panel-foot">
         <button class="fl-foot-btn" @click="focusMainWindow">🏠 主窗口</button>
         <button class="fl-foot-btn fl-foot-close" @click="closeBubble">✕ 关闭</button>
@@ -301,13 +345,17 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
 </template>
 
 <style scoped>
+/* 关键：根容器裁剪为圆形，收缩态时隐藏方角 */
 .fl-root {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
-  /* 关键:根元素也圆形裁剪,防止方角露出 */
+}
+/* 收缩态时整个根元素裁剪为圆 */
+.fl-root:not(:has(.fl-panel)) {
+  border-radius: 50%;
+  overflow: hidden;
 }
 
-/* ===== 圆球 ===== */
 .fl-orb {
   width: 64px; height: 64px;
   border-radius: 50%;
@@ -315,7 +363,6 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
   cursor: pointer;
   user-select: none;
   display: flex; align-items: center; justify-content: center;
-  /* 无 data-tauri-drag-region，改用 startDragging API */
 }
 
 /* 呼吸态 */
@@ -328,23 +375,18 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
   0%,100% { opacity: 0.8; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.03); }
 }
-
-/* 专注态 */
 [data-state="focusing"] .fl-orb {
   background: linear-gradient(135deg, #4f8cff, #3b7dff);
   box-shadow: 0 4px 16px rgba(79,140,255,0.4);
 }
-/* 自由态 */
 [data-state="free"] .fl-orb {
   background: linear-gradient(135deg, #8b5cf6, #a78bfa);
   box-shadow: 0 4px 16px rgba(139,92,246,0.45);
 }
-/* 休息态 */
 [data-state="break"] .fl-orb {
   background: linear-gradient(135deg, #52c41a, #73d13d);
   box-shadow: 0 4px 16px rgba(82,196,26,0.4);
 }
-/* 完成闪光 */
 [data-state="complete"] .fl-orb {
   background: linear-gradient(135deg, #52c41a, #95de64);
   animation: flashGreen 0.6s ease-out 2;
@@ -353,10 +395,8 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
   0%,100% { box-shadow: 0 4px 16px rgba(82,196,26,0.4); }
   50% { box-shadow: 0 4px 28px rgba(82,196,26,0.8), 0 0 0 6px rgba(82,196,26,0.2); }
 }
-
 .fl-orb:hover { transform: scale(1.06); }
 
-/* SVG 环(与球同尺寸) */
 .fl-orb-ring {
   position: absolute; inset: 0; width: 64px; height: 64px;
   transform: rotate(-90deg);
@@ -364,7 +404,6 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
 .fl-ring-track { stroke: rgba(255,255,255,0.2); }
 .fl-ring-arc { stroke: rgba(255,255,255,0.85); transition: stroke-dashoffset 0.3s ease; }
 
-/* 虚线环 */
 .fl-orb-free-ring {
   position: absolute; inset: -2px;
   width: calc(100% + 4px); height: calc(100% + 4px);
@@ -373,8 +412,7 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
 }
 @keyframes spin12 { to { transform: rotate(360deg); } }
 
-/* 中心 */
-.fl-orb-center { position: relative; z-index: 1; text-align: center; }
+.fl-orb-center { position: relative; z-index: 1; text-align: center; pointer-events: none; }
 .fl-orb-time {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px; font-weight: 600; color: #fff;
@@ -391,7 +429,6 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
   box-shadow: 0 12px 40px rgba(0,0,0,0.5);
   display: flex; flex-direction: column; color: #fff; overflow: hidden;
 }
-
 .fl-panel-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06);
