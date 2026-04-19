@@ -226,3 +226,64 @@ pub async fn ai_classify_quadrant(
         Ok("important_not_urgent".into())
     }
 }
+
+/// AI 周度小结
+#[tauri::command]
+pub async fn ai_weekly_summary(
+    ai: State<'_, AIService>,
+    db: State<'_, Db>,
+) -> AppResult<String> {
+    let (focus_min, pomodoros, completed, avg_grade, top_task) = {
+        let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+
+        let (fm, pm): (i64, i64) = conn
+            .query_row(
+                "SELECT COALESCE(SUM(actual_duration_minutes),0), COUNT(*) FROM sessions
+                 WHERE status='completed' AND start_time >= datetime('now','-7 days')",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap_or((0, 0));
+
+        let ct: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE status='completed' AND updated_at >= datetime('now','-7 days')",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+
+        let ag: String = conn
+            .query_row(
+                "SELECT COALESCE(
+                    (SELECT grade FROM settlements ORDER BY settle_date DESC LIMIT 1),
+                    'B'
+                )",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or_else(|_| "B".into());
+
+        let tt: String = conn
+            .query_row(
+                "SELECT COALESCE(t.name, '无')
+                 FROM sessions s JOIN tasks t ON t.id = s.task_id
+                 WHERE s.start_time >= datetime('now','-7 days')
+                 GROUP BY s.task_id ORDER BY SUM(s.actual_duration_minutes) DESC LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or_else(|_| "无".into());
+
+        (fm, pm, ct, ag, tt)
+    };
+
+    let prompt = prompt_templates::weekly_summary_prompt(
+        focus_min, pomodoros, completed, &avg_grade, &top_task,
+    );
+    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let result = ai
+        .complete(messages, CompletionOptions { temperature: Some(0.7), max_tokens: Some(300) })
+        .await?;
+    Ok(result)
+}

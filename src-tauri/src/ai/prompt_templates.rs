@@ -53,6 +53,27 @@ pub fn daily_suggestion_prompt(
     )
 }
 
+/// 周度小结模板
+pub fn weekly_summary_prompt(
+    total_focus_min: i64,
+    total_pomodoros: i64,
+    completed_tasks: i64,
+    avg_grade: &str,
+    top_task: &str,
+) -> String {
+    format!(
+        "你是一个学习规划助手。请根据本周数据生成简洁的周度小结。\n\n\
+        本周数据:\n\
+        - 总专注: {total_focus_min} 分钟\n\
+        - 番茄钟: {total_pomodoros} 个\n\
+        - 完成任务: {completed_tasks} 项\n\
+        - 平均评级: {avg_grade}\n\
+        - 投入最多的任务: {top_task}\n\n\
+        请用 3-4 句话总结本周表现,指出亮点和可改进的方向。\n\
+        语气温和积极,不使用'失败''落后'等词。回复限 150 字以内。"
+    )
+}
+
 /// 四象限自动分类模板
 pub fn classify_quadrant_prompt(task_name: &str, description: &str) -> String {
     format!(

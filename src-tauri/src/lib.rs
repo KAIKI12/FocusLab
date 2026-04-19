@@ -124,6 +124,7 @@ pub fn run() {
             commands::ai_commands::ai_settlement_narrative,
             commands::ai_commands::ai_daily_suggestions,
             commands::ai_commands::ai_classify_quadrant,
+            commands::ai_commands::ai_weekly_summary,
             // 数据导出
             commands::export_commands::export_tasks_json,
             commands::export_commands::export_sessions_csv,

@@ -87,8 +87,17 @@ export const useAIStore = defineStore("ai", () => {
     });
   }
 
+  async function weeklySummary(): Promise<string> {
+    loading.value = true;
+    try {
+      return await invokeCmd<string>("ai_weekly_summary");
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     loading, configured, configure, testConnection,
-    decomposeTask, generateNarrative, dailySuggestions, classifyQuadrant,
+    decomposeTask, generateNarrative, dailySuggestions, classifyQuadrant, weeklySummary,
   };
 });

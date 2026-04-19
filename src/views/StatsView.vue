@@ -7,12 +7,16 @@
 import { computed, onMounted, ref } from "vue";
 
 import { invokeCmd } from "@/composables/useTauriInvoke";
+import { useAIStore } from "@/stores/useAIStore";
 import type { CategoryTime, HeatmapCell, StatsOverview, TrendPoint } from "@/types";
 
+const ai = useAIStore();
 const overview = ref<StatsOverview | null>(null);
 const heatmap = ref<HeatmapCell[]>([]);
 const trend = ref<TrendPoint[]>([]);
 const categories = ref<CategoryTime[]>([]);
+const weekSummary = ref("");
+const loadingWeekly = ref(false);
 const loading = ref(true);
 const rangeDays = ref(30);
 
@@ -156,6 +160,28 @@ function changeRange(days: number) {
         <div class="fl-ov-card">
           <span class="fl-ov-num">{{ overview.currentStreak }} 天</span>
           <span class="fl-ov-label">连续结算</span>
+        </div>
+      </div>
+
+      <!-- AI 周度小结 -->
+      <div class="fl-section">
+        <div class="fl-ai-weekly">
+          <div class="fl-ai-weekly-head">
+            <div class="fl-ai-weekly-avatar">✨</div>
+            <div>
+              <div class="fl-ai-weekly-title">AI 周度小结</div>
+              <div v-if="loadingWeekly" class="fl-ai-weekly-text">正在生成…</div>
+              <div v-else-if="weekSummary" class="fl-ai-weekly-text">{{ weekSummary }}</div>
+              <div v-else class="fl-ai-weekly-text">点击生成本周总结</div>
+            </div>
+          </div>
+          <button
+            v-if="!weekSummary && !loadingWeekly"
+            class="fl-ai-weekly-btn"
+            @click="loadingWeekly = true; ai.weeklySummary().then(r => weekSummary = r).catch(() => weekSummary = '暂时无法生成，请先配置 AI 服务').finally(() => loadingWeekly = false)"
+          >
+            生成周报
+          </button>
         </div>
       </div>
 
@@ -461,5 +487,26 @@ function changeRange(days: number) {
   font-size: var(--fs-14);
   background: var(--color-bg-subtle);
   border-radius: var(--r-md);
+}
+
+/* AI 周度小结 */
+.fl-ai-weekly {
+  background: linear-gradient(180deg, var(--color-primary-soft), var(--color-bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  border-radius: var(--r-md); padding: var(--sp-4);
+  display: flex; flex-direction: column; gap: var(--sp-3);
+}
+.fl-ai-weekly-head { display: flex; gap: var(--sp-3); }
+.fl-ai-weekly-avatar {
+  width: 32px; height: 32px; border-radius: var(--r-sm); flex-shrink: 0;
+  background: var(--color-primary-soft); display: grid; place-items: center; font-size: 16px;
+}
+.fl-ai-weekly-title { font-weight: var(--fw-medium); margin-bottom: 2px; font-size: var(--fs-14); }
+.fl-ai-weekly-text { font-size: var(--fs-12); color: var(--color-text-secondary); line-height: 1.6; }
+.fl-ai-weekly-btn {
+  align-self: flex-start; padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md); border: none;
+  background: var(--color-primary); color: #fff;
+  font-size: var(--fs-12); cursor: pointer;
 }
 </style>

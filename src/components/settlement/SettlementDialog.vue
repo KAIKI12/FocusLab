@@ -7,8 +7,10 @@
 import { computed, ref, watch } from "vue";
 
 import ParticleEffect from "@/components/settlement/ParticleEffect.vue";
+import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useAIStore } from "@/stores/useAIStore";
 import { useSettlementStore } from "@/stores/useSettlementStore";
+import type { AssignmentWithTask } from "@/types";
 
 const store = useSettlementStore();
 const ai = useAIStore();
@@ -16,6 +18,7 @@ const s = computed(() => store.settlement);
 const reflection = ref("");
 const aiNarrative = ref("");
 const loadingAI = ref(false);
+const pendingTasks = ref<AssignmentWithTask[]>([]);
 
 // 结算打开时尝试生成 AI 叙事
 watch(
@@ -31,6 +34,11 @@ watch(
           s.value.totalFocusMinutes,
         );
       } catch { /* AI 可选 */ } finally { loadingAI.value = false; }
+      // 加载未完成的 DTA 任务
+      try {
+        const all = await invokeCmd<AssignmentWithTask[]>("list_assignments", { planDate: s.value.settleDate });
+        pendingTasks.value = all.filter(a => a.dayStatus === "pending");
+      } catch { pendingTasks.value = []; }
     }
   },
 );
@@ -65,6 +73,25 @@ function fmtMin(m: number): string {
 
 function onClose() {
   store.closeDialog();
+}
+
+async function carryOver(a: AssignmentWithTask) {
+  // 标记为 carried_forward，后端 settle_day 已处理 carry-over
+  pendingTasks.value = pendingTasks.value.filter(t => t.id !== a.id);
+}
+
+async function shelveTask(a: AssignmentWithTask) {
+  try {
+    await invokeCmd("delete_task", { id: a.taskId });
+    pendingTasks.value = pendingTasks.value.filter(t => t.id !== a.id);
+  } catch { /* */ }
+}
+
+async function markDone(a: AssignmentWithTask) {
+  try {
+    await invokeCmd("update_assignment_status", { id: a.id, dayStatus: "completed" });
+    pendingTasks.value = pendingTasks.value.filter(t => t.id !== a.id);
+  } catch { /* */ }
 }
 </script>
 
@@ -145,6 +172,28 @@ function onClose() {
               maxlength="120"
             />
             <span class="fl-reflect-count">{{ reflection.length }} / 120</span>
+          </div>
+
+          <!-- 温和未完成处理(对齐原型 gentle-card) -->
+          <div v-if="pendingTasks.length" class="fl-gentle">
+            <div class="fl-gentle-head">
+              <span>📋</span>
+              <div>
+                <strong>这些任务今天没有完成</strong>
+                <div class="fl-gentle-sub">不用给它们贴"失败"的标签 · 每个任务都给你三个体面的出口</div>
+              </div>
+            </div>
+            <div v-for="a in pendingTasks" :key="a.id" class="fl-gentle-task">
+              <div class="fl-gentle-name">{{ a.taskName }}</div>
+              <div class="fl-gentle-options">
+                <button class="fl-gentle-btn fl-gentle-primary" @click="carryOver(a)">明天继续</button>
+                <button class="fl-gentle-btn" @click="shelveTask(a)">搁置</button>
+                <button class="fl-gentle-btn" @click="markDone(a)">✓ 已差不多了</button>
+              </div>
+            </div>
+            <div class="fl-gentle-quote">
+              🙂 没关系，计划赶不上变化是常态。重要的是你今天确实在推进。
+            </div>
           </div>
         </div>
 
@@ -278,6 +327,39 @@ function onClose() {
 }
 .fl-reflect input::placeholder { color: var(--color-text-muted); }
 .fl-reflect-count { font-size: 11px; color: var(--color-text-muted); font-family: var(--font-mono); }
+
+/* 温和未完成处理 */
+.fl-gentle {
+  border: 1px solid var(--color-border); border-radius: var(--r-md);
+  overflow: hidden;
+}
+.fl-gentle-head {
+  display: flex; gap: var(--sp-3); align-items: flex-start;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--color-primary-soft);
+}
+.fl-gentle-head strong { font-size: var(--fs-14); display: block; }
+.fl-gentle-sub { font-size: var(--fs-12); color: var(--color-text-secondary); margin-top: 2px; }
+.fl-gentle-task {
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--color-border);
+}
+.fl-gentle-name { font-size: var(--fs-14); font-weight: var(--fw-medium); margin-bottom: var(--sp-2); }
+.fl-gentle-options { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.fl-gentle-btn {
+  padding: 4px 12px; border-radius: var(--r-sm);
+  border: 1px solid var(--color-border); background: transparent;
+  font-size: var(--fs-12); cursor: pointer; color: var(--color-text-secondary);
+  transition: all var(--dur-fast);
+}
+.fl-gentle-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.fl-gentle-primary { background: var(--color-primary-soft); color: var(--color-primary-dark); border-color: color-mix(in srgb, var(--color-primary) 25%, transparent); }
+.fl-gentle-quote {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--color-bg-subtle); font-size: var(--fs-12);
+  color: var(--color-text-secondary); line-height: 1.6;
+  border-top: 1px solid var(--color-border);
+}
 
 /* ---------- Footer ---------- */
 .fl-sd-foot {
