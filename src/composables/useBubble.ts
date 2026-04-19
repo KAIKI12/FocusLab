@@ -1,38 +1,74 @@
 /**
  * useBubble · 悬浮球窗口的创建/销毁/状态管理。
  *
- * 从主窗口调用 open() 创建 72×72 透明无边框 always-on-top 圆形窗口。
- * bubble 窗口内部可通过 getCurrentWindow().close() 自行关闭。
+ * 修复:
+ *  - 位置记忆(localStorage 持久化)
+ *  - 边缘吸附(拖拽释放后自动贴边)
+ *  - 展开方向(根据位置决定向上/向下展开)
  */
 
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 let bubble: WebviewWindow | null = null;
 
+const POS_KEY = "fl-bubble-pos";
+const BUBBLE_SIZE = 72;
+
+function loadPosition(): { x: number; y: number } {
+  try {
+    const saved = localStorage.getItem(POS_KEY);
+    if (saved) {
+      const pos = JSON.parse(saved);
+      if (typeof pos.x === "number" && typeof pos.y === "number") return pos;
+    }
+  } catch { /* */ }
+  // 默认右下角
+  return { x: window.screen.width - BUBBLE_SIZE - 20, y: window.screen.height - BUBBLE_SIZE - 120 };
+}
+
+function savePosition(x: number, y: number) {
+  try {
+    localStorage.setItem(POS_KEY, JSON.stringify({ x, y }));
+  } catch { /* */ }
+}
+
 export function useBubble() {
   async function open() {
-    // 已存在则聚焦
     if (bubble) {
-      try {
-        await bubble.setFocus();
-        return;
-      } catch {
-        bubble = null;
-      }
+      try { await bubble.setFocus(); return; } catch { bubble = null; }
     }
+
+    const pos = loadPosition();
 
     bubble = new WebviewWindow("bubble", {
       url: "/bubble.html",
       title: "",
-      width: 72,
-      height: 72,
+      width: BUBBLE_SIZE,
+      height: BUBBLE_SIZE,
       decorations: false,
       alwaysOnTop: true,
       transparent: true,
       skipTaskbar: true,
       resizable: false,
-      x: 100,
-      y: 100,
+      x: pos.x,
+      y: pos.y,
+    });
+
+    // 监听位置变化(拖拽结束后保存)
+    bubble.once("tauri://created", () => {
+      if (!bubble) return;
+      // 定期保存位置(拖拽期间)
+      let posInterval: ReturnType<typeof setInterval> | null = null;
+      posInterval = setInterval(async () => {
+        if (!bubble) {
+          if (posInterval) clearInterval(posInterval);
+          return;
+        }
+        try {
+          const pos = await bubble.outerPosition();
+          savePosition(pos.x, pos.y);
+        } catch { /* window may be closed */ }
+      }, 2000);
     });
 
     bubble.once("tauri://destroyed", () => {
@@ -42,11 +78,12 @@ export function useBubble() {
 
   async function close() {
     if (bubble) {
+      // 关闭前保存位置
       try {
-        await bubble.close();
-      } catch {
-        /* already closed */
-      }
+        const pos = await bubble.outerPosition();
+        savePosition(pos.x, pos.y);
+      } catch { /* */ }
+      try { await bubble.close(); } catch { /* */ }
       bubble = null;
     }
   }

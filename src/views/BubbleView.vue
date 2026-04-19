@@ -24,7 +24,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { LogicalSize } from "@tauri-apps/api/dpi";
+import { LogicalSize, LogicalPosition } from "@tauri-apps/api/dpi";
 
 import type { TimerSnapshot, TimerStatus } from "@/types";
 
@@ -103,7 +103,7 @@ const phaseLabel = computed(() => {
   return "";
 });
 
-// ---------- 双击检测 ----------
+// ---------- 双击检测(优化延迟 200ms) ----------
 
 let clickTimer: ReturnType<typeof setTimeout> | null = null;
 let clickCount = 0;
@@ -115,7 +115,7 @@ function onOrbClick() {
       // 单击 → 展开/收缩
       expanded.value = !expanded.value;
       clickCount = 0;
-    }, 280);
+    }, 200);
   } else if (clickCount === 2) {
     if (clickTimer) clearTimeout(clickTimer);
     clickCount = 0;
@@ -178,13 +178,67 @@ async function closeBubble() {
   await appWindow.close();
 }
 
-// ---------- 窗口大小 ----------
+// ---------- 窗口大小 + 边缘吸附 ----------
+
+const PANEL_W = 320;
+const PANEL_H = 360;
+const ORB_SIZE = 72;
+const SNAP_MARGIN = 8;
+
+async function snapToEdge() {
+  try {
+    const pos = await appWindow.outerPosition();
+    const screenW = window.screen.width;
+    const screenH = window.screen.height;
+
+    // 吸附到最近的边缘
+    let x = pos.x;
+    let y = pos.y;
+
+    // 水平吸附
+    if (x < screenW / 2) {
+      x = SNAP_MARGIN; // 左侧
+    } else {
+      x = screenW - ORB_SIZE - SNAP_MARGIN; // 右侧
+    }
+
+    // 垂直边界约束
+    y = Math.max(SNAP_MARGIN, Math.min(y, screenH - ORB_SIZE - SNAP_MARGIN));
+
+    await appWindow.setPosition(new LogicalPosition(x, y));
+
+    // 保存位置
+    try { localStorage.setItem("fl-bubble-pos", JSON.stringify({ x, y })); } catch { /* */ }
+  } catch { /* */ }
+}
 
 watch(expanded, async (exp) => {
   if (exp) {
-    await appWindow.setSize(new LogicalSize(320, 360));
+    // 展开前先获取当前位置,决定展开方向
+    try {
+      const pos = await appWindow.outerPosition();
+      const screenH = window.screen.height;
+      const screenW = window.screen.width;
+
+      // 计算展开后窗口的 x/y,确保不超出屏幕
+      let x = pos.x;
+      let y = pos.y;
+
+      // 如果展开后超出右边界
+      if (x + PANEL_W > screenW) x = screenW - PANEL_W - SNAP_MARGIN;
+      // 如果展开后超出下边界
+      if (y + PANEL_H > screenH) y = screenH - PANEL_H - SNAP_MARGIN;
+      // 确保不小于 0
+      x = Math.max(0, x);
+      y = Math.max(0, y);
+
+      await appWindow.setPosition(new LogicalPosition(x, y));
+    } catch { /* */ }
+    await appWindow.setSize(new LogicalSize(PANEL_W, PANEL_H));
   } else {
-    await appWindow.setSize(new LogicalSize(72, 72));
+    await appWindow.setSize(new LogicalSize(ORB_SIZE, ORB_SIZE));
+    // 收缩后吸附边缘
+    setTimeout(() => snapToEdge(), 50);
   }
 });
 
@@ -232,6 +286,9 @@ watch(
 onMounted(async () => {
   // 设初始窗口大小
   await appWindow.setSize(new LogicalSize(72, 72));
+
+  // 初始边缘吸附
+  setTimeout(() => snapToEdge(), 300);
 
   // 拉初始快照
   try {
@@ -344,6 +401,10 @@ onUnmounted(() => {
 
       <div class="fl-panel-body">
         <div class="fl-panel-task">{{ taskName }}</div>
+        <div v-if="snapshot && !isIdle" class="fl-panel-meta">
+          <span v-if="snapshot.mode === 'pomodoro'">🍅 第 {{ snapshot.pomodoroCount }} 个番茄</span>
+          <span v-else>🌀 自由模式</span>
+        </div>
 
         <!-- 进度环(120px) -->
         <div class="fl-panel-ring-wrap">
@@ -629,6 +690,11 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+}
+.fl-panel-meta {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
 }
 
 /* -- Panel 进度环 -- */
