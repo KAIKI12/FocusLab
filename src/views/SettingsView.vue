@@ -7,6 +7,7 @@
 
 import { ref } from "vue";
 
+import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useAIStore } from "@/stores/useAIStore";
 import { useTheme, type ThemeMode } from "@/composables/useTheme";
 import { useTimerStateStore } from "@/stores/useTimerStateStore";
@@ -60,6 +61,32 @@ async function onTestAI() {
     aiTestResult.value = `✅ ${result}`;
   } catch (e) {
     aiTestResult.value = `❌ 连接失败: ${e}`;
+  }
+}
+
+// ---------- 数据导出 ----------
+
+const exportResult = ref("");
+
+async function exportTasksJson() {
+  try {
+    const ts = new Date().toISOString().slice(0, 10);
+    const path = `focuslab_tasks_${ts}.json`;
+    const msg = await invokeCmd<string>("export_tasks_json", { path });
+    exportResult.value = `✅ ${msg}`;
+  } catch (e) {
+    exportResult.value = `❌ 导出失败: ${e}`;
+  }
+}
+
+async function exportSessionsCsv() {
+  try {
+    const ts = new Date().toISOString().slice(0, 10);
+    const path = `focuslab_sessions_${ts}.csv`;
+    const msg = await invokeCmd<string>("export_sessions_csv", { path });
+    exportResult.value = `✅ ${msg}`;
+  } catch (e) {
+    exportResult.value = `❌ 导出失败: ${e}`;
   }
 }
 
@@ -189,6 +216,22 @@ async function showCurrent() {
           <button class="fl-btn fl-btn-ghost" type="button" @click="onTestAI">测试连接</button>
         </div>
         <div v-if="aiTestResult" class="fl-ai-result">{{ aiTestResult }}</div>
+      </div>
+    </div>
+
+    <!-- 数据导出 -->
+    <div class="fl-setting-block">
+      <div class="fl-setting-label">数据导出</div>
+      <div class="fl-export-actions">
+        <button class="fl-btn" type="button" @click="exportTasksJson">
+          导出任务 (JSON)
+        </button>
+        <button class="fl-btn" type="button" @click="exportSessionsCsv">
+          导出专注记录 (CSV)
+        </button>
+      </div>
+      <div v-if="exportResult" class="fl-ai-result" style="margin-top: var(--sp-2);">
+        {{ exportResult }}
       </div>
     </div>
 
@@ -381,6 +424,12 @@ async function showCurrent() {
   padding: var(--sp-2);
   background: var(--color-bg-subtle);
   border-radius: var(--r-sm);
+}
+
+/* ---------- 数据导出 ---------- */
+.fl-export-actions {
+  display: flex;
+  gap: var(--sp-2);
 }
 
 /* ---------- Dev 面板(原) ---------- */
