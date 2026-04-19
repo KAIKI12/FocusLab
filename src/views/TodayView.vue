@@ -12,6 +12,7 @@ import { useRouter } from "vue-router";
 
 import ManualSessionModal from "@/components/timer/ManualSessionModal.vue";
 import MorningGuide from "@/components/common/MorningGuide.vue";
+import { invokeCmd } from "@/composables/useTauriInvoke";
 import PresetSwitcher from "@/components/timer/PresetSwitcher.vue";
 import QuadrantGrid from "@/components/task/QuadrantGrid.vue";
 import TaskEditModal from "@/components/task/TaskEditModal.vue";
@@ -40,6 +41,11 @@ const showManualSession = ref(false);
 const showMorningGuide = ref(false);
 
 onMounted(async () => {
+  // 到期任务自动置顶 + 重复任务生成
+  await Promise.all([
+    invokeCmd("pin_due_tasks").catch(() => {}),
+    invokeCmd("generate_recurring_tasks").catch(() => {}),
+  ]);
   await Promise.all([tasks.load(), assignments.load(), goals.loadGoals()]);
   // 每日自动弹出晨起引导(当日未完成过)
   const today = new Date().toISOString().slice(0, 10);

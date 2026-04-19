@@ -5,7 +5,7 @@ use serde::Deserialize;
 use tauri::State;
 
 use crate::ai::prompt_templates;
-use crate::ai::{AIService, CompletionOptions, Message};
+use crate::ai::{AIService, CompletionOptions, Message, ResponseValidator};
 use crate::db::Db;
 use crate::utils::errors::{AppError, AppResult};
 
@@ -82,7 +82,7 @@ pub async fn ai_decompose_task(
             max_tokens: Some(800),
         })
         .await?;
-    Ok(result)
+    Ok(ResponseValidator::validate_decompose(&result))
 }
 
 /// AI 结算叙事
@@ -119,7 +119,7 @@ pub async fn ai_settlement_narrative(
             max_tokens: Some(200),
         })
         .await?;
-    Ok(result)
+    Ok(ResponseValidator::validate_narrative(&result))
 }
 
 // ---------- AI 每日建议 + 四象限分类 ----------

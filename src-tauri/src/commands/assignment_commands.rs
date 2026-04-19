@@ -56,7 +56,13 @@ pub fn list_assignments(
            FROM daily_task_assignments dta
            JOIN tasks t ON t.id = dta.task_id
           WHERE dta.plan_date = ?1
-          ORDER BY dta.sort_order, dta.added_at",
+          ORDER BY
+            dta.sort_order ASC,
+            CASE WHEN t.due_date IS NOT NULL THEN 0 ELSE 1 END,
+            t.due_date ASC,
+            CASE WHEN dta.source = 'carried_over' THEN 0 ELSE 1 END,
+            CASE WHEN t.estimated_minutes IS NOT NULL THEN t.estimated_minutes ELSE 999 END ASC,
+            dta.added_at",
     )?;
     let rows = stmt
         .query_map(params![target_date], row_to_joined)?
@@ -282,4 +288,43 @@ pub fn get_completion_stats(
         extra_completed,
         completion_rate: rate,
     })
+}
+
+/// 到期任务自动置顶 — due_date=今日且未完成的任务自动创建 DTA。
+#[tauri::command]
+pub fn pin_due_tasks(db: State<'_, Db>) -> AppResult<i64> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let boundary = settings::get_boundary_hour(&conn)?;
+    let today = current_logical_date(boundary).to_string();
+    let now = Utc::now().to_rfc3339();
+
+    // 找到 due_date <= 今日 且未完成 且当日还没有 DTA 的任务
+    let mut stmt = conn.prepare(
+        "SELECT t.id FROM tasks t
+         WHERE t.due_date <= ?1
+         AND t.status IN ('pending', 'in_progress')
+         AND t.shelved_at IS NULL
+         AND NOT EXISTS (
+             SELECT 1 FROM daily_task_assignments d
+             WHERE d.task_id = t.id AND d.plan_date = ?1
+         )",
+    )?;
+
+    let task_ids: Vec<String> = stmt
+        .query_map(params![today], |r| r.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    let mut count = 0i64;
+    for tid in &task_ids {
+        let id = Uuid::new_v4().to_string();
+        conn.execute(
+            "INSERT INTO daily_task_assignments
+                (id, plan_date, task_id, is_planned, source, day_status, added_at, sort_order)
+             VALUES (?1, ?2, ?3, 1, 'auto_due_pinned', 'pending', ?4, -1)",
+            params![id, today, tid, now],
+        )?;
+        count += 1;
+    }
+
+    Ok(count)
 }

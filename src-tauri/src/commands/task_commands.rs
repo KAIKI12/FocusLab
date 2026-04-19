@@ -42,13 +42,22 @@ pub fn list_tasks(
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     let mut stmt = if status_filter.is_some() {
         conn.prepare(&format!(
-            "SELECT {SELECT_COLS} FROM tasks WHERE status = ?1 ORDER BY sort_order, created_at DESC"
+        "SELECT {SELECT_COLS} FROM tasks WHERE status = ?1
+             ORDER BY sort_order,
+             CASE WHEN due_date IS NOT NULL THEN 0 ELSE 1 END,
+             due_date ASC,
+             CASE WHEN estimated_minutes IS NOT NULL THEN estimated_minutes ELSE 999 END ASC,
+             created_at DESC"
         ))?
     } else {
         conn.prepare(&format!(
             "SELECT {SELECT_COLS} FROM tasks
              WHERE status IN ('pending', 'in_progress') AND shelved_at IS NULL
-             ORDER BY sort_order, created_at DESC"
+             ORDER BY is_background ASC, sort_order,
+             CASE WHEN due_date IS NOT NULL THEN 0 ELSE 1 END,
+             due_date ASC,
+             CASE WHEN estimated_minutes IS NOT NULL THEN estimated_minutes ELSE 999 END ASC,
+             created_at DESC"
         ))?
     };
 
@@ -293,6 +302,35 @@ pub fn generate_recurring_tasks(db: State<'_, Db>) -> AppResult<i64> {
     }
 
     Ok(count)
+}
+
+/// 搁置区自动降级检查 — D7 返回提示列表，D30 自动归档。
+#[tauri::command]
+pub fn check_shelved_tasks(db: State<'_, Db>) -> AppResult<Vec<String>> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let now = Utc::now().to_rfc3339();
+
+    // D30: 搁置超过 30 天的自动标记 completed (归档)
+    conn.execute(
+        "UPDATE tasks SET status = 'completed', completed_at = ?1, updated_at = ?1
+         WHERE shelved_at IS NOT NULL
+         AND julianday('now') - julianday(shelved_at) >= 30
+         AND status != 'completed'",
+        params![now],
+    )?;
+
+    // D7: 搁置 7-29 天的返回提示
+    let mut stmt = conn.prepare(
+        "SELECT name FROM tasks
+         WHERE shelved_at IS NOT NULL
+         AND julianday('now') - julianday(shelved_at) BETWEEN 7 AND 29
+         AND status != 'completed'",
+    )?;
+    let names: Vec<String> = stmt
+        .query_map([], |r| r.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    Ok(names)
 }
 
 /// 根据 ID 获取任务名(轻量查询,供悬浮球窗口使用)。

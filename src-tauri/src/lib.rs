@@ -72,6 +72,7 @@ pub fn run() {
             commands::task_commands::delete_task,
             commands::task_commands::get_task_name,
             commands::task_commands::generate_recurring_tasks,
+            commands::task_commands::check_shelved_tasks,
             // timer_state 低层 CRUD (Week 1b)
             commands::timer_commands::get_timer_state,
             commands::timer_commands::update_timer_state,
@@ -85,6 +86,7 @@ pub fn run() {
             // 计划锁定 + 完成率 (Week 2b)
             commands::assignment_commands::lock_plan,
             commands::assignment_commands::get_completion_stats,
+            commands::assignment_commands::pin_due_tasks,
             // 番茄钟控制 (Week 2a)
             commands::focus_commands::start_pomodoro,
             commands::focus_commands::pause_timer,

@@ -173,13 +173,97 @@ impl AIService {
         opts: CompletionOptions,
     ) -> AppResult<String> {
         let guard = self.provider.read().await;
-        let p = guard
-            .as_ref()
-            .ok_or_else(|| AppError::Custom("AI 未配置,请在设置中填入 API Key".into()))?;
-        p.complete(messages, opts).await
+        let p = match guard.as_ref() {
+            Some(p) => p,
+            None => {
+                // 离线降级：返回预设话术
+                return Ok(Self::offline_fallback(&messages));
+            }
+        };
+        match p.complete(messages.clone(), opts).await {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                // API 调用失败也降级
+                Ok(Self::offline_fallback(&messages))
+            }
+        }
+    }
+
+    /// 离线降级预设话术
+    fn offline_fallback(messages: &[Message]) -> String {
+        let last = messages.last().map(|m| m.content.as_str()).unwrap_or("");
+        if last.contains("总结") || last.contains("表现") {
+            "今天辛苦了,每一步推进都有价值。明天继续保持节奏。".into()
+        } else if last.contains("拆解") || last.contains("子任务") {
+            r#"[{"name":"第一步：分析需求","estimatedMinutes":30,"quadrant":"important_not_urgent"},{"name":"第二步：实现核心","estimatedMinutes":60,"quadrant":"important_not_urgent"},{"name":"第三步：测试验证","estimatedMinutes":30,"quadrant":"important_not_urgent"}]"#.into()
+        } else if last.contains("建议") || last.contains("推荐") {
+            "建议优先处理紧急重要的任务,上午精力最好时段推进核心工作。".into()
+        } else if last.contains("象限") || last.contains("分类") {
+            "important_not_urgent".into()
+        } else {
+            "保持节奏,每天进步一点点。".into()
+        }
     }
 
     pub async fn is_configured(&self) -> bool {
         self.provider.read().await.is_some()
+    }
+}
+
+/// AI 输出校验器 — 防止幻觉
+pub struct ResponseValidator;
+
+impl ResponseValidator {
+    /// 校验任务拆解结果
+    pub fn validate_decompose(raw: &str) -> String {
+        // 尝试解析 JSON
+        let parsed: Result<Vec<serde_json::Value>, _> = serde_json::from_str(raw);
+        match parsed {
+            Ok(mut arr) => {
+                // 数量校验：3-7
+                if arr.len() < 3 { return Self::default_decompose(); }
+                if arr.len() > 7 { arr.truncate(7); }
+
+                // 逐项校验
+                for item in &mut arr {
+                    // 时间校验：5-480
+                    if let Some(min) = item.get("estimatedMinutes").and_then(|v| v.as_i64()) {
+                        if min < 5 || min > 480 {
+                            item["estimatedMinutes"] = serde_json::json!(30);
+                        }
+                    }
+                    // 象限校验
+                    if let Some(q) = item.get("quadrant").and_then(|v| v.as_str()) {
+                        let valid = ["important_urgent", "important_not_urgent", "not_important_urgent", "not_important_not_urgent"];
+                        if !valid.contains(&q) {
+                            item["quadrant"] = serde_json::json!("important_not_urgent");
+                        }
+                    }
+                }
+                serde_json::to_string(&arr).unwrap_or_else(|_| Self::default_decompose())
+            }
+            Err(_) => Self::default_decompose(),
+        }
+    }
+
+    /// 校验结算叙事（禁用词过滤）
+    pub fn validate_narrative(raw: &str) -> String {
+        let forbidden = ["失败", "落后", "拖延", "懒惰", "差劲"];
+        let mut result = raw.to_string();
+        for word in &forbidden {
+            result = result.replace(word, "调整");
+        }
+        // 长度校验
+        if result.chars().count() > 200 {
+            result = result.chars().take(200).collect();
+        }
+        if result.chars().count() < 5 {
+            return "今天辛苦了，保持节奏。".into();
+        }
+        result
+    }
+
+    fn default_decompose() -> String {
+        r#"[{"name":"分析需求","estimatedMinutes":30,"quadrant":"important_not_urgent"},{"name":"实现核心","estimatedMinutes":60,"quadrant":"important_not_urgent"},{"name":"验证测试","estimatedMinutes":30,"quadrant":"important_not_urgent"}]"#.into()
     }
 }
