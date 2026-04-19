@@ -4,7 +4,7 @@
  * 左侧导航 + 右侧面板。
  */
 
-import { onMounted, ref } from "vue";
+import { onMounted, ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 import AIPrivacyModal from "@/components/common/AIPrivacyModal.vue";
@@ -106,6 +106,33 @@ async function toggleNotify(key: string, current: boolean) {
   await invokeCmd("set_setting", { key: `notify_${key}`, value: val ? "1" : "0" }).catch(() => {});
 }
 
+// ---------- Privacy / Experiment 开关持久化 ----------
+// 仅做前端持久化；开关对应功能的实际控制由后续 commit 分别接入。
+const statsEnabled = ref(false);   // privacy_anonymous_stats
+const expMood = ref(true);         // exp_mood_checkin
+const expPersona = ref(false);     // exp_persona
+const expBadges = ref(true);       // exp_badges
+
+type ToggleKey = "stats" | "mood" | "persona" | "badges";
+const toggleConfig: Record<ToggleKey, { ref: Ref<boolean>; key: string }> = {
+  stats:   { ref: statsEnabled, key: "privacy_anonymous_stats" },
+  mood:    { ref: expMood,      key: "exp_mood_checkin" },
+  persona: { ref: expPersona,   key: "exp_persona" },
+  badges:  { ref: expBadges,    key: "exp_badges" },
+};
+
+// 先持久化成功再更新 UI — 失败时保持原状态,避免"看似切换实际未生效"
+async function onToggleSetting(target: ToggleKey) {
+  const { ref: r, key } = toggleConfig[target];
+  const nextVal = !r.value;
+  try {
+    await invokeCmd("set_setting", { key, value: nextVal ? "1" : "0" });
+    r.value = nextVal;
+  } catch (e) {
+    console.warn(`[settings] persist ${key} failed`, e);
+  }
+}
+
 // ---------- Init ----------
 onMounted(async () => {
   const load = async (key: string, fallback: string) => {
@@ -120,6 +147,10 @@ onMounted(async () => {
   notifySystem.value = (await load("notify_system", "1")) === "1";
   notifySettle.value = (await load("notify_settle", "1")) === "1";
   notifyDue.value = (await load("notify_due", "1")) === "1";
+  statsEnabled.value = (await load("privacy_anonymous_stats", "0")) === "1";
+  expMood.value = (await load("exp_mood_checkin", "1")) === "1";
+  expPersona.value = (await load("exp_persona", "0")) === "1";
+  expBadges.value = (await load("exp_badges", "1")) === "1";
 });
 
 // ---------- Data ----------
@@ -331,7 +362,7 @@ const showAIPrivacy = ref(false);
             <div class="fl-set-desc">帮助改善产品，不包含任务内容</div>
           </div>
           <div class="fl-set-control">
-            <button class="fl-toggle"><span class="fl-toggle-dot" /></button>
+            <button class="fl-toggle" :class="{ 'is-on': statsEnabled }" @click="onToggleSetting('stats')"><span class="fl-toggle-dot" /></button>
           </div>
         </div>
       </div>
@@ -366,21 +397,21 @@ const showAIPrivacy = ref(false);
           <div class="fl-exp-card">
             <div class="fl-exp-head">
               <span>🌤 心情打卡</span>
-              <button class="fl-toggle is-on"><span class="fl-toggle-dot" /></button>
+              <button class="fl-toggle" :class="{ 'is-on': expMood }" @click="onToggleSetting('mood')"><span class="fl-toggle-dot" /></button>
             </div>
             <div class="fl-exp-body">早晨意图档位 + 晚间情绪记录</div>
           </div>
           <div class="fl-exp-card">
             <div class="fl-exp-head">
               <span>🧬 科研人格图鉴</span>
-              <button class="fl-toggle"><span class="fl-toggle-dot" /></button>
+              <button class="fl-toggle" :class="{ 'is-on': expPersona }" @click="onToggleSetting('persona')"><span class="fl-toggle-dot" /></button>
             </div>
             <div class="fl-exp-body">30 型人格 · 7 天孵化 · 社交分享</div>
           </div>
           <div class="fl-exp-card">
             <div class="fl-exp-head">
               <span>🏆 成就徽章</span>
-              <button class="fl-toggle is-on"><span class="fl-toggle-dot" /></button>
+              <button class="fl-toggle" :class="{ 'is-on': expBadges }" @click="onToggleSetting('badges')"><span class="fl-toggle-dot" /></button>
             </div>
             <div class="fl-exp-body">45 枚徽章 · 4 稀有度 · 6 分类</div>
           </div>
