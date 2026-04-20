@@ -4,7 +4,9 @@
  * 8 门别 Tab + Gallery + 分享卡预览 + 7 天孵化进度。
  */
 
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+
+import { invokeCmd } from "@/composables/useTauriInvoke";
 
 interface Persona {
   id: string;
@@ -96,8 +98,48 @@ const activeGateInfo = computed(() =>
   GATES.find((g) => g.id === activeGate.value)!,
 );
 
-// 7 天孵化
-const hatchDay = ref(3); // 模拟第 3 天
+// 7 天孵化 — 基于首次访问人格页日期推算;存储在 Tauri settings KV(key=persona_hatch_start)
+const HATCH_STORAGE_KEY = "persona_hatch_start";
+const hatchStart = ref<string | null>(null);
+
+function todayLocal(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+function diffDaysInclusive(startStr: string): number {
+  const start = new Date(`${startStr}T00:00:00`);
+  const today = new Date(`${todayLocal()}T00:00:00`);
+  const ms = today.getTime() - start.getTime();
+  return Math.floor(ms / 86_400_000) + 1; // 起始日算 Day 1
+}
+
+const hatchDay = computed<number>(() => {
+  if (!hatchStart.value) return 1; // 未加载完前按 Day 1 兜底(视觉上显示蛋壳)
+  return Math.min(Math.max(diffDaysInclusive(hatchStart.value), 1), 7);
+});
+
+onMounted(async () => {
+  try {
+    const stored = await invokeCmd<string | null>("get_setting", {
+      key: HATCH_STORAGE_KEY,
+    });
+    if (stored) {
+      hatchStart.value = stored;
+    } else {
+      const today = todayLocal();
+      await invokeCmd("set_setting", { key: HATCH_STORAGE_KEY, value: today });
+      hatchStart.value = today;
+    }
+  } catch {
+    // 后端不可用时降级为"今天就是 Day 1",不阻塞页面
+    hatchStart.value = todayLocal();
+  }
+});
+
 const HATCH_STAGES = [
   { day: 1, emoji: "🥚", label: "蛋壳期" },
   { day: 3, emoji: "🐣", label: "破壳期" },
@@ -130,7 +172,10 @@ function starStr(n: number): string {
           <span class="fl-hatch-label">Day {{ stage.day }}</span>
         </div>
       </div>
-      <div class="fl-hatch-hint">再使用 {{ Math.max(7 - hatchDay, 0) }} 天解锁完整人格</div>
+      <div class="fl-hatch-hint">
+        <template v-if="hatchDay >= 7">🎉 已完成孵化 · 完整人格已解锁</template>
+        <template v-else>再使用 {{ 7 - hatchDay }} 天解锁完整人格</template>
+      </div>
     </div>
 
     <!-- 门别 Tab -->
