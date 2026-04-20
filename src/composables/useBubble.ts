@@ -48,6 +48,10 @@ export function useBubble() {
       decorations: false,
       alwaysOnTop: true,
       transparent: true,
+      // 关掉 Windows DWM 方形阴影 — 否则透明窗口(圆形 body)四周会露出
+      // 一圈方形阴影"小圆角";展开 Mini Panel 后同理,阴影按方形窗口投射,
+      // 与卡片 border-radius 错位显得脏。圆形/卡片自身的视觉轮廓由 CSS 负责。
+      shadow: false,
       skipTaskbar: true,
       resizable: false,
       x: pos.x,

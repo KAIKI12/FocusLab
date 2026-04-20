@@ -381,11 +381,11 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
 
 /* ===== Mini Panel · 浅色(对齐原型) ===== */
 .fl-mp {
-  width: 330px;
+  width: 100%;
+  height: 100%;
   background: var(--color-bg-elevated, #fff);
   border-radius: 12px;
   border: 1px solid var(--color-border, #e5e7eb);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
   display: flex; flex-direction: column;
   overflow: hidden;
   color: var(--color-text-primary, #1a1a2e);
@@ -417,6 +417,7 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
 .fl-mp-body {
   padding: 14px;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
+  flex: 1; justify-content: center;
 }
 .fl-mp-task {
   font-size: 14px; font-weight: 600;
