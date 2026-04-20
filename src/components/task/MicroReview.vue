@@ -112,6 +112,8 @@ function onSkip() {
 }
 .fl-mr-card {
   width: min(400px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   background: var(--color-bg-elevated); border: 1px solid var(--color-border);
   border-radius: var(--r-lg); box-shadow: var(--shadow-modal);
   padding: var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-4);

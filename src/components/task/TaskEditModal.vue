@@ -197,6 +197,8 @@ async function onSave() {
 
 .fl-modal-card {
   width: min(480px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--r-lg);
