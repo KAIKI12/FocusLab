@@ -9,6 +9,7 @@
  * 孵化起始日写在 settings KV(persona_hatch_start),首次访问写入今天。
  */
 
+import { toPng } from "html-to-image";
 import { computed, onMounted, ref } from "vue";
 
 import { invokeCmd } from "@/composables/useTauriInvoke";
@@ -184,6 +185,52 @@ const HATCH_STAGES = [
   { day: 5, emoji: "🐥", label: "成长期" },
   { day: 7, emoji: "🦇", label: "成型!" },
 ];
+
+// ---------- 社交分享 ----------
+const shareCardRef = ref<HTMLElement | null>(null);
+const copyStatus = ref<"idle" | "copied" | "error">("idle");
+const downloadStatus = ref<"idle" | "working" | "done" | "error">("idle");
+
+function shareText(): string {
+  const p = selectedPersona.value;
+  if (!p || !isUnlocked(p)) return "";
+  return `我在 FocusLab 匹配到了「${p.name}」· ${p.code} · ${activeGateInfo.value.label} — focuslab.app`;
+}
+
+async function copyShareText() {
+  const text = shareText();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    copyStatus.value = "copied";
+  } catch {
+    copyStatus.value = "error";
+  }
+  setTimeout(() => { copyStatus.value = "idle"; }, 1800);
+}
+
+async function downloadShareImage() {
+  const el = shareCardRef.value;
+  const p = selectedPersona.value;
+  if (!el || !p || !isUnlocked(p)) return;
+  downloadStatus.value = "working";
+  try {
+    const dataUrl = await toPng(el, {
+      pixelRatio: 2,
+      cacheBust: true,
+      backgroundColor: "transparent",
+    });
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `focuslab-persona-${p.code}-${p.name}.png`;
+    a.click();
+    downloadStatus.value = "done";
+  } catch (e) {
+    console.error("[persona] export image failed", e);
+    downloadStatus.value = "error";
+  }
+  setTimeout(() => { downloadStatus.value = "idle"; }, 1800);
+}
 </script>
 
 <template>
@@ -254,30 +301,50 @@ const HATCH_STAGES = [
         </div>
       </div>
 
-      <!-- 详情/分享卡 -->
-      <div v-if="selectedPersona" class="fl-share-card" :style="{ background: activeGateInfo.hue }">
-        <div class="fl-sc-header">FOCUSLAB · {{ activeGateInfo.label }}</div>
+      <!-- 详情/分享卡 + 动作 -->
+      <div v-if="selectedPersona" class="fl-share-col">
+        <div ref="shareCardRef" class="fl-share-card" :style="{ background: activeGateInfo.hue }">
+          <div class="fl-sc-header">FOCUSLAB · {{ activeGateInfo.label }}</div>
 
-        <template v-if="!isUnlocked(selectedPersona)">
-          <div class="fl-sc-lock-big">🔒</div>
-          <div class="fl-sc-name">???</div>
-          <div class="fl-sc-code">{{ selectedPersona.code }} · 隐藏款</div>
-          <div class="fl-sc-quote">
-            孵化满 {{ HIDDEN_UNLOCK_DAY }} 天解锁此人格<br />
-            <small>还差 {{ Math.max(HIDDEN_UNLOCK_DAY - hatchDay, 0) }} 天</small>
+          <template v-if="!isUnlocked(selectedPersona)">
+            <div class="fl-sc-lock-big">🔒</div>
+            <div class="fl-sc-name">???</div>
+            <div class="fl-sc-code">{{ selectedPersona.code }} · 隐藏款</div>
+            <div class="fl-sc-quote">
+              孵化满 {{ HIDDEN_UNLOCK_DAY }} 天解锁此人格<br />
+              <small>还差 {{ Math.max(HIDDEN_UNLOCK_DAY - hatchDay, 0) }} 天</small>
+            </div>
+          </template>
+
+          <template v-else>
+            <img :src="selectedPersona.imageUrl" :alt="selectedPersona.name" class="fl-sc-image" crossorigin="anonymous" />
+            <div class="fl-sc-name">{{ selectedPersona.name }}</div>
+            <div class="fl-sc-code">{{ selectedPersona.code }} · {{ activeGateInfo.label }}</div>
+            <div class="fl-sc-quote">基于你的行为数据逐步匹配</div>
+          </template>
+
+          <div class="fl-sc-footer">
+            <span>focuslab.app</span>
+            <div class="fl-sc-qr" />
           </div>
-        </template>
+        </div>
 
-        <template v-else>
-          <img :src="selectedPersona.imageUrl" :alt="selectedPersona.name" class="fl-sc-image" />
-          <div class="fl-sc-name">{{ selectedPersona.name }}</div>
-          <div class="fl-sc-code">{{ selectedPersona.code }} · {{ activeGateInfo.label }}</div>
-          <div class="fl-sc-quote">基于你的行为数据逐步匹配</div>
-        </template>
-
-        <div class="fl-sc-footer">
-          <span>focuslab.app</span>
-          <div class="fl-sc-qr" />
+        <!-- 社交分享动作(隐藏款不可分享) -->
+        <div v-if="isUnlocked(selectedPersona)" class="fl-share-actions">
+          <button
+            class="fl-share-btn"
+            :disabled="copyStatus !== 'idle'"
+            @click="copyShareText"
+          >
+            {{ copyStatus === 'copied' ? '✓ 已复制' : copyStatus === 'error' ? '复制失败' : '📋 复制文案' }}
+          </button>
+          <button
+            class="fl-share-btn"
+            :disabled="downloadStatus === 'working'"
+            @click="downloadShareImage"
+          >
+            {{ downloadStatus === 'working' ? '生成中…' : downloadStatus === 'done' ? '✓ 已保存' : downloadStatus === 'error' ? '导出失败' : '⬇ 下载图片' }}
+          </button>
         </div>
       </div>
     </div>
@@ -378,8 +445,11 @@ const HATCH_STAGES = [
 .fl-gallery-empty { font-size: var(--fs-12); color: var(--color-text-muted); padding: var(--sp-4); grid-column: 1/-1; }
 
 /* 分享卡 */
+.fl-share-col { display: flex; flex-direction: column; gap: var(--sp-3); flex-shrink: 0; }
+@media (max-width: 720px) { .fl-share-col { width: 100%; } }
+
 .fl-share-card {
-  width: 360px; min-height: 500px; flex-shrink: 0;
+  width: 360px; min-height: 500px;
   border-radius: var(--r-lg); padding: 24px 28px 20px;
   color: #fff; display: flex; flex-direction: column; align-items: center;
   gap: var(--sp-3); box-shadow: var(--shadow-modal);
@@ -406,4 +476,18 @@ const HATCH_STAGES = [
   border-top: 1px solid rgba(255,255,255,0.15); font-size: 11px; opacity: 0.6;
 }
 .fl-sc-qr { width: 40px; height: 40px; border-radius: 6px; background: rgba(255,255,255,0.2); }
+
+/* 分享动作 */
+.fl-share-actions { display: flex; gap: var(--sp-2); }
+.fl-share-btn {
+  flex: 1; padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  border-radius: var(--r-md);
+  font-size: var(--fs-13); cursor: pointer;
+  transition: all var(--dur-fast);
+}
+.fl-share-btn:hover:not(:disabled) { border-color: var(--color-primary); color: var(--color-primary); }
+.fl-share-btn:disabled { opacity: 0.7; cursor: default; }
 </style>
