@@ -78,7 +78,10 @@ async function onSave() {
     });
     emit("close");
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
     console.error("[task] update failed", e);
+    // 不静默吞错 — 让用户能看见真正的失败原因(对齐 Debug-First 原则)
+    alert(`保存失败: ${msg}`);
   }
 }
 </script>
@@ -112,16 +115,19 @@ async function onSave() {
 
           <fieldset class="fl-field fl-quadrant-group">
             <legend class="fl-label">象限</legend>
-            <div class="fl-quadrant-options">
-              <label
+            <div class="fl-quadrant-options" role="radiogroup">
+              <button
                 v-for="q in quadrants"
                 :key="q.value"
+                type="button"
                 class="fl-q-option"
+                role="radio"
+                :aria-checked="quadrant === q.value"
                 :class="[q.cls, { 'is-active': quadrant === q.value }]"
+                @click="quadrant = q.value"
               >
-                <input v-model="quadrant" type="radio" :value="q.value" class="fl-sr-only" />
                 {{ q.label }}
-              </label>
+              </button>
             </div>
           </fieldset>
 
@@ -289,7 +295,10 @@ async function onSave() {
   padding: var(--sp-2) var(--sp-3);
   border-radius: var(--r-md);
   border: 1.5px solid var(--color-border);
+  background: transparent;
+  font-family: inherit;
   font-size: var(--fs-12);
+  color: var(--color-text-primary);
   cursor: pointer;
   text-align: center;
   transition: all var(--dur-fast) var(--ease-smooth);
@@ -300,14 +309,7 @@ async function onSave() {
 .fl-q-option.q4 { border-color: var(--color-q4); color: var(--color-q4-text, var(--color-q4)); }
 .fl-q-option:not(.is-active) { opacity: 0.55; }
 .fl-q-option.is-active { font-weight: var(--fw-semibold); opacity: 1; }
-
-.fl-sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-}
+.fl-q-option:hover { opacity: 0.85; }
 
 .fl-modal-foot {
   display: flex;
