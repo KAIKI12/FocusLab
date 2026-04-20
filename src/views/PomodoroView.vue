@@ -148,6 +148,36 @@ function onReviewSkip() {
     <div v-if="state === 'idle'" class="fl-pomo-idle">
       <div class="fl-pomo-idle-text">没有进行中的计时</div>
       <button class="fl-pomo-idle-btn" @click="goBack">返回今日页面</button>
+
+      <!-- 🌀 自由模式 vs 🍅 番茄模式 对比(对齐 prototype/pomodoro.html:508) -->
+      <div class="fl-pomo-compare">
+        <h3>🌀 自由模式 vs 🍅 番茄模式</h3>
+        <div class="fl-pc-grid">
+          <div class="fl-pc-col fl-pc-free">
+            <strong>🌀 自由模式</strong>
+            <ul>
+              <li>时长不固定 · 递增显示</li>
+              <li>手动结束 · 不自动进入休息</li>
+              <li>不计入"番茄钟数" · 只计入专注时长</li>
+              <li>中断仍然记录(暂停/切换任务会打断)</li>
+              <li>适合:写作、读论文、深度思考</li>
+            </ul>
+          </div>
+          <div class="fl-pc-col fl-pc-pomo">
+            <strong>🍅 番茄模式</strong>
+            <ul>
+              <li>固定时长(25 / 45 / 90 可选) · 递减显示</li>
+              <li>自动结束 · 进入休息</li>
+              <li>计入"番茄钟数"</li>
+              <li>休息结束三选一(继续 / 延长 / 结束)</li>
+              <li>适合:coding、做题、事务性任务</li>
+            </ul>
+          </div>
+        </div>
+        <div class="fl-pc-hint">
+          💡 切换方式:在今日页面的预设切换器里选 · 计时中不可切换(先结束当前会话)
+        </div>
+      </div>
     </div>
 
     <!-- 主体 -->
@@ -278,6 +308,50 @@ function onReviewSkip() {
   padding: var(--sp-3) var(--sp-6); border-radius: var(--r-md);
   background: var(--color-primary); color: #fff; border: none;
   font-size: var(--fs-14); cursor: pointer;
+}
+
+/* 模式对比面板(idle 态下方) */
+.fl-pomo-compare {
+  width: min(560px, 90%);
+  margin-top: var(--sp-6);
+  padding: var(--sp-4);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-lg);
+  text-align: left;
+}
+.fl-pomo-compare h3 {
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  margin: 0 0 var(--sp-3);
+  color: var(--color-text-secondary);
+}
+.fl-pc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  font-size: var(--fs-13, 13px);
+  line-height: 1.6;
+}
+.fl-pc-col strong { font-size: var(--fs-13, 13px); font-weight: var(--fw-semibold); }
+.fl-pc-col.fl-pc-free strong { color: #7B52D6; }
+.fl-pc-col.fl-pc-pomo strong { color: var(--color-primary); }
+.fl-pc-col ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--color-text-secondary);
+}
+.fl-pc-col li { margin-bottom: 2px; }
+.fl-pc-hint {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px dashed color-mix(in srgb, var(--color-border) 70%, transparent);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+@media (max-width: 560px) {
+  .fl-pc-grid { grid-template-columns: 1fr; }
 }
 
 /* Body */
