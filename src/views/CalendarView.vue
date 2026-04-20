@@ -7,6 +7,8 @@
 import { ChevronLeft, ChevronRight } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 
+import AvailableTimePanel from "@/components/calendar/AvailableTimePanel.vue";
+import FixedSchedulePanel from "@/components/calendar/FixedSchedulePanel.vue";
 import { invokeCmd } from "@/composables/useTauriInvoke";
 import type { AssignmentWithTask, DaySummary, Task } from "@/types";
 
@@ -30,11 +32,12 @@ const calendarDays = computed(() => {
   const lastDay = new Date(year.value, month.value + 1, 0);
   const startDow = firstDay.getDay();
   const totalDays = lastDay.getDate();
-  const cells: Array<{ day: number; date: string } | null> = [];
+  const cells: Array<{ day: number; date: string; weekday: number } | null> = [];
   for (let i = 0; i < startDow; i++) cells.push(null);
   for (let d = 1; d <= totalDays; d++) {
     const date = `${year.value}-${String(month.value + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    cells.push({ day: d, date });
+    const weekday = new Date(year.value, month.value, d).getDay();
+    cells.push({ day: d, date, weekday });
   }
   return cells;
 });
@@ -134,7 +137,12 @@ watch([year, month], loadMonth);
       </header>
 
       <div class="fl-cal-grid">
-        <div v-for="d in ['日','一','二','三','四','五','六']" :key="d" class="fl-cal-dow">
+        <div
+          v-for="(d, i) in ['日','一','二','三','四','五','六']"
+          :key="d"
+          class="fl-cal-dow"
+          :class="{ 'is-weekend': i === 0 || i === 6 }"
+        >
           {{ d }}
         </div>
 
@@ -146,6 +154,7 @@ watch([year, month], loadMonth);
             'is-empty': !cell,
             'is-today': cell?.date === todayStr,
             'is-selected': cell?.date === selectedDate,
+            'is-weekend': cell && (cell.weekday === 0 || cell.weekday === 6),
           }"
           @click="cell && selectDay(cell.date)"
         >
@@ -182,72 +191,77 @@ watch([year, month], loadMonth);
       </div>
     </div>
 
-    <!-- Day Detail 面板 -->
-    <aside v-if="selectedDate" class="fl-day-detail">
-      <h2 class="fl-dd-title">
-        {{ new Date(selectedDate + 'T00:00').toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }) }}
-      </h2>
+    <!-- 右栏:Day Detail(可选) + 固定日程 + 可用时间 -->
+    <aside class="fl-cal-right">
+      <div v-if="selectedDate" class="fl-day-detail">
+        <h2 class="fl-dd-title">
+          {{ new Date(selectedDate + 'T00:00').toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }) }}
+        </h2>
 
-      <!-- 评级摘要 -->
-      <div v-if="summaryMap.has(selectedDate)" class="fl-dd-summary">
-        <span
-          class="fl-dd-grade"
-          :style="{ color: gradeColor(summaryMap.get(selectedDate)!.grade) }"
-        >
-          {{ summaryMap.get(selectedDate)!.grade }} 级
-        </span>
-        <span class="fl-dd-stat">
-          {{ summaryMap.get(selectedDate)!.completedTasks }}/{{ summaryMap.get(selectedDate)!.totalTasks }} 完成
-        </span>
-        <span class="fl-dd-stat">
-          {{ summaryMap.get(selectedDate)!.totalFocusMinutes }} 分钟专注
-        </span>
-        <div class="fl-dd-progress">
-          <div
-            class="fl-dd-progress-fill"
-            :style="{
-              width: (summaryMap.get(selectedDate)!.totalTasks > 0
-                ? Math.round(summaryMap.get(selectedDate)!.completedTasks / summaryMap.get(selectedDate)!.totalTasks * 100)
-                : 0) + '%'
-            }"
-          />
+        <!-- 评级摘要 -->
+        <div v-if="summaryMap.has(selectedDate)" class="fl-dd-summary">
+          <span
+            class="fl-dd-grade"
+            :style="{ color: gradeColor(summaryMap.get(selectedDate)!.grade) }"
+          >
+            {{ summaryMap.get(selectedDate)!.grade }} 级
+          </span>
+          <span class="fl-dd-stat">
+            {{ summaryMap.get(selectedDate)!.completedTasks }}/{{ summaryMap.get(selectedDate)!.totalTasks }} 完成
+          </span>
+          <span class="fl-dd-stat">
+            {{ summaryMap.get(selectedDate)!.totalFocusMinutes }} 分钟专注
+          </span>
+          <div class="fl-dd-progress">
+            <div
+              class="fl-dd-progress-fill"
+              :style="{
+                width: (summaryMap.get(selectedDate)!.totalTasks > 0
+                  ? Math.round(summaryMap.get(selectedDate)!.completedTasks / summaryMap.get(selectedDate)!.totalTasks * 100)
+                  : 0) + '%'
+              }"
+            />
+          </div>
+        </div>
+        <div v-else class="fl-dd-no-settle">未结算</div>
+
+        <!-- 今日到期任务 -->
+        <div v-if="dueByDate.has(selectedDate)" class="fl-dd-section">
+          <h3>⏰ 到期任务</h3>
+          <ul class="fl-dd-list">
+            <li v-for="t in dueByDate.get(selectedDate)" :key="t.id" class="fl-dd-item fl-dd-due">
+              {{ t.name }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- 当日安排 -->
+        <div class="fl-dd-section">
+          <h3>📋 当日安排</h3>
+          <ul v-if="dayAssignments.length" class="fl-dd-list">
+            <li
+              v-for="a in dayAssignments"
+              :key="a.id"
+              class="fl-dd-item"
+              :class="{ 'is-done': a.dayStatus === 'completed' }"
+            >
+              <span>{{ a.taskName }}</span>
+              <span class="fl-dd-status">{{ a.dayStatus }}</span>
+            </li>
+          </ul>
+          <p v-else class="fl-dd-empty">无安排</p>
         </div>
       </div>
-      <div v-else class="fl-dd-no-settle">未结算</div>
 
-      <!-- 今日到期任务 -->
-      <div v-if="dueByDate.has(selectedDate)" class="fl-dd-section">
-        <h3>⏰ 到期任务</h3>
-        <ul class="fl-dd-list">
-          <li v-for="t in dueByDate.get(selectedDate)" :key="t.id" class="fl-dd-item fl-dd-due">
-            {{ t.name }}
-          </li>
-        </ul>
-      </div>
-
-      <!-- 当日安排 -->
-      <div class="fl-dd-section">
-        <h3>📋 当日安排</h3>
-        <ul v-if="dayAssignments.length" class="fl-dd-list">
-          <li
-            v-for="a in dayAssignments"
-            :key="a.id"
-            class="fl-dd-item"
-            :class="{ 'is-done': a.dayStatus === 'completed' }"
-          >
-            <span>{{ a.taskName }}</span>
-            <span class="fl-dd-status">{{ a.dayStatus }}</span>
-          </li>
-        </ul>
-        <p v-else class="fl-dd-empty">无安排</p>
-      </div>
+      <FixedSchedulePanel />
+      <AvailableTimePanel />
     </aside>
   </section>
 </template>
 
 <style scoped>
 .fl-calendar-page {
-  max-width: 860px;
+  max-width: 1040px;
   margin: 0 auto;
   display: flex;
   gap: var(--sp-6);
@@ -259,6 +273,16 @@ watch([year, month], loadMonth);
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
+}
+
+/* ---------- 右栏容器 ---------- */
+.fl-cal-right {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  align-self: flex-start;
 }
 
 .fl-cal-head {
@@ -315,6 +339,9 @@ watch([year, month], loadMonth);
   padding: var(--sp-2) 0;
   font-weight: var(--fw-medium);
 }
+.fl-cal-dow.is-weekend {
+  color: var(--color-warning-text, var(--color-warning));
+}
 
 .fl-cal-cell {
   aspect-ratio: 1;
@@ -344,6 +371,9 @@ watch([year, month], loadMonth);
 .fl-cal-cell.is-selected {
   background: var(--color-primary-soft);
   border-color: var(--color-primary);
+}
+.fl-cal-cell.is-weekend:not(.is-selected):not(.is-today) .fl-cal-day {
+  color: var(--color-warning-text, var(--color-warning));
 }
 
 .fl-cal-day {
@@ -393,8 +423,7 @@ watch([year, month], loadMonth);
 
 /* ---------- Day Detail ---------- */
 .fl-day-detail {
-  width: 260px;
-  flex-shrink: 0;
+  width: 100%;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--r-lg);
@@ -402,7 +431,6 @@ watch([year, month], loadMonth);
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-  align-self: flex-start;
 }
 
 .fl-dd-title {
