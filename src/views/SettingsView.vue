@@ -8,6 +8,7 @@ import { onMounted, ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 import AIPrivacyModal from "@/components/common/AIPrivacyModal.vue";
+import AIPayloadModal from "@/components/common/AIPayloadModal.vue";
 import DangerConfirmModal from "@/components/common/DangerConfirmModal.vue";
 import ExportModal from "@/components/common/ExportModal.vue";
 import { invokeCmd } from "@/composables/useTauriInvoke";
@@ -158,6 +159,7 @@ const exportResult = ref("");
 const showExportModal = ref(false);
 const showDangerModal = ref(false);
 const showAIPrivacy = ref(false);
+const showAIPayload = ref(false);
 </script>
 
 <template>
@@ -342,6 +344,7 @@ const showAIPrivacy = ref(false);
           <div class="fl-ai-actions">
             <button class="fl-set-btn" @click="onSaveAI">保存</button>
             <button class="fl-set-btn fl-set-btn-ghost" @click="onTestAI">测试连接</button>
+            <button class="fl-set-btn fl-set-btn-ghost" @click="showAIPayload = true">查看发送的数据示例</button>
           </div>
           <div v-if="aiTestResult" class="fl-ai-result">{{ aiTestResult }}</div>
         </div>
@@ -455,6 +458,7 @@ const showAIPrivacy = ref(false);
 
   <ExportModal :visible="showExportModal" @close="showExportModal = false" />
   <AIPrivacyModal :visible="showAIPrivacy" @close="showAIPrivacy = false" @accepted="showAIPrivacy = false" />
+  <AIPayloadModal :visible="showAIPayload" @close="showAIPayload = false" />
   <DangerConfirmModal
     :visible="showDangerModal"
     title="重置所有数据"

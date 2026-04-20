@@ -6,7 +6,7 @@
  * 右栏 — AI 建议卡 + 目标卡 + 今日进度卡
  */
 
-import { Calendar, Check, Clock, Grid2X2, List, Maximize2, Minimize2, Moon, Pause, Pencil, Play, Plus, SkipForward, Square, Trash2, X } from "lucide-vue-next";
+import { Calendar, Check, ChevronRight, Clock, Grid2X2, List, Maximize2, Minimize2, Moon, Pause, Pencil, Play, Plus, SkipForward, Square, Trash2, X } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -17,7 +17,6 @@ import PresetSwitcher from "@/components/timer/PresetSwitcher.vue";
 import QuadrantGrid from "@/components/task/QuadrantGrid.vue";
 import QuickAddModal from "@/components/task/QuickAddModal.vue";
 import TaskEditModal from "@/components/task/TaskEditModal.vue";
-import YesterdayCard from "@/components/settlement/YesterdayCard.vue";
 import { useBubble } from "@/composables/useBubble";
 import { useAssignmentStore } from "@/stores/useAssignmentStore";
 import { useGoalStore } from "@/stores/useGoalStore";
@@ -128,14 +127,24 @@ const completionPct = computed(() =>
   totalCount.value > 0 ? Math.round((completedCount.value / totalCount.value) * 100) : 0,
 );
 
-/** 有到期日的紧急任务 */
-const dueToday = computed(() =>
-  tasks.tasks.filter((t) => {
-    if (!t.due_date) return false;
-    const today = new Date().toISOString().slice(0, 10);
-    return t.due_date <= today && t.status !== "completed";
-  }),
-);
+/** 今日到期(due_date == today) */
+const dueTodayCount = computed(() => {
+  const today = new Date().toISOString().slice(0, 10);
+  return tasks.tasks.filter(
+    (t) => t.due_date === today && t.status !== "completed",
+  ).length;
+});
+
+/** 逾期未完成(due_date < today) — 后端 pin_due_tasks 已自动置顶 */
+const overdueCount = computed(() => {
+  const today = new Date().toISOString().slice(0, 10);
+  return tasks.tasks.filter(
+    (t) => !!t.due_date && t.due_date < today && t.status !== "completed",
+  ).length;
+});
+
+/** 合并后的 DDL 条是否展示 */
+const showDdlBar = computed(() => dueTodayCount.value + overdueCount.value > 0);
 
 /** 第一个目标(右侧栏) */
 const primaryGoal = computed(() => goals.goals[0] ?? null);
@@ -229,9 +238,6 @@ function fmtMin(m: number): string {
       </div>
     </header>
 
-    <!-- 昨日回顾 -->
-    <YesterdayCard />
-
     <!-- 双栏主体 -->
     <div class="fl-grid">
       <!-- 左栏 -->
@@ -304,14 +310,18 @@ function fmtMin(m: number): string {
         <!-- 预设选择(仅 idle) -->
         <PresetSwitcher />
 
-        <!-- DDL 到期总览条 -->
-        <div v-if="dueToday.length" class="fl-ddl-bar">
-          <span style="font-size:16px">⏰</span>
+        <!-- DDL 到期总览条(v1.2.2) -->
+        <div v-if="showDdlBar" class="fl-ddl-bar">
+          <span style="font-size:16px;line-height:1">⏰</span>
           <div class="fl-ddl-text">
-            <strong>{{ dueToday.length }} 个任务今日到期</strong>
+            <strong v-if="dueTodayCount">{{ dueTodayCount }} 个任务今日到期</strong>
+            <span v-if="dueTodayCount && overdueCount" class="fl-ddl-sep"> · </span>
+            <span v-if="overdueCount" class="fl-ddl-overdue">
+              {{ overdueCount }} 个逾期未完成已自动置顶
+            </span>
           </div>
           <button class="fl-ddl-link" @click="router.push('/calendar')">
-            日历视图 →
+            日历视图 <ChevronRight :size="12" />
           </button>
         </div>
 
@@ -434,11 +444,11 @@ function fmtMin(m: number): string {
 
       <!-- 右栏 -->
       <div class="fl-right-rail">
-        <!-- AI 建议卡 -->
+        <!-- Daily 卡 · AI 建议 + 昨日小结(合并,遵循 ADR-010 v1.2.1) -->
         <div class="fl-ai-card">
           <div class="fl-ai-head">
             <div class="fl-ai-avatar">✨</div>
-            <div style="flex:1">
+            <div style="flex:1;min-width:0">
               <div class="fl-ai-title">今日小建议</div>
               <div class="fl-ai-text" :class="{ 'is-loading': aiLoading }">
                 {{ aiLoading ? '正在生成建议...' : aiSuggestion }}
@@ -446,10 +456,18 @@ function fmtMin(m: number): string {
             </div>
             <button class="fl-ai-refresh" title="刷新建议" :disabled="aiLoading" @click="loadAISuggestion">🔄</button>
           </div>
+
+          <div v-if="settlement.yesterday" class="fl-ai-divider" />
+
           <div v-if="settlement.yesterday" class="fl-ai-yesterday">
-            🌅 昨日 {{ settlement.yesterday.completedTasks }}/{{ settlement.yesterday.totalTasks }}
-            · <strong>{{ settlement.yesterday.grade }} 级</strong>
-            · 专注 {{ fmtMin(settlement.yesterday.totalFocusMinutes) }}
+            <span class="fl-ai-y-text">
+              🌅 昨日 {{ settlement.yesterday.completedTasks }}/{{ settlement.yesterday.totalTasks }}
+              · <strong>{{ settlement.yesterday.grade }} 级</strong>
+              · 专注 {{ fmtMin(settlement.yesterday.totalFocusMinutes) }}
+            </span>
+            <button class="fl-ai-y-link" type="button" @click="settlement.openYesterdayDialog()">
+              查看结算 <ChevronRight :size="12" />
+            </button>
           </div>
         </div>
 
@@ -633,15 +651,18 @@ function fmtMin(m: number): string {
 .fl-ddl-bar {
   display: flex; align-items: center; gap: var(--sp-3);
   padding: 8px 12px; border-radius: var(--r-sm);
-  background: color-mix(in srgb, var(--color-q3) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-q3) 25%, transparent);
-  font-size: var(--fs-12);
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
+  font-size: var(--fs-13, 13px); line-height: 1.5;
 }
-.fl-ddl-text { flex: 1; }
-.fl-ddl-text strong { color: var(--color-q3); }
+.fl-ddl-text { flex: 1; min-width: 0; color: var(--color-text-primary); }
+.fl-ddl-text strong { color: var(--color-warning-text); font-weight: var(--fw-semibold); }
+.fl-ddl-sep { color: var(--color-text-secondary); }
+.fl-ddl-overdue { color: var(--color-text-secondary); }
 .fl-ddl-link {
   background: none; border: none; color: var(--color-primary);
   font-size: var(--fs-12); cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 2px;
 }
 .fl-ddl-link:hover { text-decoration: underline; }
 
@@ -800,11 +821,32 @@ function fmtMin(m: number): string {
 }
 .fl-ai-refresh:hover { background: var(--color-bg-hover); }
 .fl-ai-refresh:disabled { opacity: 0.3; cursor: not-allowed; }
-.fl-ai-yesterday {
-  font-size: var(--fs-12); color: var(--color-text-secondary);
-  padding-top: var(--sp-2); border-top: 1px solid color-mix(in srgb, var(--color-primary) 14%, transparent);
+
+.fl-ai-divider {
+  height: 1px;
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  margin: 0 calc(-1 * var(--sp-4));
 }
-.fl-ai-yesterday strong { color: var(--color-text-primary); }
+
+.fl-ai-yesterday {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-2); font-size: var(--fs-12);
+}
+.fl-ai-y-text {
+  color: var(--color-text-secondary);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fl-ai-y-text strong {
+  color: var(--color-text-primary);
+  font-weight: var(--fw-semibold);
+}
+.fl-ai-y-link {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 0; background: transparent; border: none;
+  color: var(--color-primary); font-size: var(--fs-12);
+  cursor: pointer; white-space: nowrap;
+}
+.fl-ai-y-link:hover { text-decoration: underline; }
 
 .fl-stat-card {
   background: var(--color-bg-elevated); border: 1px solid var(--color-border);

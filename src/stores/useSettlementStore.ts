@@ -80,6 +80,14 @@ export const useSettlementStore = defineStore("settlement", () => {
     );
   }
 
+  /** 打开昨日结算弹窗(用于"查看昨日结算") */
+  async function openYesterdayDialog() {
+    if (!yesterday.value) await loadYesterday();
+    if (!yesterday.value) return;
+    await loadSettlement(yesterday.value.settleDate);
+    if (settlement.value) showDialog.value = true;
+  }
+
   function closeDialog() {
     showDialog.value = false;
   }
@@ -94,6 +102,7 @@ export const useSettlementStore = defineStore("settlement", () => {
     confirmMood,
     loadSettlement,
     loadYesterday,
+    openYesterdayDialog,
     closeDialog,
   };
 });

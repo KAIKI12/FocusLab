@@ -7,20 +7,32 @@
  */
 
 import { Sparkles, X } from "lucide-vue-next";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
 import { useAIStore, type SubTask } from "@/stores/useAIStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 
-const emit = defineEmits<{ close: [] }>();
+const props = defineProps<{ initialName?: string; initialDescription?: string }>();
+const emit = defineEmits<{ close: []; adopted: [] }>();
 
 const ai = useAIStore();
 const tasks = useTaskStore();
 
-const taskName = ref("");
-const description = ref("");
+const taskName = ref(props.initialName ?? "");
+const description = ref(props.initialDescription ?? "");
 const subTasks = ref<SubTask[]>([]);
 const adopted = ref(false);
+
+// 支持外部切换预填对象(例如在搁置区切换不同任务拆分)
+watch(
+  () => [props.initialName, props.initialDescription],
+  ([n, d]) => {
+    taskName.value = n ?? "";
+    description.value = d ?? "";
+    subTasks.value = [];
+    adopted.value = false;
+  },
+);
 
 async function onDecompose() {
   if (!taskName.value.trim()) return;
@@ -43,6 +55,7 @@ async function onAdopt() {
     });
   }
   adopted.value = true;
+  emit("adopted");
 }
 
 function onRemoveSub(idx: number) {
