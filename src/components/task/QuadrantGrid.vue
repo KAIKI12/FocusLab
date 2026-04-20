@@ -6,6 +6,10 @@
  *   dragstart → 记录 taskId + 原象限
  *   dragover/dragenter → 目标象限高亮
  *   drop → emit changeQuadrant(taskId, newQuadrant)
+ *
+ * WebView2 坑:子元素 (ul/li) 需显式 @dragover.prevent,
+ *   否则 drop 落在 li 上会被浏览器静默丢弃 — 仅父 div 的冒泡
+ *   preventDefault 在 WebView2 下不被一致判定为有效 drop target。
  */
 
 import { Play } from "lucide-vue-next";
@@ -108,7 +112,7 @@ function onDragEnd() {
         <span class="fl-qcell-label">{{ quadrantMeta[key].label }}</span>
         <span class="fl-qcell-count">{{ tasksByQuadrant[key]?.length ?? 0 }}</span>
       </div>
-      <ul v-if="tasksByQuadrant[key]?.length" class="fl-qcell-list">
+      <ul v-if="tasksByQuadrant[key]?.length" class="fl-qcell-list" @dragover.prevent>
         <li
           v-for="t in tasksByQuadrant[key]"
           :key="t.id"
@@ -116,6 +120,7 @@ function onDragEnd() {
           draggable="true"
           @dragstart="onDragStart($event, t)"
           @dragend="onDragEnd"
+          @dragover.prevent
           @click="emit('edit', t)"
         >
           <span class="fl-qcell-name">{{ t.name }}</span>
