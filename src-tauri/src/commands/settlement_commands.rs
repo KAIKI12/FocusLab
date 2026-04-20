@@ -258,7 +258,7 @@ pub fn get_settlement(plan_date: Option<String>, db: State<'_, Db>) -> AppResult
 pub fn list_day_summaries(from: String, to: String, db: State<'_, Db>) -> AppResult<Vec<DaySummary>> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     let mut stmt = conn.prepare(
-        "SELECT settle_date, completed_tasks, total_tasks, grade, total_focus_minutes
+        "SELECT settle_date, completed_tasks, total_tasks, grade, total_focus_minutes, total_pomodoros
          FROM settlements
          WHERE settle_date >= ?1 AND settle_date <= ?2
          ORDER BY settle_date",
@@ -271,6 +271,7 @@ pub fn list_day_summaries(from: String, to: String, db: State<'_, Db>) -> AppRes
                 total_tasks: r.get(2)?,
                 grade: r.get(3)?,
                 total_focus_minutes: r.get(4)?,
+                total_pomodoros: r.get(5)?,
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;

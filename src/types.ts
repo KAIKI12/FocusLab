@@ -293,6 +293,7 @@ export interface DaySummary {
   totalTasks: number;
   grade: "S" | "A" | "B" | "C";
   totalFocusMinutes: number;
+  totalPomodoros: number;
 }
 
 // ---------- Stats (数据洞察) ----------

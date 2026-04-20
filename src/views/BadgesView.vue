@@ -96,7 +96,7 @@ const BADGE_DEFS: BadgeDef[] = [
 
 /**
  * 按徽章 id 判定是否解锁。
- * 未列出的 id(p5/p6/t2/t5/m*/g5/h1-h8/h11-h12)暂无数据源,保持锁定,
+ * 未列出的 id(p5/p6/t2/t5/mX/g5/h1-h8/h11-h12)暂无数据源,保持锁定,
  * 后续补齐 session 级统计 / 日期监听 / AI 拆解计数后再填进来。
  */
 function evaluateUnlocked(id: string, s: BadgeStats): boolean {

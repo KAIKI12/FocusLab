@@ -52,4 +52,5 @@ pub struct DaySummary {
     pub total_tasks: i64,
     pub grade: String,
     pub total_focus_minutes: i64,
+    pub total_pomodoros: i64,
 }
