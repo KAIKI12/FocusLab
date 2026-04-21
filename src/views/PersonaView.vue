@@ -13,6 +13,17 @@ import { toPng } from "html-to-image";
 import { computed, onMounted, ref } from "vue";
 
 import { invokeCmd } from "@/composables/useTauriInvoke";
+import {
+  DIM_HIGH,
+  DIM_LABELS,
+  DIM_LOW,
+  HATCH_DAYS,
+  PERSONA_META,
+  stars,
+  type BasePersonaMeta,
+  type ComboPersonaMeta,
+  type PersonaMeta,
+} from "@/data/personas";
 
 interface PersonaDef {
   id: string;
@@ -162,6 +173,13 @@ const hatchDay = computed<number>(() => {
 
 const displayHatchDay = computed(() => Math.min(hatchDay.value, HIDDEN_UNLOCK_DAY));
 
+function hatchState(day: number): "past" | "current" | "future" {
+  const d = displayHatchDay.value;
+  if (day < d) return "past";
+  if (day === d) return "current";
+  return "future";
+}
+
 onMounted(async () => {
   try {
     const stored = await invokeCmd<string | null>("get_setting", {
@@ -179,12 +197,34 @@ onMounted(async () => {
   }
 });
 
-const HATCH_STAGES = [
-  { day: 1, emoji: "🥚", label: "蛋壳期" },
-  { day: 3, emoji: "🐣", label: "破壳期" },
-  { day: 5, emoji: "🐥", label: "成长期" },
-  { day: 7, emoji: "🦇", label: "成型!" },
-];
+// ---------- 人格描述(每张独有 quote/hidden/dims 或 combo emojis/desc) ----------
+const selectedMeta = computed<PersonaMeta | null>(() => {
+  const p = selectedPersona.value;
+  if (!p) return null;
+  return PERSONA_META[p.name] ?? null;
+});
+
+function isBaseMeta(m: PersonaMeta | null): m is BasePersonaMeta {
+  return m?.kind === "base";
+}
+
+function isComboMeta(m: PersonaMeta | null): m is ComboPersonaMeta {
+  return m?.kind === "combo";
+}
+
+const baseMeta = computed<BasePersonaMeta | null>(() =>
+  isBaseMeta(selectedMeta.value) ? selectedMeta.value : null,
+);
+
+const comboMeta = computed<ComboPersonaMeta | null>(() =>
+  isComboMeta(selectedMeta.value) ? selectedMeta.value : null,
+);
+
+function dimDesc(v: number, i: number): string {
+  if (v >= 4) return DIM_HIGH[i];
+  if (v <= 2) return DIM_LOW[i];
+  return "";
+}
 
 // ---------- 社交分享 ----------
 const shareCardRef = ref<HTMLElement | null>(null);
@@ -240,25 +280,47 @@ async function downloadShareImage() {
       <p class="fl-persona-sub">11 门 · 44 型 · 基于你的使用轨迹逐步解锁</p>
     </header>
 
-    <!-- 7 天孵化进度 -->
+    <!-- 7 天孵化时间轴 -->
     <div class="fl-hatch">
-      <div class="fl-hatch-title">人格孵化中…</div>
-      <div class="fl-hatch-timeline">
+      <div class="fl-hatch-head">
+        <h2>🥚 科研人格孵化中…</h2>
+        <p>7 天数据积累,解锁你的专属科研人格</p>
+      </div>
+      <div class="fl-hatch-tl">
         <div
-          v-for="stage in HATCH_STAGES" :key="stage.day"
-          class="fl-hatch-stage"
-          :class="{
-            'is-done': displayHatchDay >= stage.day,
-            'is-current': displayHatchDay >= stage.day && (HATCH_STAGES.find(s => s.day > stage.day)?.day ?? 999) > displayHatchDay,
-          }"
+          v-for="d in HATCH_DAYS"
+          :key="d.day"
+          class="fl-hatch-node"
+          :class="['is-' + hatchState(d.day)]"
         >
-          <span class="fl-hatch-emoji">{{ stage.emoji }}</span>
-          <span class="fl-hatch-label">Day {{ stage.day }}</span>
+          <span class="fl-hatch-day-label">Day {{ d.day }}</span>
+          <span class="fl-hatch-dot">
+            {{ hatchState(d.day) === "past" ? "✓" : d.day }}
+          </span>
+          <div class="fl-hatch-card">
+            <div class="fl-hatch-emoji">{{ d.emoji }}</div>
+            <div class="fl-hatch-title">{{ d.title }}</div>
+            <div class="fl-hatch-desc">{{ d.desc }}</div>
+            <div class="fl-hatch-progress">
+              <div class="fl-hatch-bar">
+                <div
+                  class="fl-hatch-fill"
+                  :class="{ 'is-done': d.day === 7 && hatchState(7) !== 'future' }"
+                  :style="{ width: hatchState(d.day) === 'future' ? '0%' : `${d.pct}%` }"
+                />
+              </div>
+              <span class="fl-hatch-progress-label">{{ d.label }}</span>
+            </div>
+          </div>
         </div>
       </div>
       <div class="fl-hatch-hint">
-        <template v-if="hatchDay >= HIDDEN_UNLOCK_DAY">🎉 已完成孵化 · 11 个隐藏款已解锁</template>
-        <template v-else>再使用 {{ HIDDEN_UNLOCK_DAY - hatchDay }} 天解锁全部隐藏款 · 每门 BR 位置</template>
+        <template v-if="hatchDay >= HIDDEN_UNLOCK_DAY">
+          🎉 已完成孵化 · 11 个隐藏款(每门 BR)已解锁
+        </template>
+        <template v-else>
+          再使用 {{ HIDDEN_UNLOCK_DAY - hatchDay }} 天解锁全部隐藏款
+        </template>
       </div>
     </div>
 
@@ -320,7 +382,28 @@ async function downloadShareImage() {
             <img :src="selectedPersona.imageUrl" :alt="selectedPersona.name" class="fl-sc-image" crossorigin="anonymous" />
             <div class="fl-sc-name">{{ selectedPersona.name }}</div>
             <div class="fl-sc-code">{{ selectedPersona.code }} · {{ activeGateInfo.label }}</div>
-            <div class="fl-sc-quote">基于你的行为数据逐步匹配</div>
+
+            <template v-if="baseMeta">
+              <div class="fl-sc-quote">“{{ baseMeta.quote }}”</div>
+              <div class="fl-sc-hidden">🔍 {{ baseMeta.hidden }}</div>
+              <div class="fl-sc-dims">
+                <div v-for="(v, i) in baseMeta.dims" :key="i" class="fl-sc-dim-row">
+                  <span class="fl-sc-dim-label">{{ DIM_LABELS[i] }}</span>
+                  <span class="fl-sc-dim-stars">{{ stars(v) }}</span>
+                  <span class="fl-sc-dim-desc">{{ dimDesc(v, i) }}</span>
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="comboMeta">
+              <div class="fl-sc-combo-emojis">{{ comboMeta.emojis }}</div>
+              <div class="fl-sc-quote">“{{ comboMeta.desc }}”</div>
+              <div class="fl-sc-hidden">🏅 组合款称号</div>
+            </template>
+
+            <template v-else>
+              <div class="fl-sc-quote">基于你的行为数据逐步匹配</div>
+            </template>
           </template>
 
           <div class="fl-sc-footer">
@@ -362,21 +445,86 @@ async function downloadShareImage() {
 .fl-persona h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); margin: 0; }
 .fl-persona-sub { font-size: var(--fs-14); color: var(--color-text-secondary); margin: var(--sp-1) 0 0; }
 
-/* 孵化 */
+/* ---------- 孵化 · 7 天剧情时间轴 ---------- */
 .fl-hatch {
-  padding: var(--sp-5); text-align: center;
-  background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--color-gold, #FAAD14) 15%, transparent), transparent 60%), var(--color-bg-elevated);
+  padding: var(--sp-5);
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--color-gold, #FAAD14) 15%, transparent), transparent 60%), var(--color-bg-elevated);
   border: 1px solid var(--color-border); border-radius: var(--r-lg);
 }
-.fl-hatch-title { font-size: var(--fs-16); font-weight: var(--fw-semibold); margin-bottom: var(--sp-4); }
-.fl-hatch-timeline { display: flex; justify-content: center; gap: var(--sp-6); margin-bottom: var(--sp-3); }
-.fl-hatch-stage { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); opacity: 0.35; }
-.fl-hatch-stage.is-done { opacity: 0.65; }
-.fl-hatch-stage.is-current { opacity: 1; }
-.fl-hatch-emoji { font-size: 32px; transition: transform var(--dur-base); }
-.fl-hatch-stage.is-current .fl-hatch-emoji { transform: scale(1.15); filter: drop-shadow(0 4px 8px rgba(250,173,20,0.4)); }
-.fl-hatch-label { font-size: 11px; color: var(--color-text-muted); }
-.fl-hatch-hint { font-size: var(--fs-12); color: var(--color-text-muted); }
+.fl-hatch-head { text-align: center; margin-bottom: var(--sp-5); }
+.fl-hatch-head h2 { font-size: var(--fs-20); font-weight: var(--fw-semibold); margin: 0 0 var(--sp-1); }
+.fl-hatch-head p { font-size: var(--fs-12); color: var(--color-text-secondary); margin: 0; }
+
+.fl-hatch-tl { position: relative; padding-left: 70px; margin: 0 auto; max-width: 560px; }
+.fl-hatch-tl::before {
+  content: ""; position: absolute;
+  left: 39px; top: 24px; bottom: 24px;
+  width: 2px; background: var(--color-border);
+}
+
+.fl-hatch-node { position: relative; margin-bottom: var(--sp-3); transition: opacity var(--dur-base); }
+.fl-hatch-node.is-past, .fl-hatch-node.is-current { opacity: 1; }
+.fl-hatch-node.is-future { opacity: 0.4; }
+
+.fl-hatch-day-label {
+  position: absolute; left: -70px; top: 18px;
+  width: 40px; text-align: right;
+  font-size: var(--fs-12); font-weight: var(--fw-semibold);
+  color: var(--color-text-secondary);
+}
+
+.fl-hatch-dot {
+  position: absolute; left: -35px; top: 12px;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: var(--fs-12); font-weight: var(--fw-semibold);
+  color: #fff;
+  background: var(--color-border-strong, var(--color-text-muted));
+  z-index: 1;
+  transition: all var(--dur-base) var(--ease-out);
+}
+.fl-hatch-node.is-past .fl-hatch-dot { background: var(--color-success, #52c41a); }
+.fl-hatch-node.is-current .fl-hatch-dot {
+  background: var(--color-primary);
+  animation: flHatchPulse 2s infinite;
+}
+@keyframes flHatchPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 40%, transparent); }
+  50%     { box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-primary) 0%, transparent); }
+}
+
+.fl-hatch-card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+  text-align: left;
+}
+.fl-hatch-node.is-current .fl-hatch-card {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+.fl-hatch-emoji { font-size: var(--fs-20); margin-bottom: var(--sp-1); }
+.fl-hatch-title { font-size: var(--fs-14); font-weight: var(--fw-semibold); margin-bottom: 4px; color: var(--color-text-primary); }
+.fl-hatch-desc { font-size: var(--fs-12); color: var(--color-text-secondary); line-height: 1.5; margin-bottom: var(--sp-2); }
+.fl-hatch-progress { display: flex; align-items: center; gap: var(--sp-2); }
+.fl-hatch-bar { flex: 1; height: 4px; background: var(--color-bg-subtle); border-radius: 2px; overflow: hidden; }
+.fl-hatch-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 2px;
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.fl-hatch-fill.is-done { background: var(--color-success, #52c41a); }
+.fl-hatch-progress-label { font-size: 11px; color: var(--color-text-muted); white-space: nowrap; }
+
+.fl-hatch-hint {
+  text-align: center;
+  font-size: var(--fs-12);
+  color: var(--color-text-muted);
+  margin-top: var(--sp-4);
+}
 
 /* 门别 Tab */
 .fl-gate-tabs { display: flex; gap: var(--sp-2); overflow-x: auto; padding-bottom: 2px; }
@@ -449,26 +597,46 @@ async function downloadShareImage() {
 @media (max-width: 720px) { .fl-share-col { width: 100%; } }
 
 .fl-share-card {
-  width: 360px; min-height: 500px;
+  width: 360px; min-height: 560px;
   border-radius: var(--r-lg); padding: 24px 28px 20px;
   color: #fff; display: flex; flex-direction: column; align-items: center;
-  gap: var(--sp-3); box-shadow: var(--shadow-modal);
+  gap: var(--sp-2); box-shadow: var(--shadow-modal);
 }
-@media (max-width: 720px) { .fl-share-card { width: 100%; min-height: 440px; } }
+@media (max-width: 720px) { .fl-share-card { width: 100%; min-height: 500px; } }
 
 .fl-sc-header { font-size: 11px; opacity: 0.7; letter-spacing: 1px; text-transform: uppercase; }
 .fl-sc-image {
-  width: 200px; height: 200px; object-fit: contain;
+  width: 160px; height: 160px; object-fit: contain;
   filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
 }
 .fl-sc-lock-big { font-size: 80px; opacity: 0.55; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3)); }
-.fl-sc-name { font-size: 24px; font-weight: var(--fw-bold); }
+.fl-sc-name { font-size: 22px; font-weight: var(--fw-bold); }
 .fl-sc-code {
   font-size: 11px; font-family: var(--font-mono); letter-spacing: 1px;
   padding: 2px 10px; background: rgba(255,255,255,0.15); border-radius: var(--r-pill);
 }
-.fl-sc-quote { font-size: 13px; text-align: center; line-height: 1.6; opacity: 0.9; max-width: 280px; }
+.fl-sc-quote {
+  font-size: 13px; text-align: center; line-height: 1.5;
+  opacity: 0.92; max-width: 300px; font-style: italic;
+  margin: 2px auto;
+}
 .fl-sc-quote small { opacity: 0.7; font-size: 11px; }
+.fl-sc-hidden {
+  font-size: 11px; text-align: center; opacity: 0.7;
+  max-width: 300px; line-height: 1.4; margin: 0 auto;
+}
+.fl-sc-dims {
+  display: flex; flex-direction: column; gap: 3px;
+  margin: 6px 0 0; width: 100%;
+}
+.fl-sc-dim-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.fl-sc-dim-label { width: 56px; flex-shrink: 0; opacity: 0.7; text-align: right; }
+.fl-sc-dim-stars { letter-spacing: 1px; font-size: 12px; opacity: 0.95; }
+.fl-sc-dim-desc { opacity: 0.55; font-size: 10px; }
+.fl-sc-combo-emojis {
+  font-size: 28px; letter-spacing: 6px; text-align: center;
+  margin: 2px 0; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
+}
 
 .fl-sc-footer {
   display: flex; justify-content: space-between; align-items: center;
