@@ -216,6 +216,26 @@ export interface Milestone {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  target_date: string | null;
+}
+
+export interface MilestoneNote {
+  id: string;
+  milestone_id: string;
+  text: string;
+  created_at: string;
+}
+
+export interface WeeklyInvestBucket {
+  /** 0=周一 .. 6=周日 */
+  weekday: number;
+  minutes: number;
+}
+
+export interface WeeklyInvest {
+  buckets: WeeklyInvestBucket[];
+  totalMinutes: number;
+  todayMinutes: number;
 }
 
 export interface CreateGoalInput {
