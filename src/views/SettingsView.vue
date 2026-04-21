@@ -94,6 +94,44 @@ async function setLongBreakInterval(v: string) {
   await invokeCmd("set_setting", { key: "pomodoro_long_break_interval", value: v }).catch(() => {});
 }
 
+// ---------- 🌀 自由模式偏好(v1.2.3,对齐 prototype/settings/settings.html:883) ----------
+// 先持久化到 key-value,实际 timer 行为在后续 commit 按 key 读取
+const freeDefaultMode = ref("pomodoro"); // "pomodoro" | "free" | "last"
+const freeMinRecord = ref("3");          // 分钟,1-15
+const freeSoftRemind = ref("90");        // 分钟,30-180
+const freeSoftRemindOn = ref(true);
+const freePauseAsBreak = ref(false);
+const freeSwitchAutoEnd = ref(true);
+
+async function setFreeDefault(v: string) {
+  freeDefaultMode.value = v;
+  await invokeCmd("set_setting", { key: "pomodoro_default_mode", value: v }).catch(() => {});
+}
+async function setFreeMinRecord(v: string) {
+  freeMinRecord.value = v;
+  await invokeCmd("set_setting", { key: "free_min_record_minutes", value: v }).catch(() => {});
+}
+async function setFreeSoftRemind(v: string) {
+  freeSoftRemind.value = v;
+  await invokeCmd("set_setting", { key: "free_soft_remind_minutes", value: v }).catch(() => {});
+}
+async function toggleFreeFlag(key: "soft_remind_on" | "pause_as_break" | "switch_auto_end") {
+  if (key === "soft_remind_on") freeSoftRemindOn.value = !freeSoftRemindOn.value;
+  else if (key === "pause_as_break") freePauseAsBreak.value = !freePauseAsBreak.value;
+  else freeSwitchAutoEnd.value = !freeSwitchAutoEnd.value;
+  const storeKey = {
+    soft_remind_on: "free_soft_remind_enabled",
+    pause_as_break: "free_pause_as_break",
+    switch_auto_end: "free_switch_auto_end",
+  }[key];
+  const val = (
+    key === "soft_remind_on" ? freeSoftRemindOn.value
+    : key === "pause_as_break" ? freePauseAsBreak.value
+    : freeSwitchAutoEnd.value
+  ) ? "1" : "0";
+  await invokeCmd("set_setting", { key: storeKey, value: val }).catch(() => {});
+}
+
 // ---------- Notification ----------
 const notifySystem = ref(true);
 const notifySettle = ref(true);
@@ -145,6 +183,12 @@ onMounted(async () => {
   focusDuration.value = await load("pomodoro_focus_minutes", "25");
   shortBreak.value = await load("pomodoro_short_break", "5");
   longBreakInterval.value = await load("pomodoro_long_break_interval", "4");
+  freeDefaultMode.value = await load("pomodoro_default_mode", "pomodoro");
+  freeMinRecord.value = await load("free_min_record_minutes", "3");
+  freeSoftRemind.value = await load("free_soft_remind_minutes", "90");
+  freeSoftRemindOn.value = (await load("free_soft_remind_enabled", "1")) === "1";
+  freePauseAsBreak.value = (await load("free_pause_as_break", "0")) === "1";
+  freeSwitchAutoEnd.value = (await load("free_switch_auto_end", "1")) === "1";
   notifySystem.value = (await load("notify_system", "1")) === "1";
   notifySettle.value = (await load("notify_settle", "1")) === "1";
   notifyDue.value = (await load("notify_due", "1")) === "1";
@@ -282,6 +326,79 @@ const showAIPayload = ref(false);
             <div class="fl-segmented">
               <button v-for="v in ['3','4','5']" :key="v" class="fl-seg-btn" :class="{ 'is-active': longBreakInterval === v }" @click="setLongBreakInterval(v)">{{ v }}</button>
             </div>
+          </div>
+        </div>
+
+        <!-- 🌀 自由模式偏好(v1.2.3) -->
+        <div class="fl-set-subhead">🌀 自由计时模式</div>
+
+        <div class="fl-set-row">
+          <div class="fl-set-info">
+            <div class="fl-set-label">默认计时模式</div>
+            <div class="fl-set-desc">启动专注时默认使用哪种模式 · 也可在焦点卡 🍅/🌀 临时切换</div>
+          </div>
+          <div class="fl-set-control">
+            <div class="fl-segmented">
+              <button class="fl-seg-btn" :class="{ 'is-active': freeDefaultMode === 'pomodoro' }" @click="setFreeDefault('pomodoro')">🍅 番茄</button>
+              <button class="fl-seg-btn" :class="{ 'is-active': freeDefaultMode === 'free' }" @click="setFreeDefault('free')">🌀 自由</button>
+              <button class="fl-seg-btn" :class="{ 'is-active': freeDefaultMode === 'last' }" @click="setFreeDefault('last')">上次</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="fl-set-row">
+          <div class="fl-set-info">
+            <div class="fl-set-label">最小记录时长</div>
+            <div class="fl-set-desc">自由模式下,短于此时长的会话不计入专注时长 · 避免误触污染数据</div>
+          </div>
+          <div class="fl-set-control">
+            <div class="fl-slider-row">
+              <input
+                type="range" min="1" max="15" step="1"
+                :value="freeMinRecord"
+                @input="setFreeMinRecord(($event.target as HTMLInputElement).value)"
+              />
+              <span class="fl-slider-val">{{ freeMinRecord }}m</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="fl-set-row">
+          <div class="fl-set-info">
+            <div class="fl-set-label">超时柔提醒</div>
+            <div class="fl-set-desc">自由模式连续专注超过此时长时,轻微呼吸提示可以休息 · 不强制打断</div>
+          </div>
+          <div class="fl-set-control fl-set-control-dual">
+            <div class="fl-slider-row">
+              <input
+                type="range" min="30" max="180" step="10"
+                :value="freeSoftRemind"
+                :disabled="!freeSoftRemindOn"
+                @input="setFreeSoftRemind(($event.target as HTMLInputElement).value)"
+              />
+              <span class="fl-slider-val">{{ freeSoftRemind }}m</span>
+            </div>
+            <button class="fl-toggle" :class="{ 'is-on': freeSoftRemindOn }" @click="toggleFreeFlag('soft_remind_on')"><span class="fl-toggle-dot" /></button>
+          </div>
+        </div>
+
+        <div class="fl-set-row">
+          <div class="fl-set-info">
+            <div class="fl-set-label">暂停计为中断</div>
+            <div class="fl-set-desc">开启后,自由模式中按暂停会结束当前会话并记录 · 关闭则仅暂停计时,可恢复</div>
+          </div>
+          <div class="fl-set-control">
+            <button class="fl-toggle" :class="{ 'is-on': freePauseAsBreak }" @click="toggleFreeFlag('pause_as_break')"><span class="fl-toggle-dot" /></button>
+          </div>
+        </div>
+
+        <div class="fl-set-row">
+          <div class="fl-set-info">
+            <div class="fl-set-label">切换任务自动结束当前会话</div>
+            <div class="fl-set-desc">自由模式中切换任务时,先结束当前会话再开启新会话 · 保证每段专注归属清晰</div>
+          </div>
+          <div class="fl-set-control">
+            <button class="fl-toggle" :class="{ 'is-on': freeSwitchAutoEnd }" @click="toggleFreeFlag('switch_auto_end')"><span class="fl-toggle-dot" /></button>
           </div>
         </div>
       </div>
@@ -545,6 +662,31 @@ const showAIPayload = ref(false);
   transition: transform var(--dur-fast);
 }
 .fl-toggle.is-on .fl-toggle-dot { transform: translateX(18px); }
+
+/* 子分区标题 */
+.fl-set-subhead {
+  font-size: var(--fs-12); font-weight: var(--fw-semibold);
+  color: var(--color-text-secondary); letter-spacing: 0.3px;
+  margin: var(--sp-5) 0 var(--sp-2);
+  padding-top: var(--sp-4); border-top: 1px dashed var(--color-divider);
+}
+
+/* Slider */
+.fl-slider-row {
+  display: flex; align-items: center; gap: var(--sp-2);
+}
+.fl-slider-row input[type="range"] {
+  width: 120px; height: 4px; accent-color: var(--color-primary);
+  cursor: pointer;
+}
+.fl-slider-row input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
+.fl-slider-val {
+  font-family: var(--font-mono); font-size: var(--fs-12);
+  color: var(--color-text-primary); min-width: 34px; text-align: right;
+}
+.fl-set-control-dual {
+  display: flex; align-items: center; gap: var(--sp-3);
+}
 
 /* Mode cards */
 .fl-mode-cards { display: flex; gap: var(--sp-2); }
