@@ -235,3 +235,60 @@ pub fn get_goal_weekly_invest(goal_id: String, db: State<'_, Db>) -> AppResult<W
         today_minutes,
     })
 }
+
+/// 全部 active goal 的本周投入汇总(用于 StatsView 侧栏)。
+/// 过滤条件: goal.status='active' · session.end_time 非空 · start_time >= 本周一。
+/// 返回按 total_minutes 降序,0 投入的不过滤,由前端决定是否隐藏。
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoalWeeklyInvest {
+    pub goal_id: String,
+    pub goal_name: String,
+    pub total_minutes: i64,
+}
+
+#[tauri::command]
+pub fn list_goal_weekly_invests(db: State<'_, Db>) -> AppResult<Vec<GoalWeeklyInvest>> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+
+    let now_local = chrono::Local::now();
+    let days_from_monday = now_local.weekday().num_days_from_monday() as i64;
+    let monday = now_local
+        .date_naive()
+        .and_hms_opt(0, 0, 0)
+        .unwrap()
+        .checked_sub_signed(chrono::Duration::days(days_from_monday))
+        .unwrap();
+    let monday_local = chrono::Local
+        .from_local_datetime(&monday)
+        .single()
+        .ok_or_else(|| AppError::Custom("本地时间计算失败".into()))?;
+    let monday_utc: DateTime<Utc> = monday_local.with_timezone(&Utc);
+    let monday_rfc = monday_utc.to_rfc3339();
+
+    let mut stmt = conn.prepare(
+        "SELECT g.id, g.name,
+                COALESCE(SUM(COALESCE(s.actual_duration_minutes, 0)), 0) AS mins
+         FROM goals g
+         LEFT JOIN milestones m ON m.goal_id = g.id
+         LEFT JOIN tasks t      ON t.milestone_id = m.id
+         LEFT JOIN sessions s   ON s.task_id = t.id
+             AND s.start_time >= ?1
+             AND s.end_time IS NOT NULL
+         WHERE g.status = 'active'
+         GROUP BY g.id, g.name
+         ORDER BY mins DESC, g.sort_order ASC",
+    )?;
+
+    let rows = stmt
+        .query_map(rusqlite::params![monday_rfc], |r| {
+            Ok(GoalWeeklyInvest {
+                goal_id: r.get(0)?,
+                goal_name: r.get(1)?,
+                total_minutes: r.get(2)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    Ok(rows)
+}

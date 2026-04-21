@@ -238,6 +238,12 @@ export interface WeeklyInvest {
   todayMinutes: number;
 }
 
+export interface GoalWeeklyInvest {
+  goalId: string;
+  goalName: string;
+  totalMinutes: number;
+}
+
 // ---------- MicroReview ----------
 
 /** 微复盘触发场景 · 静默场景(q3/q4 事务性等)直接不渲染组件 */

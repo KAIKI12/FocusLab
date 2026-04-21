@@ -8,13 +8,14 @@ import { computed, onMounted, ref } from "vue";
 
 import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useAIStore } from "@/stores/useAIStore";
-import type { CategoryTime, HeatmapCell, StatsOverview, TrendPoint } from "@/types";
+import type { CategoryTime, GoalWeeklyInvest, HeatmapCell, StatsOverview, TrendPoint } from "@/types";
 
 const ai = useAIStore();
 const overview = ref<StatsOverview | null>(null);
 const heatmap = ref<HeatmapCell[]>([]);
 const trend = ref<TrendPoint[]>([]);
 const categories = ref<CategoryTime[]>([]);
+const goalInvests = ref<GoalWeeklyInvest[]>([]);
 const weekSummary = ref("");
 const loadingWeekly = ref(false);
 const loading = ref(true);
@@ -27,16 +28,18 @@ async function loadAll() {
   loading.value = true;
   try {
     const days = rangeDays.value;
-    const [o, h, t, c] = await Promise.all([
+    const [o, h, t, c, gi] = await Promise.all([
       invokeCmd<StatsOverview>("get_stats_overview", { days }),
       invokeCmd<HeatmapCell[]>("get_focus_heatmap", { days }),
       invokeCmd<TrendPoint[]>("get_completion_trend", { days }),
       invokeCmd<CategoryTime[]>("get_time_by_category", { days }),
+      invokeCmd<GoalWeeklyInvest[]>("list_goal_weekly_invests"),
     ]);
     overview.value = o;
     heatmap.value = h;
     trend.value = t;
     categories.value = c;
+    goalInvests.value = gi;
   } finally {
     loading.value = false;
   }
@@ -81,6 +84,71 @@ const trendMax = computed(() => {
 const categoryTotal = computed(() =>
   categories.value.reduce((sum, c) => sum + c.minutes, 0) || 1,
 );
+
+// ---------- 黄金专注时段 ----------
+
+/** 按小时聚合 7 天总分钟,扫出连续活跃段,取 top 3 */
+interface PeakWindow {
+  startHour: number; // inclusive
+  endHour: number;   // exclusive
+  totalMin: number;
+}
+
+const peakWindows = computed<PeakWindow[]>(() => {
+  const hourTotals = Array.from({ length: 24 }, (_, h) =>
+    heatmapGrid.value.reduce((sum, row) => sum + row[h], 0),
+  );
+  const wins: PeakWindow[] = [];
+  let cur: PeakWindow | null = null;
+  for (let h = 0; h < 24; h++) {
+    if (hourTotals[h] > 0) {
+      if (!cur) cur = { startHour: h, endHour: h + 1, totalMin: hourTotals[h] };
+      else { cur.endHour = h + 1; cur.totalMin += hourTotals[h]; }
+    } else if (cur) {
+      wins.push(cur);
+      cur = null;
+    }
+  }
+  if (cur) wins.push(cur);
+  return wins.sort((a, b) => b.totalMin - a.totalMin).slice(0, 3);
+});
+
+function fmtHour(h: number): string {
+  return `${String(h).padStart(2, "0")}:00`;
+}
+
+function labelForWindow(w: PeakWindow): { emoji: string; label: string } {
+  const s = w.startHour;
+  if (s < 6) return { emoji: "🌌", label: "深夜时段" };
+  if (s < 11) return { emoji: "🌅", label: "早晨清晰时段" };
+  if (s < 14) return { emoji: "☀️", label: "正午专注时段" };
+  if (s < 17) return { emoji: "☕", label: "午后恢复时段" };
+  if (s < 20) return { emoji: "🌇", label: "傍晚时段" };
+  return { emoji: "🌙", label: "晚间深度时段" };
+}
+
+// ---------- 长线目标投入 ----------
+
+const GI_COLORS = [
+  "var(--color-primary)",
+  "var(--color-q2)",
+  "var(--color-gold)",
+  "var(--color-q3)",
+  "var(--color-q1)",
+  "var(--color-text-muted)",
+];
+
+const activeGoalInvests = computed(() =>
+  goalInvests.value.filter((g) => g.totalMinutes > 0),
+);
+
+const maxGoalInvest = computed(() =>
+  activeGoalInvests.value.reduce((m, g) => Math.max(m, g.totalMinutes), 0) || 1,
+);
+
+function giColor(i: number): string {
+  return GI_COLORS[i % GI_COLORS.length];
+}
 
 const QUADRANT_LABELS: Record<string, string> = {
   important_urgent: "紧急重要",
@@ -256,6 +324,51 @@ function changeRange(days: number) {
           </ul>
         </div>
         <div v-else class="fl-empty">暂无分类数据</div>
+      </div>
+
+      <!-- 黄金专注时段 -->
+      <div class="fl-section">
+        <h2 class="fl-section-title">黄金专注时段</h2>
+        <div v-if="peakWindows.length" class="fl-peak-list">
+          <div
+            v-for="(w, i) in peakWindows"
+            :key="`${w.startHour}-${w.endHour}`"
+            class="fl-peak-row"
+            :class="{ 'is-top': i === 0 }"
+          >
+            <span class="fl-peak-emoji">{{ labelForWindow(w).emoji }}</span>
+            <div class="fl-peak-body">
+              <div class="fl-peak-time">{{ fmtHour(w.startHour) }} — {{ fmtHour(w.endHour) }}</div>
+              <div class="fl-peak-desc">
+                {{ labelForWindow(w).label }} · 专注 {{ fmtMin(w.totalMin) }}
+              </div>
+            </div>
+            <span class="fl-peak-rank" :class="{ 'is-top': i === 0 }">#{{ i + 1 }}</span>
+          </div>
+        </div>
+        <div v-else class="fl-empty">暂无时段数据 — 完成几个专注会话后会显示你的黄金时段</div>
+      </div>
+
+      <!-- 长线目标投入 -->
+      <div class="fl-section">
+        <h2 class="fl-section-title">长线目标投入 · 本周</h2>
+        <div v-if="activeGoalInvests.length" class="fl-gi-list">
+          <div v-for="(g, i) in activeGoalInvests" :key="g.goalId" class="fl-gi-row">
+            <span class="fl-gi-dot" :style="{ background: giColor(i) }" />
+            <span class="fl-gi-name" :title="g.goalName">{{ g.goalName }}</span>
+            <div class="fl-gi-bar">
+              <div
+                class="fl-gi-fill"
+                :style="{
+                  width: `${(g.totalMinutes / maxGoalInvest) * 100}%`,
+                  background: giColor(i),
+                }"
+              />
+            </div>
+            <span class="fl-gi-time">{{ fmtMin(g.totalMinutes) }}</span>
+          </div>
+        </div>
+        <div v-else class="fl-empty">本周还没有目标时间投入</div>
       </div>
     </template>
   </section>
@@ -487,6 +600,101 @@ function changeRange(days: number) {
   font-size: var(--fs-14);
   background: var(--color-bg-subtle);
   border-radius: var(--r-md);
+}
+
+/* ---------- 黄金专注时段 ---------- */
+.fl-peak-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.fl-peak-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 10px 12px;
+  background: var(--color-bg-subtle);
+  border-radius: var(--r-sm);
+}
+.fl-peak-row.is-top {
+  background: var(--color-primary-soft);
+}
+.fl-peak-emoji {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.fl-peak-body {
+  flex: 1;
+  min-width: 0;
+}
+.fl-peak-time {
+  font-size: var(--fs-13, 13px);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text-primary);
+}
+.fl-peak-row.is-top .fl-peak-time {
+  color: var(--color-primary-dark, var(--color-primary));
+}
+.fl-peak-desc {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+.fl-peak-rank {
+  font-size: var(--fs-12);
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+.fl-peak-rank.is-top {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+/* ---------- 长线目标投入 ---------- */
+.fl-gi-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+}
+.fl-gi-row {
+  display: grid;
+  grid-template-columns: 10px minmax(80px, 120px) 1fr auto;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-12);
+}
+.fl-gi-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.fl-gi-name {
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fl-gi-bar {
+  height: 6px;
+  background: var(--color-bg-subtle);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.fl-gi-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width var(--dur-base) var(--ease-smooth);
+}
+.fl-gi-time {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* AI 周度小结 */
