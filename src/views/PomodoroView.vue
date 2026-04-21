@@ -14,6 +14,7 @@ import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useGoalStore } from "@/stores/useGoalStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
+import type { MicroReviewScenario } from "@/types";
 
 const timer = useTimerStore();
 const tasks = useTaskStore();
@@ -22,7 +23,7 @@ const router = useRouter();
 
 const showReview = ref(false);
 const reviewDismissed = ref(false);
-const reviewScenario = ref<"deviation" | "q1" | "milestone">("deviation");
+const reviewScenario = ref<MicroReviewScenario>("deviation");
 const reviewMilestoneName = ref<string | null>(null);
 
 /** 当前任务对象 */
@@ -100,14 +101,9 @@ function goBack() {
   router.push("/today");
 }
 
-// 进入 done 态时按规则决定是否弹 MicroReview,以及用什么场景
-// 规则(对齐 prototype/screens/micro-review.html:520-569):
-//   1. 关联里程碑 → milestone 场景(必弹)
-//   2. 紧急重要 Q1 → q1 场景(必弹)
-//   3. 时间偏差 > 30% → deviation 场景(必弹)
-//   4. 否则静默(Q3/Q4 事务性 / 偏差 <30%)
-//   另: 同一天已弹 ≥3 次 → 静默
-function resolveReviewScenario(): "deviation" | "q1" | "milestone" | null {
+// 进入 done 态时按规则决定是否弹 MicroReview。
+// 规则: milestone_id > Q1 > 偏差 > 30% > 静默;同日 ≥3 次也静默。
+function resolveReviewScenario(): MicroReviewScenario | null {
   const task = currentTask.value;
   if (!task) return null;
 

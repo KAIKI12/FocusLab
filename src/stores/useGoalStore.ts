@@ -1,10 +1,5 @@
 /**
  * useGoalStore · 长线目标 + 里程碑 store。
- *
- * v2 扩展(2026-04-21):
- *   - target_date 直改字段 + setTargetDate 动作
- *   - notesByMilestone:Map<milestoneId, MilestoneNote[]> · 按需加载
- *   - weeklyInvest:当前 selectedGoal 的本周 7 桶投入(切换 goal 时自动刷新)
  */
 
 import { defineStore } from "pinia";
@@ -26,9 +21,7 @@ export const useGoalStore = defineStore("goal", () => {
   const selectedGoalId = ref<string | null>(null);
   const loading = ref(false);
 
-  // v2: 备注按 milestoneId 分桶缓存
   const notesByMilestone = ref<Record<string, MilestoneNote[]>>({});
-  // v2: 当前 goal 的本周投入(切换 goal 时重新拉)
   const weeklyInvest = ref<WeeklyInvest | null>(null);
 
   async function loadGoals(includeArchived = false) {
@@ -55,7 +48,7 @@ export const useGoalStore = defineStore("goal", () => {
 
   async function selectGoal(goalId: string) {
     selectedGoalId.value = goalId;
-    notesByMilestone.value = {}; // 切换 goal 清空备注缓存
+    notesByMilestone.value = {};
     await Promise.all([loadMilestones(goalId), loadWeeklyInvest(goalId)]);
   }
 
@@ -99,7 +92,6 @@ export const useGoalStore = defineStore("goal", () => {
       target.status = "completed";
       target.completed_at = new Date().toISOString();
     }
-    // 完成里程碑会影响周投入吗? 不会(session 归属不变),不刷新。
   }
 
   async function updateMilestone(input: { id: string; name?: string; description?: string; status?: string }) {
@@ -112,7 +104,7 @@ export const useGoalStore = defineStore("goal", () => {
     }
   }
 
-  // ---------- v2: target_date ----------
+  // ---------- target_date ----------
 
   async function setMilestoneTargetDate(milestoneId: string, targetDate: string | null) {
     await invokeCmd<void>("set_milestone_target_date", {
@@ -122,11 +114,11 @@ export const useGoalStore = defineStore("goal", () => {
     if (target) target.target_date = targetDate;
   }
 
-  // ---------- v2: notes ----------
+  // ---------- notes ----------
 
   async function loadNotes(milestoneId: string) {
     const list = await invokeCmd<MilestoneNote[]>("list_milestone_notes", { milestoneId });
-    notesByMilestone.value = { ...notesByMilestone.value, [milestoneId]: list };
+    notesByMilestone.value[milestoneId] = list;
   }
 
   async function addNote(milestoneId: string, text: string) {
@@ -134,20 +126,14 @@ export const useGoalStore = defineStore("goal", () => {
       input: { milestoneId, text },
     });
     const existing = notesByMilestone.value[milestoneId] ?? [];
-    notesByMilestone.value = {
-      ...notesByMilestone.value,
-      [milestoneId]: [created, ...existing], // 最新在前,和后端 DESC 一致
-    };
+    notesByMilestone.value[milestoneId] = [created, ...existing];
     return created;
   }
 
   async function removeNote(milestoneId: string, noteId: string) {
     await invokeCmd<void>("delete_milestone_note", { id: noteId });
     const existing = notesByMilestone.value[milestoneId] ?? [];
-    notesByMilestone.value = {
-      ...notesByMilestone.value,
-      [milestoneId]: existing.filter((n) => n.id !== noteId),
-    };
+    notesByMilestone.value[milestoneId] = existing.filter((n) => n.id !== noteId);
   }
 
   return {

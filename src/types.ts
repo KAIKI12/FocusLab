@@ -238,6 +238,11 @@ export interface WeeklyInvest {
   todayMinutes: number;
 }
 
+// ---------- MicroReview ----------
+
+/** 微复盘触发场景 · 静默场景(q3/q4 事务性等)直接不渲染组件 */
+export type MicroReviewScenario = "deviation" | "q1" | "milestone";
+
 export interface CreateGoalInput {
   name: string;
   description?: string;

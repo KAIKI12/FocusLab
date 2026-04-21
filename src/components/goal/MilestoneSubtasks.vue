@@ -7,7 +7,7 @@
  */
 
 import { Check, CircleDashed, Flame, Plus, Circle } from "lucide-vue-next";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 import { useMilestoneSubtasks } from "@/composables/useMilestoneSubtasks";
 import { useTaskStore } from "@/stores/useTaskStore";
@@ -15,8 +15,6 @@ import type { Task } from "@/types";
 
 const props = defineProps<{
   milestoneId: string;
-  /** 里程碑所属 goalId,用于新建子任务挂回这里 */
-  goalId: string;
 }>();
 
 const tasks = useTaskStore();
@@ -24,6 +22,10 @@ const { subtasksOf, todayActiveOf, progressOf } = useMilestoneSubtasks();
 
 const newTitle = ref("");
 const adding = ref(false);
+
+const subtasks = computed(() => subtasksOf(props.milestoneId));
+const todayActive = computed(() => todayActiveOf(props.milestoneId));
+const progress = computed(() => progressOf(props.milestoneId));
 
 function formatEstimate(t: Task): string {
   if (t.status === "completed") return "已完成";
@@ -67,24 +69,24 @@ function formatSeconds(s: number): string {
 <template>
   <div class="fl-ms-sub">
     <div class="fl-ms-sub-head">
-      <span>子任务 · {{ progressOf(milestoneId).done }}/{{ progressOf(milestoneId).total }}</span>
+      <span>子任务 · {{ progress.done }}/{{ progress.total }}</span>
     </div>
 
     <!-- 今日关联 banner -->
-    <div v-if="todayActiveOf(milestoneId)" class="fl-ms-today">
+    <div v-if="todayActive" class="fl-ms-today">
       <Flame :size="14" />
       <span>
-        今天正在推进 · <strong>{{ todayActiveOf(milestoneId)!.task.name }}</strong>
-        <template v-if="todayActiveOf(milestoneId)!.isFocusing">
-          · 已专注 {{ formatSeconds(todayActiveOf(milestoneId)!.focusingSeconds) }}
+        今天正在推进 · <strong>{{ todayActive.task.name }}</strong>
+        <template v-if="todayActive.isFocusing">
+          · 已专注 {{ formatSeconds(todayActive.focusingSeconds) }}
         </template>
       </span>
     </div>
 
     <!-- 子任务行 -->
-    <div v-if="subtasksOf(milestoneId).length" class="fl-ms-sub-list">
+    <div v-if="subtasks.length" class="fl-ms-sub-list">
       <div
-        v-for="t in subtasksOf(milestoneId)"
+        v-for="t in subtasks"
         :key="t.id"
         class="fl-ms-sub-row"
         :class="{

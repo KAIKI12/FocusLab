@@ -163,7 +163,7 @@ function cancelEdit() { editingId.value = null; }
         <!-- 展开态 -->
         <div v-if="isExpanded(m.id) && editingId !== m.id" class="fl-ms-expanded">
           <div class="fl-ms-expand-split">
-            <MilestoneSubtasks :milestone-id="m.id" :goal-id="m.goal_id" />
+            <MilestoneSubtasks :milestone-id="m.id" />
             <MilestoneInfoPanel :milestone="m" />
           </div>
         </div>

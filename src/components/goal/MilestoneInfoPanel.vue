@@ -21,7 +21,6 @@ const newNote = ref("");
 const adding = ref(false);
 const editingDate = ref<string>("");
 
-// 同步 prop.milestone.target_date 到本地 input(切换里程碑时)
 watch(
   () => props.milestone.id,
   () => {
@@ -31,7 +30,6 @@ watch(
   { immediate: true },
 );
 
-// 剩余天数(按本机 00:00 计算)
 const remainingDays = computed<number | null>(() => {
   if (!props.milestone.target_date) return null;
   const target = new Date(props.milestone.target_date);

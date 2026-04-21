@@ -11,12 +11,14 @@
 
 import { computed, ref } from "vue";
 
+import type { MicroReviewScenario } from "@/types";
+
 const props = withDefaults(defineProps<{
   visible: boolean;
   taskName: string;
   estimatedMinutes: number | null;
   actualMinutes: number;
-  scenario?: "deviation" | "q1" | "milestone";
+  scenario?: MicroReviewScenario;
   milestoneName?: string | null;
 }>(), {
   scenario: "deviation",
@@ -25,7 +27,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  submit: [data: { reason: string; note: string; scenario: string }];
+  submit: [data: { reason: string; note: string; scenario: MicroReviewScenario }];
 }>();
 
 const reason = ref("");
