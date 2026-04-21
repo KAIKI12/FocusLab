@@ -7,6 +7,7 @@
 
 import { computed, ref } from "vue";
 
+import { useFixedSchedule } from "@/composables/useFixedSchedule";
 import { useAIStore } from "@/stores/useAIStore";
 import { useGoalStore } from "@/stores/useGoalStore";
 import { useSettlementStore } from "@/stores/useSettlementStore";
@@ -17,6 +18,18 @@ const emit = defineEmits<{ close: [] }>();
 const settlement = useSettlementStore();
 const goals = useGoalStore();
 const ai = useAIStore();
+const { byWeekday, totalMinutesForWeekday } = useFixedSchedule();
+
+// Step 3 · 固定日程数据
+const WEEKDAY_LABELS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+const todayWeekday = new Date().getDay();
+const todaySchedule = computed(() => byWeekday.value[todayWeekday] ?? []);
+const todayWeekdayLabel = WEEKDAY_LABELS[todayWeekday];
+const availableHours = computed(() => {
+  const base = (todayWeekday === 0 || todayWeekday === 6) ? 5 * 60 : 9 * 60;
+  const available = Math.max(0, base - totalMinutesForWeekday(todayWeekday));
+  return (available / 60).toFixed(1);
+});
 
 const step = ref(1);
 const energyLevel = ref<string | null>(null);
@@ -135,8 +148,17 @@ function finish() {
           <!-- Step 3: 固定日程 -->
           <template v-else-if="step === 3">
             <h3>检查固定日程</h3>
-            <div class="fl-mg-empty">
-              固定日程功能开发中，可直接跳过
+            <p class="fl-mg-sub">看看今天({{ todayWeekdayLabel }})有哪些已经占掉的时间</p>
+            <div v-if="todaySchedule.length" class="fl-mg-schedule">
+              <div v-for="s in todaySchedule" :key="s.id" class="fl-mg-sch-row">
+                <span class="fl-mg-sch-time">{{ s.startTime }}–{{ s.endTime }}</span>
+                <span class="fl-mg-sch-title">{{ s.title }}</span>
+              </div>
+            </div>
+            <div v-else class="fl-mg-empty">今天没有固定日程 · 整天都可以安排深度工作</div>
+            <div class="fl-mg-available">
+              <span>今天可用于深度工作</span>
+              <strong>{{ availableHours }}h</strong>
             </div>
           </template>
 
@@ -250,6 +272,37 @@ function finish() {
 .fl-mg-goal-icon { font-size: 20px; }
 .fl-mg-goal-name { font-size: var(--fs-14); font-weight: var(--fw-medium); }
 .fl-mg-goal-sub { font-size: var(--fs-12); color: var(--color-text-muted); }
+
+/* Schedule (Step 3) */
+.fl-mg-sub {
+  font-size: var(--fs-12); color: var(--color-text-secondary);
+  margin: 0 0 var(--sp-3); line-height: 1.5;
+}
+.fl-mg-schedule {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: var(--sp-3); background: var(--color-bg-subtle); border-radius: var(--r-md);
+  margin-bottom: var(--sp-3);
+}
+.fl-mg-sch-row {
+  display: grid; grid-template-columns: auto 1fr; gap: var(--sp-3); align-items: center;
+  font-size: var(--fs-13, 13px);
+}
+.fl-mg-sch-time {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--color-text-secondary);
+  padding: 2px 8px; background: var(--color-bg-elevated); border-radius: var(--r-pill);
+}
+.fl-mg-sch-title { color: var(--color-text-primary); font-weight: var(--fw-medium); }
+.fl-mg-available {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: var(--sp-3); background: var(--color-primary-soft);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
+  border-radius: var(--r-md); font-size: var(--fs-13, 13px); color: var(--color-text-secondary);
+}
+.fl-mg-available strong {
+  font-family: var(--font-mono); color: var(--color-primary);
+  font-size: var(--fs-16); font-weight: var(--fw-bold);
+}
 
 /* AI */
 .fl-mg-loading { color: var(--color-text-muted); font-size: var(--fs-14); }
