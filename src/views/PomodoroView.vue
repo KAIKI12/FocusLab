@@ -11,6 +11,11 @@ import { useRouter } from "vue-router";
 
 import MicroReview from "@/components/task/MicroReview.vue";
 import { invokeCmd } from "@/composables/useTauriInvoke";
+import {
+  incrementTodayCount,
+  readTodayCount,
+  resolveReviewScenario,
+} from "@/composables/useMicroReviewScenario";
 import { useGoalStore } from "@/stores/useGoalStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
@@ -103,47 +108,28 @@ function goBack() {
 
 // 进入 done 态时按规则决定是否弹 MicroReview。
 // 规则: milestone_id > Q1 > 偏差 > 30% > 静默;同日 ≥3 次也静默。
-function resolveReviewScenario(): MicroReviewScenario | null {
-  const task = currentTask.value;
-  if (!task) return null;
-
-  const today = new Date().toISOString().slice(0, 10);
-  const countKey = `fl-micro-review-count-${today}`;
-  const count = Number(localStorage.getItem(countKey) ?? "0");
-  if (count >= 3) return null;
-
-  if (task.milestone_id) return "milestone";
-  if (task.quadrant === "important_urgent") return "q1";
-
-  const est = task.estimated_minutes;
-  if (est && est > 0) {
-    const actualMin = Math.floor((timer.snapshot?.elapsedSeconds ?? 0) / 60);
-    const dev = Math.abs((actualMin - est) / est);
-    if (dev > 0.3) return "deviation";
-  }
-  return null;
-}
-
 watch(state, (s, old) => {
-  if (s === "done" && old !== "done") {
-    const scenario = resolveReviewScenario();
-    if (!scenario) {
-      reviewDismissed.value = true;
-      return;
-    }
-    reviewScenario.value = scenario;
-    reviewMilestoneName.value = scenario === "milestone"
-      ? (goals.milestones.find((m) => m.id === currentTask.value?.milestone_id)?.name ?? null)
-      : null;
-    reviewDismissed.value = false;
-    showReview.value = true;
+  if (s !== "done" || old === "done") return;
 
-    // 计入当天弹出次数
-    const today = new Date().toISOString().slice(0, 10);
-    const countKey = `fl-micro-review-count-${today}`;
-    const count = Number(localStorage.getItem(countKey) ?? "0");
-    localStorage.setItem(countKey, String(count + 1));
+  const scenario = resolveReviewScenario({
+    task: currentTask.value,
+    actualMinutes: Math.floor((timer.snapshot?.elapsedSeconds ?? 0) / 60),
+    todayCount: readTodayCount(),
+  });
+
+  if (!scenario) {
+    reviewDismissed.value = true;
+    return;
   }
+
+  reviewScenario.value = scenario;
+  reviewMilestoneName.value = scenario === "milestone"
+    ? (goals.milestones.find((m) => m.id === currentTask.value?.milestone_id)?.name ?? null)
+    : null;
+  reviewDismissed.value = false;
+  showReview.value = true;
+
+  incrementTodayCount();
 });
 
 const currentTaskEstimate = computed(() => {
