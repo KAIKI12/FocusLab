@@ -11,21 +11,28 @@ import { useRouter } from "vue-router";
 
 import MicroReview from "@/components/task/MicroReview.vue";
 import { invokeCmd } from "@/composables/useTauriInvoke";
+import { useGoalStore } from "@/stores/useGoalStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
 
 const timer = useTimerStore();
 const tasks = useTaskStore();
+const goals = useGoalStore();
 const router = useRouter();
 
 const showReview = ref(false);
 const reviewDismissed = ref(false);
+const reviewScenario = ref<"deviation" | "q1" | "milestone">("deviation");
+const reviewMilestoneName = ref<string | null>(null);
+
+/** 当前任务对象 */
+const currentTask = computed(() => {
+  if (!timer.snapshot?.taskId) return null;
+  return tasks.tasks.find((t) => t.id === timer.snapshot!.taskId) ?? null;
+});
 
 /** 当前任务名 */
-const taskName = computed(() => {
-  if (!timer.snapshot?.taskId) return "";
-  return tasks.tasks.find((t) => t.id === timer.snapshot!.taskId)?.name ?? "任务";
-});
+const taskName = computed(() => currentTask.value?.name ?? "任务");
 
 /** 判断当前状态 */
 const state = computed<"focus" | "sprint" | "break" | "done" | "free" | "idle">(() => {
@@ -93,11 +100,53 @@ function goBack() {
   router.push("/today");
 }
 
-// 进入 done 态时弹出 MicroReview
+// 进入 done 态时按规则决定是否弹 MicroReview,以及用什么场景
+// 规则(对齐 prototype/screens/micro-review.html:520-569):
+//   1. 关联里程碑 → milestone 场景(必弹)
+//   2. 紧急重要 Q1 → q1 场景(必弹)
+//   3. 时间偏差 > 30% → deviation 场景(必弹)
+//   4. 否则静默(Q3/Q4 事务性 / 偏差 <30%)
+//   另: 同一天已弹 ≥3 次 → 静默
+function resolveReviewScenario(): "deviation" | "q1" | "milestone" | null {
+  const task = currentTask.value;
+  if (!task) return null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const countKey = `fl-micro-review-count-${today}`;
+  const count = Number(localStorage.getItem(countKey) ?? "0");
+  if (count >= 3) return null;
+
+  if (task.milestone_id) return "milestone";
+  if (task.quadrant === "important_urgent") return "q1";
+
+  const est = task.estimated_minutes;
+  if (est && est > 0) {
+    const actualMin = Math.floor((timer.snapshot?.elapsedSeconds ?? 0) / 60);
+    const dev = Math.abs((actualMin - est) / est);
+    if (dev > 0.3) return "deviation";
+  }
+  return null;
+}
+
 watch(state, (s, old) => {
   if (s === "done" && old !== "done") {
+    const scenario = resolveReviewScenario();
+    if (!scenario) {
+      reviewDismissed.value = true;
+      return;
+    }
+    reviewScenario.value = scenario;
+    reviewMilestoneName.value = scenario === "milestone"
+      ? (goals.milestones.find((m) => m.id === currentTask.value?.milestone_id)?.name ?? null)
+      : null;
     reviewDismissed.value = false;
     showReview.value = true;
+
+    // 计入当天弹出次数
+    const today = new Date().toISOString().slice(0, 10);
+    const countKey = `fl-micro-review-count-${today}`;
+    const count = Number(localStorage.getItem(countKey) ?? "0");
+    localStorage.setItem(countKey, String(count + 1));
   }
 });
 
@@ -262,6 +311,8 @@ function onReviewSkip() {
       :task-name="taskName"
       :estimated-minutes="currentTaskEstimate"
       :actual-minutes="actualMinutes"
+      :scenario="reviewScenario"
+      :milestone-name="reviewMilestoneName"
       @submit="onReviewSubmit"
       @close="onReviewSkip"
     />
