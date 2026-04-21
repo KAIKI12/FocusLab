@@ -160,3 +160,21 @@ created_at: 2026-04-21_12-37-46
 - §P2.6 BubbleView Windows 11 透明度 🔁 承袭 — 需真机验证
 
 **type-check:** `npx vue-tsc --noEmit` 0 错误。
+
+---
+
+## 🟢 进度追加 · 2026-04-21 深夜 · MilestoneTimeline v2 全量落地
+
+按 `plan/2026-04-21_21-26-32-milestone-timeline-expansion.md` 三阶段执行,4 个 commit:
+
+| Phase | 内容 | commit |
+|---|---|---|
+| 1 · backend | 003 migration(ALTER target_date + milestone_notes 表) · milestone_note 模块 · set_target_date + notes CRUD + get_goal_weekly_invest 共 5 新 command · cargo test 46/46 绿 | `6aefbe2` |
+| 2 · store | types.ts 加 3 新类型 · useGoalStore 扩 notes/weeklyInvest/setTargetDate · 新 composable useMilestoneSubtasks | `3d13f09` |
+| 3 · UI | 3 新子组件(Subtasks / InfoPanel / WeeklyInvestChart) · MilestoneTimeline 重构为"紧凑列表 + 激活展开" · vue-tsc 0 错 | `e9fe3e3` |
+
+**清零结果(v2 盘点范围内):**
+- §P1.1 MilestoneTimeline 5 feature ✅ 清零
+- §P1.4 / §P2.6 BubbleView tray / 透明度 🔁 承袭到 Phase 3
+
+**P1 至此除 Bubble 承袭项外全部清零。** 下一轮重点可转 Phase 3 Tauri tray plugin 或用户指定新方向。
