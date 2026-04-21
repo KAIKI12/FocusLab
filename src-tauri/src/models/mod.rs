@@ -4,6 +4,7 @@ pub mod daily_task_assignment;
 pub mod goal;
 pub mod interruption;
 pub mod milestone;
+pub mod milestone_note;
 pub mod session;
 pub mod settlement;
 pub mod settings;

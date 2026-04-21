@@ -117,6 +117,11 @@ pub fn run() {
             commands::goal_commands::create_milestone,
             commands::goal_commands::update_milestone,
             commands::goal_commands::complete_milestone,
+            commands::goal_commands::set_milestone_target_date,
+            commands::goal_commands::list_milestone_notes,
+            commands::goal_commands::add_milestone_note,
+            commands::goal_commands::delete_milestone_note,
+            commands::goal_commands::get_goal_weekly_invest,
             // 日结算 (Phase 2)
             commands::settlement_commands::settle_day,
             commands::settlement_commands::get_settlement,

@@ -27,6 +27,10 @@ const MIGRATIONS: &[Migration] = &[
         version: "002_mood_checkin",
         sql: include_str!("migrations/002_mood_checkin.sql"),
     },
+    Migration {
+        version: "003_milestone_v2",
+        sql: include_str!("migrations/003_milestone_v2.sql"),
+    },
 ];
 
 pub fn run(conn: &mut Connection) -> AppResult<()> {

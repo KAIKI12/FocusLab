@@ -18,11 +18,12 @@ pub struct Milestone {
     pub created_at: String,
     pub updated_at: String,
     pub completed_at: Option<String>,
+    pub target_date: Option<String>,
 }
 
 pub fn list_milestones(conn: &Connection, goal_id: &str) -> AppResult<Vec<Milestone>> {
     let mut stmt = conn.prepare(
-        "SELECT id, goal_id, name, description, status, sort_order, created_at, updated_at, completed_at
+        "SELECT id, goal_id, name, description, status, sort_order, created_at, updated_at, completed_at, target_date
          FROM milestones WHERE goal_id = ?1 ORDER BY sort_order, created_at",
     )?;
     let rows = stmt
@@ -37,6 +38,7 @@ pub fn list_milestones(conn: &Connection, goal_id: &str) -> AppResult<Vec<Milest
                 created_at: r.get("created_at")?,
                 updated_at: r.get("updated_at")?,
                 completed_at: r.get("completed_at")?,
+                target_date: r.get("target_date")?,
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -70,6 +72,7 @@ pub fn create_milestone(conn: &Connection, goal_id: &str, name: &str, descriptio
         created_at: now.clone(),
         updated_at: now,
         completed_at: None,
+        target_date: None,
     })
 }
 
@@ -101,6 +104,16 @@ pub fn complete_milestone(conn: &Connection, id: &str) -> AppResult<()> {
     update_milestone(conn, id, None, None, Some("completed"))
 }
 
+/// 设置预计完成日期。`date` 传 None 则清空(DATE NULL)。
+pub fn set_milestone_target_date(conn: &Connection, id: &str, date: Option<&str>) -> AppResult<()> {
+    let now = Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE milestones SET target_date = ?1, updated_at = ?2 WHERE id = ?3",
+        params![date, now, id],
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,7 +134,8 @@ mod tests {
                 name TEXT NOT NULL, description TEXT,
                 status TEXT DEFAULT 'pending', sort_order INTEGER DEFAULT 0,
                 created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
-                completed_at DATETIME
+                completed_at DATETIME,
+                target_date DATE
              );
              INSERT INTO goals (id, name, created_at, updated_at) VALUES ('g1', 'Test Goal', datetime('now'), datetime('now'));",
         ).unwrap();
@@ -169,5 +183,18 @@ mod tests {
             .unwrap();
         assert_eq!(name, "Final");
         assert_eq!(status, "in_progress");
+    }
+
+    #[test]
+    fn target_date_round_trip() {
+        let conn = mem_db();
+        let m = create_milestone(&conn, "g1", "MS1", None).unwrap();
+        assert!(m.target_date.is_none());
+        set_milestone_target_date(&conn, &m.id, Some("2026-04-30")).unwrap();
+        let listed = list_milestones(&conn, "g1").unwrap();
+        assert_eq!(listed[0].target_date.as_deref(), Some("2026-04-30"));
+        set_milestone_target_date(&conn, &m.id, None).unwrap();
+        let listed2 = list_milestones(&conn, "g1").unwrap();
+        assert!(listed2[0].target_date.is_none());
     }
 }
