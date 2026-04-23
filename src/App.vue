@@ -5,9 +5,9 @@
  * - 正常模式:左 Sidebar + 右路由视图
  */
 
-import { computed, onMounted } from "vue";
+import { computed, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { listen } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import Sidebar from "@/components/common/Sidebar.vue";
@@ -18,15 +18,55 @@ import SettlementDialog from "@/components/settlement/SettlementDialog.vue";
 import BreakEndDialog from "@/components/timer/BreakEndDialog.vue";
 import { useRecovery } from "@/composables/useRecovery";
 import { useSettlementStore } from "@/stores/useSettlementStore";
+import { useTimerStore } from "@/stores/useTimerStore";
+import { useUIStore } from "@/stores/useUIStore";
 
 const { checkOnMount } = useRecovery();
 const route = useRoute();
 const router = useRouter();
 const settlement = useSettlementStore();
+const timer = useTimerStore();
+const ui = useUIStore();
 
 const hideLayout = computed(() => route.meta.hideLayout === true);
 
-onMounted(() => {
+const unlisteners: UnlistenFn[] = [];
+
+type TrayAction =
+  | { type: "toggle-pause" }
+  | { type: "switch-task" }
+  | { type: "quick-add" }
+  | { type: "settle-today" };
+
+async function ensureLayoutRoute() {
+  if (hideLayout.value) {
+    await router.push("/today");
+  }
+}
+
+async function handleTrayAction(payload: TrayAction) {
+  switch (payload.type) {
+    case "toggle-pause":
+      if (timer.isPaused) await timer.resume();
+      else if (timer.isRunning) await timer.pause();
+      break;
+    case "switch-task":
+      if (timer.isRunning || timer.isPaused) await timer.abandon();
+      await router.push("/today");
+      break;
+    case "quick-add":
+      await ensureLayoutRoute();
+      if (route.path !== "/today") await router.push("/today");
+      ui.showQuickAdd = true;
+      break;
+    case "settle-today":
+      await ensureLayoutRoute();
+      await settlement.settle();
+      break;
+  }
+}
+
+onMounted(async () => {
   // FTUE 检查
   const ftueDone = localStorage.getItem("fl-ftue-done");
   if (!ftueDone && route.path !== "/ftue") {
@@ -38,12 +78,36 @@ onMounted(() => {
   });
 
   // 监听悬浮球的"打开主窗口"事件
-  listen("bubble:open-main", async () => {
-    const win = getCurrentWindow();
-    await win.show();
-    await win.unminimize();
-    await win.setFocus();
-  });
+  unlisteners.push(
+    await listen("bubble:open-main", async () => {
+      const win = getCurrentWindow();
+      await win.show();
+      await win.unminimize();
+      await win.setFocus();
+    }),
+  );
+
+  // 系统托盘菜单动作
+  unlisteners.push(
+    await listen<TrayAction>("focuslab:tray:action", (event) => {
+      handleTrayAction(event.payload).catch((err) => {
+        console.error("[tray] action failed", err);
+      });
+    }),
+  );
+
+  unlisteners.push(
+    await listen<string>("focuslab:tray:navigate", (event) => {
+      router.push(event.payload).catch((err) => {
+        console.error("[tray] navigate failed", err);
+      });
+    }),
+  );
+});
+
+onUnmounted(() => {
+  unlisteners.forEach((un) => un());
+  unlisteners.length = 0;
 });
 </script>
 

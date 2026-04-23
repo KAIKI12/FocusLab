@@ -60,6 +60,8 @@ pub fn run() {
             }
             app.manage(ai_service);
 
+            system::tray::build(handle)?;
+
             tracing::info!("FocusLab started");
             Ok(())
         })
