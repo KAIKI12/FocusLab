@@ -3,7 +3,7 @@
 - 日期：2026-04-24
 - 状态：已确认，待实现
 - 关联页面：[`src/views/SettingsView.vue`](src/views/SettingsView.vue:1)
-- 关联后端：[`src-tauri/src/commands/ai_commands.rs`](src-tauri/src/commands/ai_commands.rs:1)、[`src-tauri/src/ai/prompt_templates.rs`](src-tauri/src/ai/prompt_templates.rs:1)
+- 关联后端：[`src-tauri/src/commands/ai_commands.rs`](src-tauri/src/commands/ai_commands.rs:1)、[`src-tauri/src/ai/prompt_templates.rs`](src-tauri/src/ai/prompt_templates.rs:1)、[`src-tauri/src/ai/mod.rs`](src-tauri/src/ai/mod.rs:1)
 
 ---
 
@@ -28,13 +28,16 @@
 2. **Provider 支持弱感知**
    - 代码层面是 OpenAI-compatible 抽象，但设置页没有把常见 provider 预设做成易选项。
 
-3. **缺少全局 AI 开关**
+3. **缺少协议格式选择**
+   - 当前系统把“供应商名称”和“请求协议”几乎视为同一层概念，这会限制后续支持 Claude 原生格式以及更多自定义网关。
+
+4. **缺少全局 AI 开关**
    - 当前 AI 一旦配置成功，产品内多个入口会默认尝试调用，没有“总开关”可用于临时停用。
 
-4. **缺少连接状态与成本感知**
+5. **缺少连接状态与成本感知**
    - 用户无法知道当前配置是否处于“已连接/待测试/失败”状态，也无法快速理解不同 AI 功能的消耗等级。
 
-5. **设计文档中已有方向但未落地**
+6. **设计文档中已有方向但未落地**
    - [`docs/03-AI系统设计.md`](docs/03-AI系统设计.md:140) 已明确提出“AI 语气风格系统”“语气强度滑块”“成本控制”等方向，但现实现尚未承接。
 
 ---
@@ -44,6 +47,7 @@
 本次增强的目标不是扩展 AI 能力本身，而是**完善“AI 设置”作为产品控制面板的完整性**，让它同时覆盖：
 
 - 连接配置
+- 协议格式配置
 - 使用开关
 - 交互偏好
 - 成本认知
@@ -55,20 +59,33 @@
 
 ## 3. 设计原则
 
-### 3.1 先增强配置体验，不重做 AI 架构
+### 3.1 先增强配置体验，不重做上层 AI 能力组织
 
-现有后端已经通过 [`AIService`](src-tauri/src/ai/mod.rs:136) 抽象 provider，且大部分 AI 命令共用同一调用入口。本次增强应尽量复用现有架构，以低侵入方式完成设置升级。
+现有后端已经通过 [`AIService`](src-tauri/src/ai/mod.rs:136) 抽象 provider，且大部分 AI 命令共用同一调用入口。本次增强应尽量复用现有命令结构，但允许底层从“单一 OpenAI-compatible”升级为“多协议 provider 实现”。
 
 ### 3.2 设置项全部落到统一的 settings KV
 
 当前项目已有通用设置读写命令 [`get_setting`](src-tauri/src/commands/settings_commands.rs:9) 与 [`set_setting`](src-tauri/src/commands/settings_commands.rs:16)。AI 新增配置应继续落在 `settings` 表中，避免引入单独配置表。
 
-### 3.3 优先做用户可感知收益最高的项
+### 3.3 把 provider 与 api_format 明确拆开
+
+这里是这次设计调整的关键。
+
+- `provider` 表示服务商身份或预设来源
+- `api_format` 表示真正决定 HTTP 协议的数据格式
+
+同一个 provider 通常有默认 `api_format`，但对于 `custom` 类型，用户应该能自行指定它是：
+
+- `openai` 格式
+- `claude` 格式
+
+### 3.4 优先做用户可感知收益最高的项
 
 本次先做：
 
 - 全局 AI 开关
 - Provider 预设
+- 自定义 provider 的协议格式选择
 - 模型默认值/候选
 - 语气风格
 - 语气强度
@@ -104,35 +121,40 @@
 缺点：
 
 - 仍然没有“AI 如何说话”“AI 是否启用”这类产品级配置
+- 仍然无法解决“自定义供应商使用 OpenAI 还是 Claude 格式”的问题
 - 与 [`docs/03-AI系统设计.md`](docs/03-AI系统设计.md:140) 的目标不一致
 
-### 方案 B：完整增强设置层（推荐）
+### 方案 B：完整增强设置层 + 协议抽象（推荐）
 
 内容：
 
 - 补连接配置层
+- 补自定义 provider 的协议格式选择
 - 补全局 AI 开关
 - 补语气风格
 - 补语气强度
 - 补连接状态
 - 补用量提示
+- 后端支持 `openai` / `claude` 双协议实现
 
 优点：
 
 - 产品完整度最高
 - 与现有 AI 设计文档方向一致
-- 用户收益明显，且不要求重构 AI 主体能力
+- 能覆盖真实使用场景中的中转站、自建网关、第三方代理
+- 为后续扩展 provider 提供更清晰的结构边界
 
 缺点：
 
 - 涉及前后端联动
-- 需要统一各 AI command 的默认调用参数读取逻辑
+- 需要升级 [`src-tauri/src/ai/mod.rs`](src-tauri/src/ai/mod.rs:1) 的 provider 抽象
+- Claude 协议需要单独实现请求与解析逻辑
 
 ### 方案 C：前端展示增强，后端不读偏好
 
 内容：
 
-- 前端提供风格、强度、开关 UI
+- 前端提供风格、强度、开关、协议格式 UI
 - 只做持久化展示，暂不实际接入后端行为
 
 优点：
@@ -143,6 +165,7 @@
 缺点：
 
 - 容易出现“看起来可配，实际上不生效”
+- 用户提出的协议格式需求不能真正满足
 - 与现有项目中“设置要真正控制行为”的模式不一致
 
 ### 结论
@@ -152,7 +175,7 @@
 原因：
 
 - 它在体验、真实可用性、与既有文档一致性之间最平衡。
-- 所有新增项都可以依托现有 `settings KV + AIService + AI commands` 实现，不需要新架构。
+- 新增复杂度主要集中在 provider 协议层，整体仍是可控范围。
 
 ---
 
@@ -160,7 +183,7 @@
 
 ## 5.1 设置页结构调整
 
-调整 [`src/views/SettingsView.vue`](src/views/SettingsView.vue:438) 的 AI 区块，使其分为四个子区域：
+调整 [`src/views/SettingsView.vue`](src/views/SettingsView.vue:438) 的 AI 区块，使其分为五个子区域：
 
 ### A. AI 总开关
 
@@ -181,7 +204,8 @@
 保留现有字段，但增强交互：
 
 - Provider 下拉：从“通用 provider 类型”升级为“用户熟悉的服务商选项”
-- Base URL：在切换 provider 时自动填默认值
+- 当 provider=`custom` 时，显示“协议格式”选择器
+- Base URL：在切换 provider 或协议格式时自动填默认值
 - API Key：本地模型可隐藏或弱化必填提示
 - Model：支持默认候选 + 自定义输入
 - 测试结果：显示最近一次测试状态
@@ -231,35 +255,65 @@
 
 ---
 
-## 5.2 Provider 设计
+## 5.2 Provider 与协议格式设计
 
-### provider 列表
+### 第一层：预设 provider
 
-本次设置页展示以下 provider：
+用于覆盖常见服务商，帮助用户快速填充默认参数。
 
-| ID | 显示名 | 默认 Base URL | 默认 Model |
-|---|---|---|---|
-| `compatible` | OpenAI 兼容 | `https://api.openai.com` | `gpt-4o-mini` |
-| `openai` | OpenAI | `https://api.openai.com` | `gpt-4o-mini` |
-| `deepseek` | DeepSeek | `https://api.deepseek.com` | `deepseek-chat` |
-| `zhipu` | 智谱 AI | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` |
-| `qwen` | 通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-turbo` |
-| `ollama` | Ollama 本地 | `http://localhost:11434` | `llama3` |
+| ID | 显示名 | 协议格式 | 默认 Base URL | 默认 Model |
+|---|---|---|---|---|
+| `compatible` | OpenAI 兼容 | `openai` | `https://api.openai.com` | `gpt-4o-mini` |
+| `openai` | OpenAI | `openai` | `https://api.openai.com` | `gpt-4o-mini` |
+| `deepseek` | DeepSeek | `openai` | `https://api.deepseek.com` | `deepseek-chat` |
+| `zhipu` | 智谱 AI | `openai` | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` |
+| `qwen` | 通义千问 | `openai` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-turbo` |
+| `anthropic` | Anthropic Claude | `claude` | `https://api.anthropic.com` | `claude-3-5-sonnet-latest` |
+| `ollama` | Ollama 本地 | `openai` | `http://localhost:11434` | `llama3` |
+
+### 第二层：自定义 provider
+
+新增一个 `custom` 选项。用户选择后，不再只配置“是哪家服务商”，而是可以额外指定这个自定义供应商采用哪种 API 协议格式。
+
+新增字段：
+
+- `provider = custom`
+- `api_format`：`openai` | `claude`
+- `base_url`
+- `api_key`
+- `model`
+
+这意味着设置页需要同时支持：
+
+1. **预设服务商**：快速填默认值
+2. **自定义服务商**：用户自己决定接口地址 + 模型 + 协议格式
+
+这样的设计更贴近真实使用场景，因为很多第三方中转站、自建网关、企业代理并不属于固定品牌，但会兼容某一种协议。
 
 ### 技术取舍
 
-后端不新增 provider enum 分支。
+后端不再把 provider 仅理解为“服务商名称”，而是拆成两个概念：
+
+- `provider`：服务商身份或预设来源
+- `api_format`：真正决定请求协议的格式类型
+
+推荐协议枚举：
+
+- `openai`
+- `claude`
 
 原因：
 
-- 当前 [`AIService::configure`](src-tauri/src/ai/mod.rs:147) 实际只区分 `ollama` 和“其他 OpenAI-compatible”两类。
-- DeepSeek、智谱、通义千问都可以先通过 OpenAI-compatible 方式接入。
-- 因此新增 provider 更多是**前端预设层能力**，不是底层协议分支扩展。
+- 当前 [`AIService::configure`](src-tauri/src/ai/mod.rs:147) 实际只内建了 OpenAI-compatible 逻辑，这对大部分国内外兼容服务商够用，但不足以覆盖 Claude 原生协议。
+- 用户提出“自定义供应商可选 OpenAI 格式或 Claude 格式”后，系统需要把“品牌/provider”和“协议格式”拆开，否则后续会把多个维度耦合在一起。
+- 这样以后即使新增别的服务商，也只是在预设层加选项；真正决定请求实现的是 `api_format`。
 
 换言之：
 
-- `ollama` 仍走本地特殊默认逻辑
-- 其他 provider 统一归并到 compatible 行为
+- `ollama` 仍可默认走 `openai` 格式
+- DeepSeek、智谱、通义等继续走 `openai` 格式
+- Claude 官方或兼容 Claude 协议的自定义服务走 `claude` 格式
+- `custom` provider 是一个协议可选的通用入口，而不是只支持 OpenAI-compatible
 
 ---
 
@@ -270,6 +324,11 @@
 | Key | 默认值 | 说明 |
 |---|---|---|
 | `ai_enabled` | `1` | 全局 AI 开关 |
+| `ai_provider` | `compatible` | 预设 provider 或 `custom` |
+| `ai_api_format` | `openai` | 实际请求协议格式：`openai` / `claude` |
+| `ai_base_url` | `` | AI 服务地址 |
+| `ai_api_key` | `` | API Key |
+| `ai_model` | `` | 模型名 |
 | `ai_tone` | `academic` | AI 风格 |
 | `ai_tone_custom` | `` | 自定义风格说明 |
 | `ai_tone_intensity` | `3` | 强度等级 |
@@ -291,6 +350,7 @@
 
 - `ai_enabled`
 - `ai_provider`
+- `ai_api_format`
 - `ai_base_url`
 - `ai_api_key`
 - `ai_model`
@@ -305,6 +365,7 @@
 当前 [`onSaveAI`](src/views/SettingsView.vue:65) 仅保存基础连接字段。增强后改为一次性提交：
 
 - provider
+- apiFormat
 - baseUrl
 - apiKey
 - model
@@ -327,9 +388,12 @@
 
 当用户切换 provider 时：
 
+- 若切到预设 provider，则自动带出该 provider 的默认 `api_format`、Base URL 与 Model
+- 若切到 `custom`，则展示额外的“协议格式”选择器，允许用户在 `openai` / `claude` 间切换
 - 若当前 Base URL 仍是上一个 provider 的默认值，则自动替换为新 provider 默认值
 - 若用户手动改过 Base URL，则不强制覆盖
 - Model 同理：仅在用户未手改时自动替换默认值
+- 当 `api_format` 改变时，若 Base URL 仍等于协议默认值，可同步切换为该协议推荐默认值
 
 ---
 
@@ -341,6 +405,7 @@
 
 - `enabled`
 - `provider`
+- `apiFormat`
 - `baseUrl`
 - `model`
 - `tone`
@@ -372,11 +437,19 @@
 增强为可同时接收：
 
 - `enabled`
+- `api_format`
 - `tone`
 - `tone_custom`
 - `intensity`
 
 并统一写入 `settings` 表。
+
+其中：
+
+- `provider` 用于表示预设来源或 `custom`
+- `api_format` 用于决定底层协议实现
+
+这两个字段不能再混用。
 
 ### B. AI 全局开关拦截
 
@@ -441,7 +514,49 @@
 
 ---
 
-## 5.7 Prompt 模板设计
+## 5.7 协议抽象设计
+
+[`src-tauri/src/ai/mod.rs`](src-tauri/src/ai/mod.rs:1) 当前只有 `CompatibleProvider`，本次设计调整后应升级为“双协议抽象”：
+
+- `OpenAICompatibleProvider`
+- `ClaudeProvider`
+
+它们都实现统一的 [`AIProvider`](src-tauri/src/ai/mod.rs:34) trait。
+
+### OpenAI 格式
+
+维持现状：
+
+- 请求路径：`/v1/chat/completions`
+- 核心字段：`model`、`messages`、`temperature`、`max_tokens`
+- 适用：OpenAI、DeepSeek、智谱、通义、Ollama、各类 OpenAI-compatible 网关
+
+### Claude 格式
+
+新增 Claude 原生协议实现，典型设计为：
+
+- 请求路径：`/v1/messages`
+- Header 包含 `x-api-key` 与 `anthropic-version`
+- Body 结构与 OpenAI 格式不同
+- 返回结果需要单独解析文本 `content`
+
+### 配置路由规则
+
+[`AIService::configure`](src-tauri/src/ai/mod.rs:147) 后续不应只根据 `provider_type` 分支，而应根据 `api_format` 分支：
+
+- `api_format = openai` → 创建 `OpenAICompatibleProvider`
+- `api_format = claude` → 创建 `ClaudeProvider`
+
+这样：
+
+- 预设 provider 只是帮用户填默认值
+- 真正决定 HTTP 协议的是 `api_format`
+
+这是本次设计调整里最关键的结构变化。
+
+---
+
+## 5.8 Prompt 模板设计
 
 [`src-tauri/src/ai/prompt_templates.rs`](src-tauri/src/ai/prompt_templates.rs:1) 增加一个统一 helper，用于把 tone ID 映射成 prompt 文本。
 
@@ -458,7 +573,7 @@
 
 ---
 
-## 5.8 错误处理与降级
+## 5.9 错误处理与降级
 
 ### 场景 1：AI 关闭
 
@@ -470,12 +585,17 @@
 - 缺失 API Key 且不是 Ollama：保存允许，但测试连接失败
 - 前端显示“待补全配置”而非“连接失败”
 
-### 场景 3：测试失败
+### 场景 3：Claude 配置不完整
+
+- 若 `api_format=claude` 但缺失 Claude 所需 header 前置条件或 base URL 不正确，测试连接应返回协议明确错误
+- 前端应提示“当前配置采用 Claude 格式，请检查 URL / Key / 模型名是否匹配该协议”
+
+### 场景 4：测试失败
 
 - 保留最近失败状态与时间
 - 不清空已有配置
 
-### 场景 4：自定义 tone 为空
+### 场景 5：自定义 tone 为空
 
 - 若 `ai_tone=custom` 且内容为空，保存时提示补全
 - 或自动回退到 `academic`
@@ -484,17 +604,18 @@
 
 ---
 
-## 5.9 测试设计
+## 5.10 测试设计
 
 ### 前端测试
 
 重点验证：
 
-1. provider 切换时默认 Base URL / Model 是否正确更新
-2. Ollama 时 API Key 字段是否弱化显示
-3. tone 选择与自定义输入展示逻辑是否正确
-4. 强度滑块显示值与存储值是否一致
-5. 连接状态展示是否正确反映最近测试结果
+1. provider 切换时默认 `api_format` / Base URL / Model 是否正确更新
+2. 选择 `custom` 时是否出现协议格式选择器
+3. Ollama 时 API Key 字段是否弱化显示
+4. tone 选择与自定义输入展示逻辑是否正确
+5. 强度滑块显示值与存储值是否一致
+6. 连接状态展示是否正确反映最近测试结果
 
 ### 后端测试
 
@@ -502,9 +623,11 @@
 
 1. `configure_ai` 能正确写入新增 settings
 2. `ai_enabled=0` 时 AI 命令是否被正确拦截
-3. 强度等级映射是否正确
-4. tone helper 是否能覆盖预设与 custom 两类输入
-5. 结构化输出命令未被 tone/intensity 误影响
+3. `api_format=openai` 与 `api_format=claude` 是否正确路由到不同 provider
+4. Claude 响应内容能否稳定解析为文本
+5. 强度等级映射是否正确
+6. tone helper 是否能覆盖预设与 custom 两类输入
+7. 结构化输出命令未被 tone/intensity 误影响
 
 ---
 
@@ -515,21 +638,25 @@
 - [`src/views/SettingsView.vue`](src/views/SettingsView.vue:1)
 - [`src/stores/useAIStore.ts`](src/stores/useAIStore.ts:1)
 - [`src-tauri/src/commands/ai_commands.rs`](src-tauri/src/commands/ai_commands.rs:1)
+- [`src-tauri/src/ai/mod.rs`](src-tauri/src/ai/mod.rs:1)
 - [`src-tauri/src/ai/prompt_templates.rs`](src-tauri/src/ai/prompt_templates.rs:1)
 - 可能补充：[`docs/03-AI系统设计.md`](docs/03-AI系统设计.md:1) 后续同步更新
 
 ### 潜在副作用
 
-1. **AI 输出风格变化**
+1. **协议实现复杂度上升**
+   - 从单一 OpenAI-compatible 扩展为 `openai + claude` 双协议后，后端 provider 抽象和响应解析复杂度会提高。
+
+2. **AI 输出风格变化**
    - 引入 tone/intensity 后，自然语言场景输出会更可变，需防止和现有 UI 长度不匹配。
 
-2. **设置页复杂度上升**
+3. **设置页复杂度上升**
    - AI 区块会从“简单 4 字段表单”变成“多分组控制面板”，需通过分区和说明降低认知负担。
 
-3. **旧用户兼容性**
+4. **旧用户兼容性**
    - 旧用户没有新增 settings key 时，必须有稳定默认值。
 
-4. **结构化输出稳定性风险**
+5. **结构化输出稳定性风险**
    - 如果 tone/intensity 不慎影响 JSON 输出场景，可能导致解析失败，因此本设计明确限制影响范围。
 
 ---
@@ -539,9 +666,10 @@
 本设计确认采用 **完整增强方案（方案 B）**：
 
 - 前端补全 AI 设置页为完整控制台
-- 后端最小扩展现有 `configure_ai` 和 AI 命令读取逻辑
+- 后端在保持现有命令结构的前提下，扩展为按 `api_format` 选择底层协议实现
 - 所有新增项统一落到 `settings` 表
+- 自定义供应商支持选择 `openai` 或 `claude` 协议格式
 - 语气强度通过 `temperature + max_tokens` 映射实现
 - 结构化 AI 能力保持稳定优先，不强行套用语气变化
 
-该方案能在不重做 AI 架构的前提下，显著提升设置页的产品完成度、用户理解度与后续扩展性。
+该方案能在不重做上层 AI 能力组织的前提下，显著提升设置页的产品完成度、用户理解度与后续扩展性。
