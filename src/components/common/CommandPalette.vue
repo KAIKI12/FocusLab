@@ -55,6 +55,10 @@ const taskCmds: CmdItem[] = [
     action: () => { ui.showQuickAdd = true; },
   },
   {
+    id: "cmd-quick-note", label: "速记便签", hint: "任务", keys: "⌘⇧N",
+    action: () => { ui.showQuickNote = true; },
+  },
+  {
     id: "cmd-settle", label: "结束今天 · 进入日结算", hint: "日结算", keys: "⌘⇧E",
     action: () => settlement.settle(),
   },
@@ -176,6 +180,13 @@ watch(visible, (v) => {
 watch(results, () => { selectedIndex.value = 0; });
 
 function onKeydown(e: KeyboardEvent) {
+  // ⌘⇧N 或 Ctrl+Shift+N 速记便签
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "N") {
+    e.preventDefault();
+    ui.showQuickNote = true;
+    visible.value = false;
+    return;
+  }
   // ⌘/ 或 Ctrl+/ 唤起
   if ((e.metaKey || e.ctrlKey) && e.key === "/") {
     e.preventDefault();

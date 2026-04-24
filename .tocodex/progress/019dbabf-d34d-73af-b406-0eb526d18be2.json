@@ -1,0 +1,42 @@
+{
+  "taskId": "019dbabf-d34d-73af-b406-0eb526d18be2",
+  "todos": [
+    {
+      "id": "17ed733421ed9921922034b0086c4e48",
+      "content": "对比 quick-note demo 与现有实现的结构和交互差距",
+      "status": "completed"
+    },
+    {
+      "id": "97aa5f5f7fb0f8fec4be0949ef6a00d6",
+      "content": "定位 quick-note 在正式代码中的入口、视图与状态流",
+      "status": "completed"
+    },
+    {
+      "id": "5169c24cd9ad287f932fbe5bcf1e76a5",
+      "content": "提出 2-3 种补齐方案并给出推荐",
+      "status": "completed"
+    },
+    {
+      "id": "f1592128f01da79454586385248c74e2",
+      "content": "输出设计结论并等待用户确认后进入实现",
+      "status": "completed"
+    },
+    {
+      "id": "1588d9368234a2defb5049b465986813",
+      "content": "新增 src/stores/useInspirationStore.ts（本地状态 + localStorage 持久化）",
+      "status": "completed"
+    },
+    {
+      "id": "c42bda19a3390d6988ed86fb59412eac",
+      "content": "新增 src/components/inspiration/InspirationPanel.vue（速记输入 + 卡片列表 + 一键转任务）",
+      "status": "completed"
+    },
+    {
+      "id": "f49ad5003ff1ae1cebf3db9b3ace0521",
+      "content": "修改 src/views/TodayView.vue（右栏插入 InspirationPanel）",
+      "status": "completed"
+    }
+  ],
+  "lastUpdated": 1776955504540,
+  "status": "active"
+}

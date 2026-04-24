@@ -36,6 +36,7 @@ type TrayAction =
   | { type: "toggle-pause" }
   | { type: "switch-task" }
   | { type: "quick-add" }
+  | { type: "quick-note" }
   | { type: "settle-today" };
 
 async function ensureLayoutRoute() {
@@ -58,6 +59,11 @@ async function handleTrayAction(payload: TrayAction) {
       await ensureLayoutRoute();
       if (route.path !== "/today") await router.push("/today");
       ui.showQuickAdd = true;
+      break;
+    case "quick-note":
+      await ensureLayoutRoute();
+      if (route.path !== "/today") await router.push("/today");
+      ui.showQuickNote = true;
       break;
     case "settle-today":
       await ensureLayoutRoute();

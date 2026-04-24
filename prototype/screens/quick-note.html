@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 速记便签 · AI 整理</title>
+<script>/* fl-theme-init v1.2.4 · global theme + accent persistence */
+(function(){function apply(){try{var t=localStorage.getItem('fl-theme');var a=localStorage.getItem('fl-accent');var d=document.documentElement;if(t==='auto'){var pd=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.dataset.theme=pd?'dark':'light';}else if(t){d.dataset.theme=t;}if(a&&a!=='default'){d.dataset.accentTheme=a;}else{delete d.dataset.accentTheme;}}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='fl-theme'||e.key==='fl-accent')apply();});}catch(e){}})();
+</script>
+<link rel="stylesheet" href="../assets/tokens.css" />
+<link rel="stylesheet" href="../assets/base.css" />
+<link rel="stylesheet" href="../assets/components.css" />
+<style>
+  body { padding: 0; background: var(--color-bg); }
+  .showcase-wrap { max-width: 1360px; margin: 0 auto; padding: var(--sp-8) var(--sp-6); }
+
+  .showcase-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: var(--sp-6);
+    gap: var(--sp-4);
+    flex-wrap: wrap;
+  }
+  .showcase-head h1 { font-size: var(--fs-24); font-weight: var(--fw-semibold); letter-spacing: -0.3px; }
+  .showcase-head .sub { color: var(--color-text-secondary); font-size: var(--fs-14); margin-top: 4px; }
+  .nav-back { color: var(--color-text-secondary); font-size: var(--fs-13, 13px); display: inline-flex; align-items: center; gap: 4px; }
+  .nav-back:hover { color: var(--color-primary); }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-5);
+    flex-wrap: wrap;
+  }
+  .mode-hint {
+    color: var(--color-text-muted);
+    font-size: var(--fs-12);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .demo-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--sp-5);
+    align-items: start;
+  }
+
+  .stage {
+    position: relative;
+    min-height: auto;
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    background: linear-gradient(135deg, var(--color-primary-soft) 0%, #F5F7FA 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-8) var(--sp-6);
+  }
+  [data-theme="dark"] .stage { background: linear-gradient(135deg, #1A2340 0%, #14182A 100%); }
+  .stage::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, color-mix(in srgb, var(--color-primary) 5%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in srgb, var(--color-primary) 5%, transparent) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+  .stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.10) 80%);
+    pointer-events: none;
+  }
+
+  .desk-window {
+    position: absolute;
+    inset: 28px;
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--color-bg-elevated) 88%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    opacity: 0.72;
+  }
+  .desk-titlebar {
+    height: 42px;
+    border-bottom: 1px solid var(--color-divider);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--sp-4);
+    background: color-mix(in srgb, var(--color-bg-subtle) 90%, transparent);
+  }
+  .desk-titlebar .left,
+  .desk-titlebar .right { display: flex; align-items: center; gap: var(--sp-2); }
+  .desk-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-border-strong); }
+  .desk-content {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    height: calc(100% - 42px);
+  }
+  .desk-sidebar {
+    border-right: 1px solid var(--color-divider);
+    background: color-mix(in srgb, var(--color-bg-elevated) 92%, transparent);
+    padding: var(--sp-4);
+  }
+  .desk-nav-item {
+    height: 36px;
+    border-radius: var(--r-sm);
+    background: var(--color-bg-hover);
+    margin-bottom: 8px;
+    opacity: 0.9;
+  }
+  .desk-nav-item.is-active { background: var(--color-primary-soft); }
+  .desk-main { padding: var(--sp-5); }
+  .desk-card {
+    height: 120px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+    margin-bottom: var(--sp-4);
+  }
+  .desk-card:last-child { height: 300px; }
+
+  .quick-note {
+    position: relative;
+    z-index: 2;
+    width: min(1100px, 100%);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+  }
+  .qn-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: 1px solid var(--color-divider);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 72%);
+  }
+  .qn-title-wrap { display: flex; gap: var(--sp-3); align-items: flex-start; }
+  .qn-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    color: #fff;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--color-primary) 24%, transparent);
+    flex-shrink: 0;
+  }
+  .qn-head h2 { font-size: var(--fs-20); font-weight: var(--fw-semibold); margin-bottom: 4px; }
+  .qn-head .sub { color: var(--color-text-secondary); font-size: var(--fs-13, 13px); line-height: 1.6; max-width: 420px; }
+  .qn-close { color: var(--color-text-muted); }
+
+  .qn-body { padding: var(--sp-4) var(--sp-5) var(--sp-5); }
+
+  .section-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    margin-bottom: 8px;
+    font-size: var(--fs-12);
+    color: var(--color-text-secondary);
+    font-weight: var(--fw-medium);
+  }
+  .section-label .meta {
+    color: var(--color-text-muted);
+    font-weight: var(--fw-normal);
+  }
+
+  .note-box {
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    background: var(--color-bg-elevated);
+    box-shadow: var(--shadow-card);
+    position: relative;
+    overflow: hidden;
+  }
+  .note-box::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 18%, transparent));
+  }
+  .note-box textarea {
+    width: 100%;
+    min-height: 176px;
+    border: none;
+    outline: none;
+    resize: vertical;
+    background: transparent;
+    color: var(--color-text-primary);
+    padding: var(--sp-4);
+    font-size: var(--fs-14);
+    line-height: 1.7;
+  }
+  .note-box textarea::placeholder { color: var(--color-text-muted); }
+
+  .box-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    padding: 0 var(--sp-4) var(--sp-3);
+    color: var(--color-text-muted);
+    font-size: var(--fs-12);
+  }
+  .hint-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: var(--r-pill);
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+    font-weight: var(--fw-medium);
+  }
+
+  .inline-tip {
+    margin-top: var(--sp-3);
+    padding: 10px 12px;
+    border-radius: var(--r-sm);
+    background: var(--color-bg-subtle);
+    color: var(--color-text-secondary);
+    font-size: var(--fs-13, 13px);
+    line-height: 1.6;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .input-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    padding-top: var(--sp-4);
+    margin-top: var(--sp-4);
+    border-top: 1px solid var(--color-divider);
+  }
+  .input-actions .left,
+  .input-actions .right { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+  .ai-section {
+    margin-top: var(--sp-4);
+    padding-top: var(--sp-4);
+    border-top: 1px dashed var(--color-divider);
+    display: none;
+  }
+  .quick-note[data-expanded="true"] .ai-section { display: block; }
+
+  .ai-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-3);
+    flex-wrap: wrap;
+  }
+  .ai-head .title {
+    font-size: var(--fs-16);
+    font-weight: var(--fw-semibold);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ai-head .sub {
+    margin-top: 4px;
+    font-size: var(--fs-12);
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+
+  .candidate-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-4);
+    align-items: start;
+  }
+  .candidate {
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    background: var(--color-bg-elevated);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    transition: border-color var(--dur-base) var(--ease-smooth), box-shadow var(--dur-base) var(--ease-smooth), transform var(--dur-base) var(--ease-smooth);
+  }
+  .candidate:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+    box-shadow: var(--shadow-float);
+    transform: translateY(-1px);
+  }
+  .candidate.is-picked {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent), var(--shadow-card);
+  }
+  .candidate-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    background: color-mix(in srgb, var(--color-bg-subtle) 82%, transparent);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .candidate-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--fs-13, 13px);
+    font-weight: var(--fw-semibold);
+    color: var(--color-text-primary);
+  }
+  .candidate-head .meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .candidate-body {
+    padding: var(--sp-4);
+  }
+  .candidate-body p {
+    font-size: var(--fs-14);
+    line-height: 1.75;
+    color: var(--color-text-primary);
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* 选中后展开的统一操作条 */
+  .picked-actions {
+    margin-top: var(--sp-4);
+    padding: var(--sp-3) var(--sp-4);
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-elevated));
+    border: 1px solid color-mix(in srgb, var(--color-primary) 25%, var(--color-border));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    flex-wrap: wrap;
+  }
+  .picked-actions[hidden] { display: none; }
+  .picked-label {
+    font-size: var(--fs-13, 13px);
+    font-weight: var(--fw-semibold);
+    color: var(--color-primary-dark);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .picked-label::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-primary);
+  }
+  .picked-btns { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+  .footer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    padding-top: var(--sp-4);
+    margin-top: var(--sp-4);
+    border-top: 1px solid var(--color-divider);
+  }
+  .footer-actions .left,
+  .footer-actions .right { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+  .side-rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    position: sticky;
+    top: var(--sp-6);
+  }
+  .side-card {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-card);
+    padding: var(--sp-4);
+  }
+  .side-card h3 {
+    font-size: var(--fs-14);
+    font-weight: var(--fw-semibold);
+    margin-bottom: var(--sp-2);
+  }
+  .side-card .sub {
+    color: var(--color-text-secondary);
+    font-size: var(--fs-12);
+    line-height: 1.6;
+    margin-bottom: var(--sp-3);
+  }
+  .flow-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .flow-step {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: var(--fs-13, 13px);
+    color: var(--color-text-secondary);
+    line-height: 1.55;
+  }
+  .flow-step .num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    flex-shrink: 0;
+  }
+
+  .mini-result {
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--r-sm);
+    padding: 10px 12px;
+    background: var(--color-bg-subtle);
+    font-size: var(--fs-12);
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+  .mini-result strong { color: var(--color-text-primary); }
+
+  .page-note {
+    margin-top: var(--sp-5);
+    color: var(--color-text-muted);
+    font-size: var(--fs-12);
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 1080px) {
+    .demo-grid { grid-template-columns: 1fr; }
+    .side-rail { position: static; }
+    .candidate-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 900px) {
+    .quick-note { width: min(720px, 100%); }
+  }
+</style>
+</head>
+<body>
+
+<div class="showcase-wrap">
+  <div class="showcase-head">
+    <div>
+      <h1>速记便签 · AI 整理</h1>
+      <div class="sub">同页连续输入与整理结果，避免来回切换带来的割裂感。原始内容始终保留在上方，AI 整理仅作为可选辅助。</div>
+    </div>
+    <a class="nav-back" href="../index.html"><span data-icon="chevron-left" data-size="14"></span> 返回原型导航</a>
+  </div>
+
+  <div class="control-row">
+    <div class="mode-hint"><span data-icon="sparkles" data-size="14"></span> Demo 重点：输入区在上，AI 三版候选在下，同页展开，不单独切页</div>
+  </div>
+
+  <div class="demo-grid">
+    <div>
+      <div class="stage">
+        <div class="desk-window" aria-hidden="true">
+          <div class="desk-titlebar">
+            <div class="left">
+              <span class="desk-dot"></span>
+              <span class="desk-dot"></span>
+              <span class="desk-dot"></span>
+            </div>
+            <div class="right">
+              <span class="chip chip-neutral">今日计划</span>
+              <span class="chip chip-brand">FocusLab</span>
+            </div>
+          </div>
+          <div class="desk-content">
+            <div class="desk-sidebar">
+              <div class="desk-nav-item is-active"></div>
+              <div class="desk-nav-item"></div>
+              <div class="desk-nav-item"></div>
+              <div class="desk-nav-item"></div>
+              <div class="desk-nav-item"></div>
+            </div>
+            <div class="desk-main">
+              <div class="desk-card"></div>
+              <div class="desk-card"></div>
+            </div>
+          </div>
+        </div>
+
+        <section class="quick-note" data-expanded="true" id="quickNoteDemo">
+          <div class="qn-head">
+            <div class="qn-title-wrap">
+              <div class="qn-icon"><span data-icon="sparkles" data-size="18"></span></div>
+              <div>
+                <h2>速记便签</h2>
+                <div class="sub">有点乱也没关系，先记下来。AI 整理只是一个可选项；如果你愿意，也可以直接按原文保存。</div>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-icon btn-sm qn-close" type="button" aria-label="关闭"><span data-icon="x" data-size="14"></span></button>
+          </div>
+
+          <div class="qn-body">
+            <div class="section-label">
+              <span>先随手记下关键点</span>
+              <span class="hint-pill"><span data-icon="zap" data-size="12"></span> 低门槛记录</span>
+            </div>
+            <div class="note-box">
+              <textarea spellcheck="false" placeholder="比如：明天和导师对一下实验设计，顺便把登录页那个卡顿原因记一下，还要想想周五汇报讲什么">明天先和导师过一下实验设计，登录页卡顿的原因别忘了查，还有周五汇报可能要先列个结构。</textarea>
+              <div class="box-foot">
+                <span>支持关键词、半句话、跳跃表达。</span>
+                <span>58 / 500</span>
+              </div>
+            </div>
+
+            <div class="inline-tip">
+              <span data-icon="sparkles" data-size="14"></span>
+              <span>如果你觉得这条速记已经够用了，可以直接保存；如果想让表达更清楚，再点“AI 整理一下”。</span>
+            </div>
+
+            <div class="input-actions">
+              <div class="left">
+                <button class="btn btn-ghost" type="button">取消</button>
+                <button class="btn btn-secondary" type="button">直接保存原文</button>
+              </div>
+              <div class="right">
+                <button class="btn btn-primary" type="button" id="toggleAiBtn"><span data-icon="sparkles" data-size="14"></span> AI 整理一下</button>
+              </div>
+            </div>
+
+            <div class="ai-section" id="aiSection">
+              <div class="ai-head">
+                <div>
+                  <div class="title"><span data-icon="sparkles" data-size="16"></span> AI 给了你 3 种整理方式</div>
+                  <div class="sub">保留原始速记在上方，下面直接对比三版表达。你可以选一版继续编辑、创建任务，或者保存为笔记。</div>
+                </div>
+                <button class="btn btn-secondary btn-sm" type="button"><span data-icon="sparkles" data-size="12"></span> 重新生成 3 版</button>
+              </div>
+
+              <div class="candidate-grid">
+                <article class="candidate is-picked">
+                  <div class="candidate-head">
+                    <div class="candidate-title"><span data-icon="check" data-size="14"></span> 方案 A · 偏任务导向</div>
+                    <div class="meta">
+                      <span class="chip chip-brand">更适合创建任务</span>
+                      <span class="chip chip-q2">重要不紧急</span>
+                    </div>
+                  </div>
+                  <div class="candidate-body">
+                    <p>明天需要优先推进三件事：先与导师确认实验设计方向，避免后续返工；同时排查登录页卡顿的具体原因，记录可能的性能瓶颈；另外为周五汇报先整理一个简要提纲，明确讲述结构和重点。</p>
+                  </div>
+                </article>
+
+                <article class="candidate">
+                  <div class="candidate-head">
+                    <div class="candidate-title"><span data-icon="edit" data-size="14"></span> 方案 B · 偏笔记梳理</div>
+                    <div class="meta">
+                      <span class="chip chip-neutral">更适合先保存笔记</span>
+                      <span class="chip chip-brand">保留上下文</span>
+                    </div>
+                  </div>
+                  <div class="candidate-body">
+                    <p>这条速记主要围绕明天的沟通与后续准备：一方面需要和导师确认实验设计，另一方面要记得回头排查登录页卡顿问题。同时，周五汇报也需要尽早搭好结构，避免临近时临时拼凑内容。</p>
+                  </div>
+                </article>
+
+                <article class="candidate">
+                  <div class="candidate-head">
+                    <div class="candidate-title"><span data-icon="zap" data-size="14"></span> 方案 C · 偏简洁行动清单</div>
+                    <div class="meta">
+                      <span class="chip chip-neutral">更适合快速执行</span>
+                      <span class="chip chip-brand">短句清单</span>
+                    </div>
+                  </div>
+                  <div class="candidate-body">
+                    <p>1）和导师确认实验设计；2）排查登录页卡顿原因；3）整理周五汇报提纲。先把沟通和结构搭好，再细化后续动作。</p>
+                  </div>
+                </article>
+              </div>
+
+              <div class="picked-actions" id="pickedActions" hidden>
+                <span class="picked-label" id="pickedLabel">已选 方案 A · 偏任务导向</span>
+                <div class="picked-btns">
+                  <button class="btn btn-secondary btn-sm" type="button">继续编辑这版</button>
+                  <button class="btn btn-secondary btn-sm" type="button">保存笔记</button>
+                  <button class="btn btn-primary btn-sm" type="button"><span data-icon="plus" data-size="12"></span> 创建任务</button>
+                </div>
+              </div>
+
+              <div class="footer-actions">
+                <div class="left">
+                  <button class="btn btn-ghost" type="button" id="collapseAiBtn">收起 AI 结果</button>
+                </div>
+                <div class="right">
+                  <button class="btn btn-secondary" type="button">全部保存为候选</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="page-note">更适合真实使用的路径：先写，再决定要不要 AI；而不是先被迫进入“AI 模式”。</div>
+    </div>
+
+    <aside class="side-rail">
+      <section class="side-card">
+        <h3>交互流</h3>
+        <div class="sub">这版改成同页连续流，避免“原文在上一页、整理结果在下一页”的割裂感。</div>
+        <div class="flow-list">
+          <div class="flow-step"><span class="num">1</span><span>先快速写下碎片化想法，不要求完整句子。</span></div>
+          <div class="flow-step"><span class="num">2</span><span>AI 整理是可选动作，不强制；点了以后直接在输入区下方展开。</span></div>
+          <div class="flow-step"><span class="num">3</span><span>同页给出 3 个候选版本，便于横向比较与选择。</span></div>
+        </div>
+      </section>
+
+      <section class="side-card">
+        <h3>为什么更顺</h3>
+        <div class="sub">原始记录一直在视线内，用户不需要回忆“我刚刚到底写了什么”。</div>
+        <div class="mini-result">
+          <strong>上半区：</strong> 原始速记输入。<br />
+          <strong>下半区：</strong> AI 三版候选，直接比对。<br />
+          <strong>结果：</strong> 上下文不断裂，决策更自然。
+        </div>
+      </section>
+
+      <section class="side-card">
+        <h3>入口定位</h3>
+        <div class="sub">入口仍然可以和“快速添加任务”并列，但语义更偏“捕捉灵感”。</div>
+        <div class="flow-list">
+          <div class="flow-step"><span class="num">A</span><span><strong>快速添加任务</strong>：用户已经知道要做什么。</span></div>
+          <div class="flow-step"><span class="num">B</span><span><strong>速记便签</strong>：用户只是冒出一个想法，先记下，再决定怎么处理。</span></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script>
+  const quickNoteDemo = document.getElementById('quickNoteDemo');
+  const toggleAiBtn = document.getElementById('toggleAiBtn');
+  const collapseAiBtn = document.getElementById('collapseAiBtn');
+  const setExpanded = (expanded) => {
+    quickNoteDemo.dataset.expanded = expanded ? 'true' : 'false';
+    toggleAiBtn.innerHTML = expanded
+      ? '<span data-icon="sparkles" data-size="14"></span> 已展开 AI 结果'
+      : '<span data-icon="sparkles" data-size="14"></span> AI 整理一下';
+    if (window.renderIcons) window.renderIcons();
+  };
+  toggleAiBtn.addEventListener('click', () => setExpanded(true));
+  collapseAiBtn.addEventListener('click', () => setExpanded(false));
+
+  // 横向三版：点击卡片切换选中 + 显示操作条
+  const pickedActions = document.getElementById('pickedActions');
+  const pickedLabel   = document.getElementById('pickedLabel');
+
+  function pickCandidate(card) {
+    document.querySelectorAll('.candidate').forEach(c => c.classList.remove('is-picked'));
+    card.classList.add('is-picked');
+    const title = card.querySelector('.candidate-title').textContent.trim();
+    pickedLabel.textContent = '已选 ' + title;
+    pickedActions.hidden = false;
+    if (window.renderIcons) window.renderIcons();
+  }
+
+  document.querySelectorAll('.candidate').forEach(card => {
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', () => pickCandidate(card));
+  });
+
+  // 初始化：默认方案 A 已选中，直接显示操作条
+  const defaultPicked = document.querySelector('.candidate.is-picked');
+  if (defaultPicked) pickCandidate(defaultPicked);
+</script>
+
+</body>
+</html>

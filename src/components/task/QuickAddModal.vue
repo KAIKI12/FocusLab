@@ -12,11 +12,14 @@ import { useGoalStore } from "@/stores/useGoalStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 import type { Milestone } from "@/types";
 
+import { useUIStore } from "@/stores/useUIStore";
+
 const props = defineProps<{ visible: boolean }>();
 const emit = defineEmits<{ close: []; created: [taskId: string] }>();
 
 const tasks = useTaskStore();
 const goals = useGoalStore();
+const ui = useUIStore();
 
 const titleEl = ref<HTMLInputElement | null>(null);
 const title = ref("");
@@ -60,9 +63,19 @@ watch(selectedGoalId, async (gid) => {
   } catch { localMilestones.value = []; }
 });
 
-// 打开时 auto-focus
+// 打开时 auto-focus + 预填充
 watch(() => props.visible, (v) => {
-  if (v) nextTick(() => titleEl.value?.focus());
+  if (v) {
+    if (ui.quickNotePrefilledTitle) {
+      title.value = ui.quickNotePrefilledTitle;
+      ui.quickNotePrefilledTitle = "";
+    }
+    if (ui.quickNotePrefilledQuadrant) {
+      quadrant.value = ui.quickNotePrefilledQuadrant;
+      ui.quickNotePrefilledQuadrant = "";
+    }
+    nextTick(() => titleEl.value?.focus());
+  }
   else resetForm();
 });
 

@@ -12,10 +12,12 @@ import { useRouter } from "vue-router";
 
 import ManualSessionModal from "@/components/timer/ManualSessionModal.vue";
 import MorningGuide from "@/components/common/MorningGuide.vue";
+import InspirationPanel from "@/components/inspiration/InspirationPanel.vue";
 import { invokeCmd } from "@/composables/useTauriInvoke";
 import PresetSwitcher from "@/components/timer/PresetSwitcher.vue";
 import QuadrantGrid from "@/components/task/QuadrantGrid.vue";
 import QuickAddModal from "@/components/task/QuickAddModal.vue";
+import QuickNoteModal from "@/components/common/QuickNoteModal.vue";
 import TaskEditModal from "@/components/task/TaskEditModal.vue";
 import { useBubble } from "@/composables/useBubble";
 import { useAssignmentStore } from "@/stores/useAssignmentStore";
@@ -43,6 +45,13 @@ const viewMode = ref<"list" | "quadrant">("list");
 const editingTask = ref<Task | null>(null);
 const showManualSession = ref(false);
 const showMorningGuide = ref(false);
+
+function onQuickNoteCreateTask(text: string, quadrant?: string) {
+  ui.showQuickNote = false;
+  ui.quickNotePrefilledTitle = text;
+  if (quadrant) ui.quickNotePrefilledQuadrant = quadrant;
+  ui.showQuickAdd = true;
+}
 const goalLabels = ref<Record<string, string>>({});
 const aiSuggestion = ref("优先处理紧急重要象限的任务，上午注意力最佳时段可一鼓作气拿下核心任务。");
 const aiLoading = ref(false);
@@ -444,6 +453,11 @@ function fmtMin(m: number): string {
 
       <!-- 右栏 -->
       <div class="fl-right-rail">
+        <!-- 灵感面板 -->
+        <div class="fl-stat-card fl-insp-card-wrap">
+          <InspirationPanel />
+        </div>
+
         <!-- Daily 卡 · AI 建议 + 昨日小结(合并,遵循 ADR-010 v1.2.1) -->
         <div class="fl-ai-card">
           <div class="fl-ai-head">
@@ -535,6 +549,11 @@ function fmtMin(m: number): string {
     <!-- 弹窗 -->
     <TaskEditModal :task="editingTask" @close="editingTask = null" />
     <QuickAddModal :visible="ui.showQuickAdd" @close="ui.showQuickAdd = false" @created="ui.showQuickAdd = false" />
+    <QuickNoteModal
+      :visible="ui.showQuickNote"
+      @close="ui.showQuickNote = false"
+      @create-task="onQuickNoteCreateTask"
+    />
     <ManualSessionModal :visible="showManualSession" @close="showManualSession = false" />
     <MorningGuide :visible="showMorningGuide" @close="showMorningGuide = false" />
   </section>
@@ -904,4 +923,9 @@ function fmtMin(m: number): string {
 /* fade transition */
 .fl-fade-enter-active, .fl-fade-leave-active { transition: opacity var(--dur-base) var(--ease-smooth); }
 .fl-fade-enter-from, .fl-fade-leave-to { opacity: 0; }
+
+/* 灵感面板包裹：稍微收紧 padding 以匹配组件内部间距 */
+.fl-insp-card-wrap {
+  padding: var(--sp-3) var(--sp-4);
+}
 </style>

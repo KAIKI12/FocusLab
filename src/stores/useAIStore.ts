@@ -21,6 +21,17 @@ export interface QuickNoteCandidate {
   quadrant?: string;
 }
 
+export interface MilestoneBreakdownResult {
+  goal_understanding: string;
+  milestones: Array<{
+    name: string;
+    order: number;
+    deadline_hint: string;
+    priority: "high" | "medium" | "low";
+    deliverable: string;
+  }>;
+}
+
 export const useAIStore = defineStore("ai", () => {
   const loading = ref(false);
   const configured = ref(false);
@@ -149,9 +160,107 @@ export const useAIStore = defineStore("ai", () => {
     }
   }
 
+  // ---------- 新 AI 功能 ----------
+
+  /** 未完成任务温和提醒，返回 { message, next_step, tone } */
+  async function unfinishedReminder(
+    unfinishedTasks: string[],
+    completedSummary: string,
+    availableTime?: string,
+  ): Promise<{ message: string; next_step: string; tone: string }> {
+    loading.value = true;
+    try {
+      const raw = await invokeCmd<string>("ai_unfinished_reminder", {
+        input: {
+          unfinishedTasks: unfinishedTasks.join("、"),
+          completedSummary,
+          availableTime: availableTime ?? undefined,
+        },
+      });
+      const parsed = JSON.parse(raw);
+      return {
+        message: String(parsed.message ?? "今天已有不少收获，明天继续加油！"),
+        next_step: String(parsed.next_step ?? "选一项最小的任务先开始"),
+        tone: String(parsed.tone ?? "gentle"),
+      };
+    } catch (e) {
+      console.error("[ai] unfinishedReminder failed", e);
+      return {
+        message: "今天已有不少收获，未完成的任务明天继续加油！",
+        next_step: "选一项最小的任务先开始",
+        tone: "gentle",
+      };
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  /** 任务完成正反馈，返回 { message, badge, tone } */
+  async function taskFeedback(
+    taskName: string,
+    estimatedMinutes?: number,
+    actualMinutes?: number,
+    quadrant?: string,
+  ): Promise<{ message: string; badge: string; tone: string }> {
+    loading.value = true;
+    try {
+      const raw = await invokeCmd<string>("ai_task_feedback", {
+        input: {
+          taskName,
+          estimatedMinutes: estimatedMinutes ?? 0,
+          actualMinutes: actualMinutes ?? 0,
+          quadrant: quadrant ?? "important_not_urgent",
+        },
+      });
+      const parsed = JSON.parse(raw);
+      return {
+        message: String(parsed.message ?? `「${taskName}」完成了，继续保持！`),
+        badge: String(parsed.badge ?? "✅"),
+        tone: String(parsed.tone ?? "encouraging"),
+      };
+    } catch (e) {
+      console.error("[ai] taskFeedback failed", e);
+      return {
+        message: `「${taskName}」完成了，继续保持！`,
+        badge: "✅",
+        tone: "encouraging",
+      };
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  /** 里程碑 AI 拆解，返回结构化里程碑建议 */
+  async function milestoneBreakdown(
+    goalName: string,
+    goalDescription?: string,
+    totalDeadline?: string,
+    currentProgress?: string,
+  ): Promise<MilestoneBreakdownResult> {
+    loading.value = true;
+    try {
+      const raw = await invokeCmd<string>("ai_milestone_breakdown", {
+        input: {
+          goalName,
+          goalDescription: goalDescription ?? undefined,
+          totalDeadline: totalDeadline ?? undefined,
+          currentProgress: currentProgress ?? undefined,
+        },
+      });
+      const parsed = JSON.parse(raw) as MilestoneBreakdownResult;
+      if (!Array.isArray(parsed.milestones)) throw new Error("AI 返回格式异常");
+      return parsed;
+    } catch (e) {
+      console.error("[ai] milestoneBreakdown failed", e);
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     loading, configured, configure, testConnection,
     decomposeTask, generateNarrative, dailySuggestions, classifyQuadrant, weeklySummary,
-    optimizeQuickNote,
+    optimizeQuickNote, unfinishedReminder, taskFeedback, milestoneBreakdown,
   };
 });

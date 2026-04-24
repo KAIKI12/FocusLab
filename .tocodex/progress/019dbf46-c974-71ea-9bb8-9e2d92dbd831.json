@@ -1,0 +1,102 @@
+{
+  "taskId": "019dbf46-c974-71ea-9bb8-9e2d92dbd831",
+  "todos": [
+    {
+      "id": "ed049cba76b1dc9008fb77cb16907e14",
+      "content": "探索项目中现有 AI 设置相关上下文",
+      "status": "completed"
+    },
+    {
+      "id": "b3bee5ce456a193152ab06e59a27147e",
+      "content": "询问一个澄清问题以明确增强目标",
+      "status": "completed"
+    },
+    {
+      "id": "60292307ce0f7474eeb9bcfcd124a688",
+      "content": "提出 2-3 种 AI 配置增强方案并给出推荐",
+      "status": "completed"
+    },
+    {
+      "id": "34e208716ee146a33410e79732cf8d7b",
+      "content": "输出阶段性设计建议并等待用户确认",
+      "status": "completed"
+    },
+    {
+      "id": "f556d621db5cdb2341cd0f7a46297e05",
+      "content": "编写设计文档并提交 git",
+      "status": "completed"
+    },
+    {
+      "id": "d54c5b10184f3a74c0ad8af44b327e6f",
+      "content": "等待用户 review 设计文档",
+      "status": "completed"
+    },
+    {
+      "id": "3055467084bfc42081d5744f50912b4b",
+      "content": "实现后端：src-tauri/src/ai/mod.rs — 添加 ClaudeProvider，configure 按 api_format 路由",
+      "status": "completed"
+    },
+    {
+      "id": "2e1f021d0dae6476b47dbfe866884b7c",
+      "content": "实现后端：src-tauri/src/commands/ai_commands.rs — configure_ai 增参数，全局开关拦截，intensity 映射",
+      "status": "completed"
+    },
+    {
+      "id": "68ad968bcb2788c2b9c1dc0b62204f74",
+      "content": "实现后端：src-tauri/src/ai/prompt_templates.rs — 添加 tone_description helper",
+      "status": "completed"
+    },
+    {
+      "id": "7f57274479b7aad5cef342fca9fc7570",
+      "content": "实现前端：src/stores/useAIStore.ts — configure 接口扩展",
+      "status": "completed"
+    },
+    {
+      "id": "ae839764850ddeb7272305f5930ad0bd",
+      "content": "实现前端：src/views/SettingsView.vue — AI 区块全面重构（开关、provider、协议格式、语气、强度、用量提示）",
+      "status": "completed"
+    },
+    {
+      "id": "73fc8b8a5cecc27ff1eeb864aaa3aaae",
+      "content": "实现后端：prompt_templates.rs — 新增 unfinished_reminder_prompt / task_feedback_prompt / milestone_breakdown_prompt",
+      "status": "completed"
+    },
+    {
+      "id": "17c14c299b0dcf65f78c8e7b63c37d2e",
+      "content": "实现后端：ai_commands.rs — 新增 ai_unfinished_reminder / ai_task_feedback / ai_milestone_breakdown 命令",
+      "status": "completed"
+    },
+    {
+      "id": "93c85c217c3efb1d70a535aac3fed6fb",
+      "content": "注册新命令到 src-tauri/src/lib.rs",
+      "status": "completed"
+    },
+    {
+      "id": "d0c4b6a15869f8c8f104009d21d5f13d",
+      "content": "cargo check 验证编译",
+      "status": "completed"
+    },
+    {
+      "id": "b51ddf8974113c21b69e74b103c58b71",
+      "content": "实现前端：useAIStore.ts — 新增 3 个对应方法",
+      "status": "completed"
+    },
+    {
+      "id": "a55b66b3c5a28bd45ac303ef3e3ae11e",
+      "content": "实现前端：SettlementDialog.vue — 接入未完成任务提醒",
+      "status": "completed"
+    },
+    {
+      "id": "f7327bb601dc81764ae264030775b696",
+      "content": "实现前端：task completion flow — 接入完成正反馈",
+      "status": "completed"
+    },
+    {
+      "id": "f7bb68de36f242b37c9bead2c6a87186",
+      "content": "实现前端：MilestoneSubtasks.vue — 接入里程碑拆解",
+      "status": "completed"
+    }
+  ],
+  "lastUpdated": 1777035969605,
+  "status": "active"
+}

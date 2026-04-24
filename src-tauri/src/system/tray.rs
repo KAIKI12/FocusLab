@@ -23,6 +23,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let switch_task = MenuItem::with_id(app, "switch-task", "切换任务", true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
     let quick_add = MenuItem::with_id(app, "quick-add", "快速添加任务", true, Some("Ctrl+N"))?;
+    let quick_note = MenuItem::with_id(app, "quick-note", "速记便签", true, Some("Ctrl+Shift+N"))?;
     let settle_today = MenuItem::with_id(app, "settle-today", "结束今天", true, None::<&str>)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
     let settings = MenuItem::with_id(app, "settings", "设置", true, Some("Ctrl+,"))?;
@@ -36,6 +37,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             &switch_task,
             &sep1,
             &quick_add,
+            &quick_note,
             &settle_today,
             &sep2,
             &settings,
@@ -59,6 +61,10 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             "quick-add" => {
                 show_main(app);
                 let _ = app.emit(TRAY_EVENT_ACTION, json!({ "type": "quick-add" }));
+            }
+            "quick-note" => {
+                show_main(app);
+                let _ = app.emit(TRAY_EVENT_ACTION, json!({ "type": "quick-note" }));
             }
             "settle-today" => {
                 show_main(app);

@@ -5,6 +5,7 @@
  */
 
 import { computed, ref, watch } from "vue";
+import { CheckCheck } from "lucide-vue-next";
 
 import ParticleEffect from "@/components/settlement/ParticleEffect.vue";
 import { invokeCmd } from "@/composables/useTauriInvoke";
@@ -19,6 +20,11 @@ const reflection = ref("");
 const aiNarrative = ref("");
 const loadingAI = ref(false);
 const pendingTasks = ref<AssignmentWithTask[]>([]);
+const unfinishedReminder = ref<{ message: string; next_step: string; tone: string } | null>(null);
+const loadingReminder = ref(false);
+const completionFeedback = ref<{ message: string; badge: string; tone: string } | null>(null);
+const feedbackVisible = ref(false);
+let feedbackTimer: number | null = null;
 
 // 结算打开时尝试生成 AI 叙事
 watch(
@@ -34,11 +40,30 @@ watch(
           s.value.totalFocusMinutes,
         );
       } catch { /* AI 可选 */ } finally { loadingAI.value = false; }
-      // 加载未完成的 DTA 任务
+      // 加载未完成的 DTA 任务 + AI 温和提醒
       try {
         const all = await invokeCmd<AssignmentWithTask[]>("list_assignments", { planDate: s.value.settleDate });
         pendingTasks.value = all.filter(a => a.dayStatus === "pending");
-      } catch { pendingTasks.value = []; }
+        unfinishedReminder.value = null;
+        if (pendingTasks.value.length) {
+          loadingReminder.value = true;
+          try {
+            unfinishedReminder.value = await ai.unfinishedReminder(
+              pendingTasks.value.map(a => a.taskName),
+              `完成 ${s.value.completedTasks}/${s.value.totalTasks} 项`,
+              "明天可继续安排 1-2 个小时间块",
+            );
+          } catch {
+            unfinishedReminder.value = null;
+          } finally {
+            loadingReminder.value = false;
+          }
+        }
+      } catch {
+        pendingTasks.value = [];
+        unfinishedReminder.value = null;
+        loadingReminder.value = false;
+      }
     }
   },
 );
@@ -116,6 +141,22 @@ async function markDone(a: AssignmentWithTask) {
   try {
     await invokeCmd("update_assignment_status", { id: a.id, dayStatus: "completed" });
     pendingTasks.value = pendingTasks.value.filter(t => t.id !== a.id);
+    try {
+      completionFeedback.value = await ai.taskFeedback(
+        a.taskName,
+        undefined,
+        undefined,
+        "important_not_urgent",
+      );
+      feedbackVisible.value = true;
+      if (feedbackTimer) window.clearTimeout(feedbackTimer);
+      feedbackTimer = window.setTimeout(() => {
+        feedbackVisible.value = false;
+      }, 2800);
+    } catch {
+      completionFeedback.value = { message: `「${a.taskName}」完成了，继续保持！`, badge: "✅", tone: "encouraging" };
+      feedbackVisible.value = true;
+    }
   } catch { /* */ }
 }
 </script>
@@ -187,6 +228,19 @@ async function markDone(a: AssignmentWithTask) {
             </div>
           </div>
 
+          <!-- 任务完成正反馈 -->
+          <Transition name="fl-fade">
+            <div v-if="feedbackVisible && completionFeedback" class="fl-feedback-toast">
+              <div class="fl-feedback-icon">
+                <CheckCheck :size="14" />
+              </div>
+              <div class="fl-feedback-text">
+                <strong>{{ completionFeedback.badge }} {{ completionFeedback.message }}</strong>
+                <small>AI 正反馈</small>
+              </div>
+            </div>
+          </Transition>
+
           <!-- 今日心情 -->
           <template v-if="hasMood">
             <div class="fl-section-label">🌤 今日心情</div>
@@ -222,6 +276,16 @@ async function markDone(a: AssignmentWithTask) {
 
           <!-- 温和未完成处理(对齐原型 gentle-card) -->
           <div v-if="pendingTasks.length" class="fl-gentle">
+             <div v-if="unfinishedReminder || loadingReminder" class="fl-gentle-ai">
+               <div class="fl-gentle-ai-badge">✨ AI 提醒</div>
+               <div class="fl-gentle-ai-main">
+                 <template v-if="loadingReminder">正在生成温和提醒…</template>
+                 <template v-else-if="unfinishedReminder">
+                   <strong>{{ unfinishedReminder.message }}</strong>
+                   <small>建议下一步：{{ unfinishedReminder.next_step }}</small>
+                 </template>
+               </div>
+             </div>
             <div class="fl-gentle-head">
               <span>📋</span>
               <div>
@@ -416,6 +480,80 @@ async function markDone(a: AssignmentWithTask) {
 }
 .fl-gentle-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .fl-gentle-primary { background: var(--color-primary-soft); color: var(--color-primary-dark); border-color: color-mix(in srgb, var(--color-primary) 25%, transparent); }
+.fl-gentle-ai {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--color-primary-soft) 55%, var(--color-bg-elevated));
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fl-gentle-ai-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  color: var(--color-primary);
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: rgba(255,255,255,0.7);
+}
+
+.fl-gentle-ai-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-12);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.fl-gentle-ai-main strong {
+  color: var(--color-text-primary);
+  font-size: var(--fs-13);
+}
+
+.fl-gentle-ai-main small {
+  color: var(--color-text-muted);
+}
+
+.fl-feedback-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid color-mix(in srgb, var(--color-success) 24%, var(--color-border));
+  background: color-mix(in srgb, var(--color-success) 10%, var(--color-bg-elevated));
+}
+
+.fl-feedback-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 16%, white);
+}
+
+.fl-feedback-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fl-feedback-text strong {
+  color: var(--color-text-primary);
+  font-size: var(--fs-13);
+}
+
+.fl-feedback-text small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
 .fl-gentle-quote {
   padding: var(--sp-3) var(--sp-4);
   background: var(--color-bg-subtle); font-size: var(--fs-12);

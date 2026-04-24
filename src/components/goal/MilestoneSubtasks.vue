@@ -6,9 +6,10 @@
  * 数据源:tasks 表(通过 useMilestoneSubtasks 派生),子任务 = tasks WHERE milestone_id = ?。
  */
 
-import { Check, CircleDashed, Flame, Plus, Circle } from "lucide-vue-next";
+import { Check, CircleDashed, Flame, Plus, Circle, WandSparkles } from "lucide-vue-next";
 import { computed, ref } from "vue";
 
+import { useAIStore } from "@/stores/useAIStore";
 import { useMilestoneSubtasks } from "@/composables/useMilestoneSubtasks";
 import { useTaskStore } from "@/stores/useTaskStore";
 import type { Task } from "@/types";
@@ -18,10 +19,20 @@ const props = defineProps<{
 }>();
 
 const tasks = useTaskStore();
+const ai = useAIStore();
 const { subtasksOf, todayActiveOf, progressOf } = useMilestoneSubtasks();
 
 const newTitle = ref("");
 const adding = ref(false);
+const aiLoading = ref(false);
+const aiSuggestions = ref<Array<{
+  name: string;
+  order: number;
+  deadline_hint: string;
+  priority: "high" | "medium" | "low";
+  deliverable: string;
+}>>([]);
+const aiGoalUnderstanding = ref("");
 
 const subtasks = computed(() => subtasksOf(props.milestoneId));
 const todayActive = computed(() => todayActiveOf(props.milestoneId));
@@ -63,6 +74,37 @@ function formatSeconds(s: number): string {
   const mm = m % 60;
   if (h > 0) return `${h}h ${mm}m`;
   return `${mm}m`;
+}
+
+async function onAiBreakdown() {
+  aiLoading.value = true;
+  try {
+    const result = await ai.milestoneBreakdown(
+      "当前里程碑",
+      "请基于当前里程碑上下文补全为合理的阶段子任务",
+      undefined,
+      subtasks.value.length ? `已有 ${subtasks.value.length} 个子任务` : "尚未开始",
+    );
+    aiGoalUnderstanding.value = result.goal_understanding;
+    aiSuggestions.value = result.milestones.slice(0, 7);
+  } finally {
+    aiLoading.value = false;
+  }
+}
+
+async function applyAiSuggestion(item: {
+  name: string;
+  order: number;
+  deadline_hint: string;
+  priority: "high" | "medium" | "low";
+  deliverable: string;
+}) {
+  const created = await tasks.create({
+    name: item.name,
+    quadrant: item.priority === "high" ? "important_urgent" : "important_not_urgent",
+  });
+  await tasks.update({ id: created.id, milestoneId: props.milestoneId });
+  aiSuggestions.value = aiSuggestions.value.filter((s) => s.order !== item.order);
 }
 </script>
 
@@ -107,7 +149,30 @@ function formatSeconds(s: number): string {
         <span class="fl-ms-sub-meta">{{ formatEstimate(t) }}</span>
       </div>
     </div>
-    <div v-else class="fl-ms-sub-empty">尚无子任务 · 用下方输入添加</div>
+    <div v-else class="fl-ms-sub-empty">
+      <span>尚无子任务 · 可手动添加，或让 AI 先帮你拆一版</span>
+      <button class="fl-ms-ai-btn" type="button" :disabled="aiLoading" @click="onAiBreakdown">
+        <WandSparkles :size="13" />
+        <span>{{ aiLoading ? "AI 拆解中…" : "AI 拆解" }}</span>
+      </button>
+    </div>
+
+    <div v-if="aiSuggestions.length" class="fl-ms-ai-panel">
+      <div class="fl-ms-ai-panel-head">
+        <strong>✨ AI 拆解建议</strong>
+        <small>{{ aiGoalUnderstanding }}</small>
+      </div>
+      <div class="fl-ms-ai-list">
+        <div v-for="item in aiSuggestions" :key="item.order" class="fl-ms-ai-card">
+          <div class="fl-ms-ai-card-top">
+            <strong>{{ item.order }}. {{ item.name }}</strong>
+            <span class="fl-ms-ai-priority" :class="`is-${item.priority}`">{{ item.priority }}</span>
+          </div>
+          <div class="fl-ms-ai-meta">{{ item.deadline_hint }} · {{ item.deliverable }}</div>
+          <button class="fl-ms-ai-apply" type="button" @click="applyAiSuggestion(item)">加入子任务</button>
+        </div>
+      </div>
+    </div>
 
     <!-- 添加 -->
     <form class="fl-ms-sub-add" @submit.prevent="onAdd">
@@ -190,6 +255,106 @@ function formatSeconds(s: number): string {
 .fl-ms-sub-empty {
   font-size: 11px; color: var(--color-text-muted);
   padding: var(--sp-3) 0; text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.fl-ms-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.fl-ms-ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--color-primary-soft) 38%, var(--color-bg-elevated));
+}
+
+.fl-ms-ai-panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fl-ms-ai-panel-head strong {
+  font-size: var(--fs-13, 13px);
+  color: var(--color-text-primary);
+}
+
+.fl-ms-ai-panel-head small {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.fl-ms-ai-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.fl-ms-ai-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+}
+
+.fl-ms-ai-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.fl-ms-ai-card-top strong {
+  font-size: var(--fs-13, 13px);
+  color: var(--color-text-primary);
+}
+
+.fl-ms-ai-meta {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.fl-ms-ai-priority {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--r-pill);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.fl-ms-ai-priority.is-high { color: #d46b08; }
+.fl-ms-ai-priority.is-medium { color: var(--color-primary); }
+.fl-ms-ai-priority.is-low { color: var(--color-text-muted); }
+
+.fl-ms-ai-apply {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  cursor: pointer;
+  font-size: 12px;
 }
 
 .fl-ms-sub-add { display: flex; gap: var(--sp-2); }

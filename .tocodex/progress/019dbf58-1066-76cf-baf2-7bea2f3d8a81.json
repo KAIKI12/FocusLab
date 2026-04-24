@@ -1,0 +1,42 @@
+{
+  "taskId": "019dbf58-1066-76cf-baf2-7bea2f3d8a81",
+  "todos": [
+    {
+      "id": "0624719741b90816e5345c403c39c34d",
+      "content": "探索 src-tauri/src/ai/mod.rs 当前实现与相关设计文档",
+      "status": "completed"
+    },
+    {
+      "id": "6cddf58aea9f88793bccdb13a77d5a7a",
+      "content": "分析调用侧 ai_commands.rs 是否需要同步修改（第40行需同步添加 api_format 参数）",
+      "status": "completed"
+    },
+    {
+      "id": "2389b2c6c1e6dc3766285d5eb782f6bb",
+      "content": "实施 mod.rs 增量修改（重命名 + 新增 ClaudeProvider + 修改 configure）",
+      "status": "completed"
+    },
+    {
+      "id": "3c0005de2a2714a1f68ec6a46ce824b6",
+      "content": "同步修改 ai_commands.rs 的 configure_ai 命令（增加 api_format 参数）",
+      "status": "completed"
+    },
+    {
+      "id": "83287a6216181149d94db19bbd41735b",
+      "content": "修复 ai_commands.rs 中暴露出的既有 prompt 参数不匹配问题",
+      "status": "completed"
+    },
+    {
+      "id": "fe7537d5b6c53eeba9f96c19a0e248d1",
+      "content": "同步修复 lib.rs 中 AI 自动配置调用签名",
+      "status": "completed"
+    },
+    {
+      "id": "e96f64bf3c693fa7cd51eb3496e0b879",
+      "content": "验证 Rust 语法正确性",
+      "status": "completed"
+    }
+  ],
+  "lastUpdated": 1777031892825,
+  "status": "active"
+}

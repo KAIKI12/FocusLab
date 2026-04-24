@@ -9,6 +9,9 @@ export const useUIStore = defineStore("ui", () => {
   const sidebarCollapsed = ref(false);
   const showInterruptionDialog = ref(false);
   const showQuickAdd = ref(false);
+  const showQuickNote = ref(false);
+  const quickNotePrefilledTitle = ref("");
+  const quickNotePrefilledQuadrant = ref("");
   const soundEnabled = ref(true);
 
   function toggleSidebar() {
@@ -19,5 +22,5 @@ export const useUIStore = defineStore("ui", () => {
     soundEnabled.value = !soundEnabled.value;
   }
 
-  return { sidebarCollapsed, toggleSidebar, showInterruptionDialog, showQuickAdd, soundEnabled, toggleSound };
+  return { sidebarCollapsed, toggleSidebar, showInterruptionDialog, showQuickAdd, showQuickNote, quickNotePrefilledTitle, quickNotePrefilledQuadrant, soundEnabled, toggleSound };
 });

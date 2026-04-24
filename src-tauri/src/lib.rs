@@ -47,15 +47,20 @@ pub fn run() {
                     .unwrap_or_default()
                 };
                 let provider = get("ai_provider");
+                let api_format = get("ai_api_format");
                 let base_url = get("ai_base_url");
                 let api_key = get("ai_api_key");
                 let model = get("ai_model");
                 if !api_key.is_empty() || provider == "ollama" {
                     let ai_ref = &ai_service;
                     tauri::async_runtime::block_on(async {
-                        ai_ref.configure(&provider, &base_url, &api_key, &model).await;
+                        ai_ref
+                            .configure(&provider, &api_format, &base_url, &api_key, &model)
+                            .await;
                     });
-                    tracing::info!("AI auto-configured from settings: provider={provider}");
+                    tracing::info!(
+                        "AI auto-configured from settings: provider={provider} api_format={api_format}"
+                    );
                 }
             }
             app.manage(ai_service);
@@ -64,6 +69,14 @@ pub fn run() {
 
             tracing::info!("FocusLab started");
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             // task CRUD (Week 1a)
@@ -137,7 +150,11 @@ pub fn run() {
             commands::ai_commands::ai_settlement_narrative,
             commands::ai_commands::ai_daily_suggestions,
             commands::ai_commands::ai_classify_quadrant,
+            commands::ai_commands::ai_optimize_quick_note,
             commands::ai_commands::ai_weekly_summary,
+            commands::ai_commands::ai_unfinished_reminder,
+            commands::ai_commands::ai_task_feedback,
+            commands::ai_commands::ai_milestone_breakdown,
             // 数据导出
             commands::export_commands::export_tasks_json,
             commands::export_commands::export_sessions_csv,

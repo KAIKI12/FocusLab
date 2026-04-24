@@ -53,7 +53,7 @@ async function onFinish() {
   // AI 配置
   if (!skipAI.value && aiApiKey.value) {
     try {
-      await ai.configure(aiProvider.value, aiBaseUrl.value, aiApiKey.value, aiModel.value);
+      await ai.configure(aiProvider.value, "openai", aiBaseUrl.value, aiApiKey.value, aiModel.value);
     } catch { /* 可选 */ }
   }
 
