@@ -13,17 +13,44 @@ export interface SubTask {
   quadrant: string;
 }
 
+export interface QuickNoteCandidate {
+  label: string;
+  style: string;
+  styleName: string;
+  text: string;
+  quadrant?: string;
+}
+
 export const useAIStore = defineStore("ai", () => {
   const loading = ref(false);
   const configured = ref(false);
 
+  /**
+   * 配置 AI provider。
+   * 所有参数持久化到 settings KV；apiFormat 仅在 provider === "custom" 时生效。
+   */
   async function configure(
     provider: string,
+    apiFormat: string,
     baseUrl: string,
     apiKey: string,
     model: string,
+    enabled?: string,
+    tone?: string,
+    toneCustom?: string,
+    intensity?: string,
   ) {
-    await invokeCmd<void>("configure_ai", { provider, baseUrl, apiKey, model });
+    await invokeCmd<void>("configure_ai", {
+      provider,
+      apiFormat,
+      baseUrl,
+      apiKey,
+      model,
+      enabled,
+      tone,
+      toneCustom,
+      intensity,
+    });
     configured.value = true;
   }
 
@@ -96,8 +123,35 @@ export const useAIStore = defineStore("ai", () => {
     }
   }
 
+  async function optimizeQuickNote(rawText: string): Promise<QuickNoteCandidate[]> {
+    loading.value = true;
+    try {
+      const raw = await invokeCmd<string>("ai_optimize_quick_note", {
+        input: { rawText },
+      });
+      const parsed = JSON.parse(raw);
+      const candidates: QuickNoteCandidate[] = (parsed.candidates ?? [])
+        .slice(0, 3)
+        .map((c: Record<string, unknown>) => ({
+          label: String(c.label ?? ""),
+          style: String(c.style ?? "note"),
+          styleName: String(c.styleName ?? ""),
+          text: String(c.text ?? ""),
+          quadrant: c.quadrant ? String(c.quadrant) : undefined,
+        }));
+      if (candidates.length < 3) throw new Error("AI 返回候选不足 3 个");
+      return candidates;
+    } catch (e) {
+      console.error("[ai] optimizeQuickNote failed", e);
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     loading, configured, configure, testConnection,
     decomposeTask, generateNarrative, dailySuggestions, classifyQuadrant, weeklySummary,
+    optimizeQuickNote,
   };
 });

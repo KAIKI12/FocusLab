@@ -56,24 +56,93 @@ const accents = [
 ];
 
 // ---------- AI ----------
-const aiProvider = ref("compatible");
+// A. 全局开关
+const aiEnabled = ref(true);
+
+// B. 连接配置
+const aiProvider = ref("openai");
+const aiApiFormat = ref("openai");   // 仅 custom provider 时用户可选
 const aiBaseUrl = ref("");
 const aiApiKey = ref("");
 const aiModel = ref("gpt-4o-mini");
+const aiConnStatus = ref("");        // success | fail | ""
+const aiConnCheckedAt = ref("");
+
+// C. 语气风格
+const aiTone = ref("academic");
+const aiToneCustom = ref("");
+
+// D. 强度
+const aiIntensity = ref(3);
+
+// 测试结果提示
 const aiTestResult = ref("");
+
+// Provider 预设表（base_url 默认值）
+const providerPresets: Record<string, { baseUrl: string; models: string[]; format: string }> = {
+  openai:     { baseUrl: "https://api.openai.com",          models: ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"], format: "openai" },
+  claude:     { baseUrl: "https://api.anthropic.com",       models: ["claude-3-5-haiku-20241022", "claude-3-5-sonnet-20241022", "claude-opus-4-5"], format: "claude" },
+  deepseek:   { baseUrl: "https://api.deepseek.com",        models: ["deepseek-chat", "deepseek-coder"], format: "openai" },
+  moonshot:   { baseUrl: "https://api.moonshot.cn",         models: ["moonshot-v1-8k", "moonshot-v1-32k"], format: "openai" },
+  qwen:       { baseUrl: "https://dashscope.aliyuncs.com/compatible-mode", models: ["qwen-turbo", "qwen-plus", "qwen-max"], format: "openai" },
+  gemini:     { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", models: ["gemini-2.0-flash", "gemini-1.5-pro"], format: "openai" },
+  ollama:     { baseUrl: "http://localhost:11434",          models: ["llama3", "mistral", "qwen2.5"], format: "openai" },
+  custom:     { baseUrl: "",                                models: [], format: "openai" },
+};
+
+function onProviderChange() {
+  const preset = providerPresets[aiProvider.value];
+  if (preset) {
+    if (aiProvider.value !== "custom") {
+      aiBaseUrl.value = preset.baseUrl;
+      aiApiFormat.value = preset.format;
+      if (preset.models.length > 0) aiModel.value = preset.models[0];
+    }
+  }
+}
+
+// 语气风格列表
+const toneOptions = [
+  { id: "academic", icon: "📚", name: "学术导师", desc: "严谨分析，结构清晰" },
+  { id: "coach",    icon: "💪", name: "运动教练", desc: "充满活力，积极鼓励" },
+  { id: "zen",      icon: "🍃", name: "禅意伙伴", desc: "温和平静，正念引导" },
+  { id: "minimal",  icon: "📊", name: "简洁数据", desc: "数字说话，去除废话" },
+  { id: "cat",      icon: "🐱", name: "猫咪助手", desc: "卖萌风格，偶尔傲娇" },
+  { id: "custom",   icon: "✏️", name: "自定义", desc: "用自己的提示词" },
+];
 
 async function onSaveAI() {
   try {
-    await ai.configure(aiProvider.value, aiBaseUrl.value, aiApiKey.value, aiModel.value);
+    await ai.configure(
+      aiProvider.value,
+      aiApiFormat.value,
+      aiBaseUrl.value,
+      aiApiKey.value,
+      aiModel.value,
+      aiEnabled.value ? "1" : "0",
+      aiTone.value,
+      aiToneCustom.value,
+      String(aiIntensity.value),
+    );
     aiTestResult.value = "✅ 已保存";
   } catch (e) { aiTestResult.value = `❌ 保存失败: ${e}`; }
 }
 
 async function onTestAI() {
+  aiTestResult.value = "⏳ 测试中…";
   try {
     const result = await ai.testConnection();
     aiTestResult.value = `✅ ${result}`;
-  } catch (e) { aiTestResult.value = `❌ 连接失败: ${e}`; }
+    aiConnStatus.value = "success";
+  } catch (e) {
+    aiTestResult.value = `❌ 连接失败: ${e}`;
+    aiConnStatus.value = "fail";
+  }
+}
+
+async function toggleAiEnabled() {
+  aiEnabled.value = !aiEnabled.value;
+  await invokeCmd("set_setting", { key: "ai_enabled", value: aiEnabled.value ? "1" : "0" }).catch(() => {});
 }
 
 // ---------- Pomodoro ----------
@@ -192,6 +261,19 @@ onMounted(async () => {
   notifySystem.value = (await load("notify_system", "1")) === "1";
   notifySettle.value = (await load("notify_settle", "1")) === "1";
   notifyDue.value = (await load("notify_due", "1")) === "1";
+
+  aiEnabled.value = (await load("ai_enabled", "1")) === "1";
+  aiProvider.value = await load("ai_provider", "openai");
+  aiApiFormat.value = await load("ai_api_format", providerPresets[aiProvider.value]?.format ?? "openai");
+  aiBaseUrl.value = await load("ai_base_url", providerPresets[aiProvider.value]?.baseUrl ?? "");
+  aiApiKey.value = await load("ai_api_key", "");
+  aiModel.value = await load("ai_model", providerPresets[aiProvider.value]?.models?.[0] ?? "gpt-4o-mini");
+  aiTone.value = await load("ai_tone", "academic");
+  aiToneCustom.value = await load("ai_tone_custom", "");
+  aiIntensity.value = Number(await load("ai_tone_intensity", "3"));
+  aiConnStatus.value = await load("ai_connection_status", "");
+  aiConnCheckedAt.value = await load("ai_connection_checked_at", "");
+
   statsEnabled.value = (await load("privacy_anonymous_stats", "0")) === "1";
   expMood.value = (await load("exp_mood_checkin", "1")) === "1";
   expPersona.value = (await load("exp_persona", "0")) === "1";
@@ -438,32 +520,137 @@ const showAIPayload = ref(false);
       <!-- AI 助手 -->
       <div v-if="activeSection === 'ai'" class="fl-set-group">
         <h2>AI 助手</h2>
-        <div class="fl-ai-form">
+
+        <div class="fl-ai-banner">
+          <div>
+            <strong>AI 所有能力默认本地优先，只有调用外部模型时才会出网。</strong>
+            <div class="fl-set-desc">你可以在这里统一控制开关、供应商协议、语气风格与输出强度。</div>
+          </div>
+          <button class="fl-set-btn fl-set-btn-ghost" @click="showAIPrivacy = true">查看隐私说明</button>
+        </div>
+
+        <div class="fl-set-subhead">A. 全局开关</div>
+        <div class="fl-set-row">
+          <div class="fl-set-info">
+            <div class="fl-set-label">启用 AI 助手</div>
+            <div class="fl-set-desc">关闭后，除“测试连接”外的 AI 功能将被统一拦截。</div>
+          </div>
+          <div class="fl-set-control">
+            <button class="fl-toggle" :class="{ 'is-on': aiEnabled }" @click="toggleAiEnabled"><span class="fl-toggle-dot" /></button>
+          </div>
+        </div>
+
+        <div class="fl-set-subhead">B. 连接配置</div>
+        <div class="fl-ai-grid">
           <label class="fl-ai-field">
-            <span>Provider</span>
-            <select v-model="aiProvider" class="fl-ai-input">
-              <option value="compatible">OpenAI 兼容</option>
+            <span>供应商</span>
+            <select v-model="aiProvider" class="fl-ai-input" @change="onProviderChange">
+              <option value="openai">OpenAI</option>
+              <option value="claude">Claude / Anthropic</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="moonshot">Moonshot</option>
+              <option value="qwen">通义千问</option>
+              <option value="gemini">Gemini</option>
               <option value="ollama">Ollama 本地</option>
+              <option value="custom">自定义供应商</option>
             </select>
           </label>
-          <label class="fl-ai-field">
+
+          <label v-if="aiProvider === 'custom'" class="fl-ai-field">
+            <span>协议格式</span>
+            <select v-model="aiApiFormat" class="fl-ai-input">
+              <option value="openai">OpenAI 格式</option>
+              <option value="claude">Claude 格式</option>
+            </select>
+          </label>
+
+          <label class="fl-ai-field" :class="{ 'fl-ai-field-wide': aiProvider !== 'custom' }">
             <span>Base URL</span>
-            <input v-model="aiBaseUrl" class="fl-ai-input" type="text" :placeholder="aiProvider === 'ollama' ? 'http://localhost:11434' : 'https://api.openai.com'" />
+            <input v-model="aiBaseUrl" class="fl-ai-input" type="text" :placeholder="providerPresets[aiProvider]?.baseUrl || 'https://api.example.com'" />
           </label>
-          <label class="fl-ai-field">
+
+          <label v-if="aiProvider !== 'ollama'" class="fl-ai-field">
             <span>API Key</span>
-            <input v-model="aiApiKey" class="fl-ai-input" type="password" placeholder="sk-..." />
+            <input v-model="aiApiKey" class="fl-ai-input" type="password" placeholder="sk-... / claude-..." />
           </label>
+
           <label class="fl-ai-field">
             <span>Model</span>
-            <input v-model="aiModel" class="fl-ai-input" type="text" placeholder="gpt-4o-mini" />
+            <select v-if="providerPresets[aiProvider]?.models?.length" v-model="aiModel" class="fl-ai-input">
+              <option v-for="m in providerPresets[aiProvider].models" :key="m" :value="m">{{ m }}</option>
+            </select>
+            <input v-else v-model="aiModel" class="fl-ai-input" type="text" placeholder="输入模型名，如 gpt-4o-mini" />
           </label>
-          <div class="fl-ai-actions">
-            <button class="fl-set-btn" @click="onSaveAI">保存</button>
-            <button class="fl-set-btn fl-set-btn-ghost" @click="onTestAI">测试连接</button>
-            <button class="fl-set-btn fl-set-btn-ghost" @click="showAIPayload = true">查看发送的数据示例</button>
+        </div>
+
+        <div class="fl-ai-status-row">
+          <div class="fl-ai-status" :class="[`is-${aiConnStatus || 'idle'}`]">
+            <span class="dot" />
+            <span>
+              {{ aiConnStatus === 'success' ? '最近一次连接测试成功' : aiConnStatus === 'fail' ? '最近一次连接测试失败' : '尚未测试连接' }}
+            </span>
           </div>
-          <div v-if="aiTestResult" class="fl-ai-result">{{ aiTestResult }}</div>
+          <div v-if="aiConnCheckedAt" class="fl-ai-status-time">{{ aiConnCheckedAt }}</div>
+        </div>
+
+        <div class="fl-ai-actions">
+          <button class="fl-set-btn" @click="onSaveAI">保存配置</button>
+          <button class="fl-set-btn fl-set-btn-ghost" @click="onTestAI">测试连接</button>
+          <button class="fl-set-btn fl-set-btn-ghost" @click="showAIPayload = true">查看发送的数据示例</button>
+        </div>
+        <div v-if="aiTestResult" class="fl-ai-result">{{ aiTestResult }}</div>
+
+        <div class="fl-set-subhead">C. 语气风格</div>
+        <div class="fl-tone-grid">
+          <button
+            v-for="tone in toneOptions"
+            :key="tone.id"
+            class="fl-tone-card"
+            :class="{ 'is-selected': aiTone === tone.id }"
+            @click="aiTone = tone.id"
+          >
+            <div class="fl-tone-card__head">
+              <span class="fl-tone-card__icon">{{ tone.icon }}</span>
+              <strong>{{ tone.name }}</strong>
+            </div>
+            <div class="fl-tone-card__desc">{{ tone.desc }}</div>
+          </button>
+        </div>
+        <label v-if="aiTone === 'custom'" class="fl-ai-field">
+          <span>自定义风格提示词</span>
+          <textarea v-model="aiToneCustom" class="fl-ai-input fl-ai-textarea" rows="4" placeholder="例如：像一个毒舌但关心我的导师，说话短句、直接指出问题、最后给一个具体行动建议" />
+        </label>
+
+        <div class="fl-set-subhead">D. 输出强度</div>
+        <div class="fl-ai-intensity-card">
+          <div class="fl-ai-intensity-head">
+            <strong>当前强度：Lv.{{ aiIntensity }}</strong>
+            <span>{{ aiIntensity <= 2 ? '更短更克制' : aiIntensity === 3 ? '平衡模式' : '更详细更鼓励' }}</span>
+          </div>
+          <input v-model="aiIntensity" class="fl-ai-intensity-slider" type="range" min="1" max="5" step="1" />
+          <div class="fl-ai-intensity-scale">
+            <span>少话 / 简洁</span>
+            <span>多鼓励 / 详细</span>
+          </div>
+        </div>
+
+        <div class="fl-set-subhead">E. 用量参考</div>
+        <div class="fl-cost-grid">
+          <div class="fl-cost-card">
+            <strong>L1 · 基础能力</strong>
+            <span>任务拆解 / 四象限判断 / 快速改写</span>
+            <p>低消耗，高频使用，建议默认开放。</p>
+          </div>
+          <div class="fl-cost-card">
+            <strong>L2 · 分析能力</strong>
+            <span>每日建议 / 日结算叙事</span>
+            <p>中消耗，中频使用，适合每天 1-3 次。</p>
+          </div>
+          <div class="fl-cost-card">
+            <strong>L3 · 规划能力</strong>
+            <span>周总结 / 长文本复盘</span>
+            <p>高消耗，低频使用，建议每周集中触发。</p>
+          </div>
         </div>
       </div>
 
@@ -717,9 +904,17 @@ const showAIPayload = ref(false);
 .fl-accent-name { flex: 1; }
 .fl-accent-check { color: var(--color-primary); font-weight: var(--fw-bold); }
 
-/* AI form */
-.fl-ai-form { display: flex; flex-direction: column; gap: var(--sp-3); }
+/* AI */
+.fl-ai-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); border: 1px solid var(--color-border);
+  background: var(--color-bg-subtle); border-radius: var(--r-md);
+}
+.fl-ai-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3);
+}
 .fl-ai-field { display: flex; flex-direction: column; gap: var(--sp-1); }
+.fl-ai-field-wide { grid-column: 1 / -1; }
 .fl-ai-field span { font-size: var(--fs-12); color: var(--color-text-muted); }
 .fl-ai-input {
   padding: var(--sp-2) var(--sp-3); border: 1px solid var(--color-border);
@@ -727,10 +922,72 @@ const showAIPayload = ref(false);
   color: var(--color-text-primary); font-size: var(--fs-14); font-family: inherit; outline: none;
 }
 .fl-ai-input:focus { border-color: var(--color-primary); }
-.fl-ai-actions { display: flex; gap: var(--sp-2); }
+.fl-ai-textarea { resize: vertical; min-height: 92px; }
+.fl-ai-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .fl-ai-result {
   font-size: var(--fs-12); color: var(--color-text-secondary);
   padding: var(--sp-2); background: var(--color-bg-subtle); border-radius: var(--r-sm);
+}
+.fl-ai-status-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+}
+.fl-ai-status {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: var(--r-md); font-size: var(--fs-12);
+  background: var(--color-bg-subtle); color: var(--color-text-secondary);
+}
+.fl-ai-status .dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-muted);
+}
+.fl-ai-status.is-success .dot { background: #22c55e; }
+.fl-ai-status.is-fail .dot { background: #ef4444; }
+.fl-ai-status.is-idle .dot { background: #94a3b8; }
+.fl-ai-status-time { font-size: var(--fs-12); color: var(--color-text-muted); }
+.fl-tone-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3);
+}
+.fl-tone-card {
+  padding: var(--sp-3); border: 1px solid var(--color-border); border-radius: var(--r-md);
+  background: transparent; text-align: left; cursor: pointer; transition: all var(--dur-fast);
+}
+.fl-tone-card:hover { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.fl-tone-card.is-selected { border-color: var(--color-primary); background: var(--color-primary-soft); box-shadow: var(--shadow-card); }
+.fl-tone-card__head { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: 6px; }
+.fl-tone-card__icon { font-size: 18px; }
+.fl-tone-card__desc { font-size: var(--fs-12); color: var(--color-text-muted); line-height: 1.5; }
+.fl-ai-intensity-card {
+  padding: var(--sp-4); border: 1px solid var(--color-border); border-radius: var(--r-md);
+  background: var(--color-bg-subtle); display: flex; flex-direction: column; gap: var(--sp-3);
+}
+.fl-ai-intensity-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  font-size: var(--fs-12); color: var(--color-text-secondary);
+}
+.fl-ai-intensity-slider { width: 100%; accent-color: var(--color-primary); }
+.fl-ai-intensity-scale {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: var(--fs-12); color: var(--color-text-muted);
+}
+.fl-cost-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3);
+}
+.fl-cost-card {
+  padding: var(--sp-3); border: 1px solid var(--color-border); border-radius: var(--r-md);
+  background: var(--color-bg-subtle); display: flex; flex-direction: column; gap: 6px;
+}
+.fl-cost-card strong { font-size: var(--fs-14); }
+.fl-cost-card span,
+.fl-cost-card p {
+  margin: 0; font-size: var(--fs-12); color: var(--color-text-muted); line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .fl-ai-banner,
+  .fl-ai-status-row,
+  .fl-ai-intensity-head { flex-direction: column; align-items: stretch; }
+  .fl-ai-grid,
+  .fl-tone-grid,
+  .fl-cost-grid { grid-template-columns: 1fr; }
 }
 
 .fl-set-btn {
