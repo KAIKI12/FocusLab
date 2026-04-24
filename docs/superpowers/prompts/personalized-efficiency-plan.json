@@ -1,0 +1,70 @@
+{
+  "domain": "个性化效率提升",
+  "topic": "个性化效率提升方案",
+  "role": "个性化效率提升方案规划师",
+  "scenario": "用户使用一段时间后（≥2周数据），系统生成一份个性化效率提升方案，指出行为规律和改进切入点",
+  "analysis_dimensions": [
+    "数据客观性",
+    "规律识别深度",
+    "建议个性化程度",
+    "可执行性",
+    "可解析性"
+  ],
+  "directions": [
+    {
+      "id": "time_pattern",
+      "name": "时间模式优化型",
+      "focus": "聚焦何时做什么最高效"
+    },
+    {
+      "id": "habit_building",
+      "name": "习惯建立型",
+      "focus": "聚焦微习惯养成"
+    }
+  ],
+  "input_variables": [
+    "{{user_stats_30days}}",
+    "{{peak_hours}}",
+    "{{avg_focus_per_session}}",
+    "{{task_type_distribution}}",
+    "{{grade_trend}}"
+  ],
+  "output_schema": {
+    "profile_summary": "string，≤80字，描述用户当前整体效率画像",
+    "weak_points": [
+      {
+        "area": "string，薄弱领域名称",
+        "evidence": "string，来自数据的客观依据",
+        "severity": "high | medium | low"
+      }
+    ],
+    "action_plan": [
+      {
+        "title": "string，行动标题",
+        "description": "string，具体执行描述",
+        "difficulty": "easy | medium | hard",
+        "expected_impact": "string，预期改善效果",
+        "time_to_see_result": "string，预计见效时间"
+      }
+    ],
+    "encouragement": "string，个性化激励语"
+  },
+  "output_constraints": {
+    "weak_points_count": "1-3个",
+    "action_plan_count": "2-4条",
+    "objectivity": "只描述可从数据观察的规律，不臆测个人原因",
+    "format": "只返回JSON，不包含任何其他文字"
+  },
+  "prompts": {
+    "time_pattern": {
+      "direction": "时间模式优化型",
+      "version": "1.0",
+      "final_prompt": "你是一位专注于数据驱动的效率顾问。以下是用户过去30天的行为数据：\n\n- 综合统计：{{user_stats_30days}}\n- 高效时间段：{{peak_hours}}\n- 平均单次专注时长：{{avg_focus_per_session}}\n- 任务类型分布：{{task_type_distribution}}\n- 完成质量评级趋势：{{grade_trend}}\n\n请根据以上数据，识别用户的时间使用规律，重点分析「何时做什么任务最高效」的模式，生成一份个性化效率提升方案。\n\n要求：\n1. 只基于数据中可观察的规律进行分析，不臆测个人原因\n2. profile_summary 不超过80字\n3. weak_points 列出1-3个薄弱点，每个需附数据依据\n4. action_plan 给出2-4条具体可执行的时间调度建议\n5. 只返回JSON，不包含任何其他内容\n\n返回格式：\n{\"profile_summary\": \"...\", \"weak_points\": [{\"area\": \"...\", \"evidence\": \"...\", \"severity\": \"high|medium|low\"}], \"action_plan\": [{\"title\": \"...\", \"description\": \"...\", \"difficulty\": \"easy|medium|hard\", \"expected_impact\": \"...\", \"time_to_see_result\": \"...\"}], \"encouragement\": \"...\"}"
+    },
+    "habit_building": {
+      "direction": "习惯建立型",
+      "version": "1.0",
+      "final_prompt": "你是一位专注于行为科学的效率顾问。以下是用户过去30天的行为数据：\n\n- 综合统计：{{user_stats_30days}}\n- 高效时间段：{{peak_hours}}\n- 平均单次专注时长：{{avg_focus_per_session}}\n- 任务类型分布：{{task_type_distribution}}\n- 完成质量评级趋势：{{grade_trend}}\n\n请根据以上数据，识别用户当前行为模式中可强化或需修正的习惯节点，重点聚焦「微习惯养成」方向，生成一份个性化效率提升方案。\n\n要求：\n1. 只基于数据中可观察的规律进行分析，不臆测个人原因\n2. profile_summary 不超过80字\n3. weak_points 列出1-3个习惯薄弱点，每个需附数据依据\n4. action_plan 给出2-4条微习惯建立建议，每条需说明预期见效时间\n5. 只返回JSON，不包含任何其他内容\n\n返回格式：\n{\"profile_summary\": \"...\", \"weak_points\": [{\"area\": \"...\", \"evidence\": \"...\", \"severity\": \"high|medium|low\"}], \"action_plan\": [{\"title\": \"...\", \"description\": \"...\", \"difficulty\": \"easy|medium|hard\", \"expected_impact\": \"...\", \"time_to_see_result\": \"...\"}], \"encouragement\": \"...\"}"
+    }
+  }
+}

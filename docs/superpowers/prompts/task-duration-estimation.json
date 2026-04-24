@@ -1,0 +1,112 @@
+{
+  "meta": {
+    "domain": "任务时长估算",
+    "topic": "任务预估时长建议",
+    "version": "1.0.0",
+    "created": "2026-04-24",
+    "analysis_dimensions": ["估算合理性", "历史数据利用", "置信度透明", "简洁度", "可解析性"]
+  },
+  "input_variables": {
+    "task_name": "{{task_name}}",
+    "task_description": "{{task_description}}",
+    "similar_tasks_history": "{{similar_tasks_history}}",
+    "quadrant": "{{quadrant}}"
+  },
+  "variants": [
+    {
+      "id": "conservative",
+      "name": "保守估算型",
+      "description": "宁可多估，留缓冲，避免时间不足带来的压力",
+      "strategy": "在历史数据基础上上浮20%-30%，优先选择更大的15分钟倍数档位",
+      "prompt": "你是一个任务时长估算助手。请根据以下信息，以保守方式估算任务所需时间（宁可多估，确保留有缓冲）。\n\n任务名称：{{task_name}}\n任务描述：{{task_description}}\n历史相似任务：{{similar_tasks_history}}\n任务象限：{{quadrant}}\n\n估算规则：\n1. estimated_minutes 必须是15的倍数，范围15-480\n2. 保守估算：在参考值基础上上浮20%-30%\n3. confidence 根据历史数据丰富度判断：有充足历史数据=high，有少量数据=medium，无历史数据=low\n4. reasoning 不超过30字，说明估算依据\n5. range.min 为估算值的80%（向下取整到15的倍数），range.max 为估算值的130%（向上取整到15的倍数）\n\n只返回JSON，不返回任何其他内容：\n{\"estimated_minutes\": 数字, \"confidence\": \"high|medium|low\", \"reasoning\": \"...\", \"range\": {\"min\": 数字, \"max\": 数字}}"
+    },
+    {
+      "id": "precise",
+      "name": "精确估算型",
+      "description": "参考历史数据尽量准确，减少估算误差",
+      "strategy": "优先使用历史数据的中位数或平均值，精确匹配最接近的15分钟倍数档位",
+      "prompt": "你是一个任务时长估算助手。请根据以下信息，精确估算任务所需时间（尽量贴近实际，减少误差）。\n\n任务名称：{{task_name}}\n任务描述：{{task_description}}\n历史相似任务：{{similar_tasks_history}}\n任务象限：{{quadrant}}\n\n估算规则：\n1. estimated_minutes 必须是15的倍数，范围15-480\n2. 精确估算：优先参考历史相似任务的实际耗时，取中位数或加权平均后取最近的15分钟倍数\n3. confidence 根据历史数据丰富度判断：有充足历史数据=high，有少量数据=medium，无历史数据=low\n4. reasoning 不超过30字，说明估算依据\n5. range.min 为合理下限（向下取整到15的倍数），range.max 为合理上限（向上取整到15的倍数），反映正常波动范围\n\n只返回JSON，不返回任何其他内容：\n{\"estimated_minutes\": 数字, \"confidence\": \"high|medium|low\", \"reasoning\": \"...\", \"range\": {\"min\": 数字, \"max\": 数字}}"
+    }
+  ],
+  "output_schema": {
+    "type": "object",
+    "required": ["estimated_minutes", "confidence", "reasoning", "range"],
+    "properties": {
+      "estimated_minutes": {
+        "type": "integer",
+        "description": "预估时长（分钟），必须是15的倍数",
+        "minimum": 15,
+        "maximum": 480,
+        "multipleOf": 15
+      },
+      "confidence": {
+        "type": "string",
+        "enum": ["high", "medium", "low"],
+        "description": "置信度：high=有充足历史数据，medium=有少量数据，low=无历史数据"
+      },
+      "reasoning": {
+        "type": "string",
+        "description": "估算依据，不超过30字",
+        "maxLength": 30
+      },
+      "range": {
+        "type": "object",
+        "required": ["min", "max"],
+        "properties": {
+          "min": {
+            "type": "integer",
+            "description": "时长下限（分钟），15的倍数",
+            "multipleOf": 15
+          },
+          "max": {
+            "type": "integer",
+            "description": "时长上限（分钟），15的倍数",
+            "multipleOf": 15
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "input": {
+        "task_name": "写周报",
+        "task_description": "整理本周工作进展，汇总成报告发给上级",
+        "similar_tasks_history": "[{\"name\":\"写周报\",\"actual_minutes\":45},{\"name\":\"写周报\",\"actual_minutes\":30},{\"name\":\"写总结报告\",\"actual_minutes\":60}]",
+        "quadrant": "重要不紧急"
+      },
+      "output_conservative": {
+        "estimated_minutes": 60,
+        "confidence": "high",
+        "reasoning": "历史周报平均38分钟，保守上浮取60分钟",
+        "range": {"min": 45, "max": 75}
+      },
+      "output_precise": {
+        "estimated_minutes": 45,
+        "confidence": "high",
+        "reasoning": "历史周报中位数约45分钟，精确取45",
+        "range": {"min": 30, "max": 60}
+      }
+    },
+    {
+      "input": {
+        "task_name": "学习新框架",
+        "task_description": "学习React Hooks基础用法",
+        "similar_tasks_history": "[]",
+        "quadrant": "重要不紧急"
+      },
+      "output_conservative": {
+        "estimated_minutes": 120,
+        "confidence": "low",
+        "reasoning": "无历史数据，学习类任务保守估算2小时",
+        "range": {"min": 60, "max": 180}
+      },
+      "output_precise": {
+        "estimated_minutes": 90,
+        "confidence": "low",
+        "reasoning": "无历史数据，学习类任务通常1-2小时取中间值",
+        "range": {"min": 60, "max": 120}
+      }
+    }
+  ]
+}
