@@ -6,9 +6,12 @@
  * 右栏下半区:日期输入 + 剩余天数提示 + 备注 CRUD(3 条带日期笔记风格)。
  */
 
-import { Plus, Trash2 } from "lucide-vue-next";
+import { AlertTriangle, Plus, Trash2 } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
 
+import { useAIStore } from "@/stores/useAIStore";
+import type { MilestoneRiskResult } from "@/stores/useAIStore";
+import { useMilestoneSubtasks } from "@/composables/useMilestoneSubtasks";
 import { useGoalStore } from "@/stores/useGoalStore";
 import type { Milestone } from "@/types";
 
@@ -17,9 +20,13 @@ const props = defineProps<{
 }>();
 
 const goals = useGoalStore();
+const ai = useAIStore();
+const { progressOf } = useMilestoneSubtasks();
 const newNote = ref("");
 const adding = ref(false);
 const editingDate = ref<string>("");
+const riskResult = ref<MilestoneRiskResult | null>(null);
+const analyzing = ref(false);
 
 watch(
   () => props.milestone.id,
@@ -37,6 +44,15 @@ const remainingDays = computed<number | null>(() => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return Math.round((target.getTime() - today.getTime()) / 86400000);
+});
+
+/** 是否满足风险预警触发条件：剩余 ≤5 天 且 完成率 < 50% */
+const showRiskTrigger = computed(() => {
+  const rd = remainingDays.value;
+  if (rd === null) return false;
+  const { done, total } = progressOf(props.milestone.id);
+  const rate = total > 0 ? done / total : 0;
+  return rd <= 5 && rate < 0.5;
 });
 
 const notes = computed(() => goals.notesByMilestone[props.milestone.id] ?? []);
@@ -63,6 +79,29 @@ async function onDeleteNote(id: string) {
   await goals.removeNote(props.milestone.id, id);
 }
 
+async function onAnalyzeRisk() {
+  if (!props.milestone.target_date) return;
+  analyzing.value = true;
+  riskResult.value = null;
+  try {
+    const { done, total } = progressOf(props.milestone.id);
+    const rd = remainingDays.value ?? 0;
+    riskResult.value = await ai.milestoneRisk(
+      props.milestone.name,
+      "", // goal_name 从父组件传入最佳，但当前 props 无此字段，留空 AI 仍可分析
+      props.milestone.target_date,
+      rd,
+      done,
+      total,
+      props.milestone.id,
+    );
+  } catch (e) {
+    console.error("[ai] milestone risk failed", e);
+  } finally {
+    analyzing.value = false;
+  }
+}
+
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -87,6 +126,32 @@ function formatDate(iso: string): string {
           <template v-else>已过期 {{ -remainingDays }} 天</template>
         </span>
         <span v-else class="fl-ms-date-hint is-muted">未设置日期</span>
+      </div>
+
+      <!-- 风险预警触发区 -->
+      <div v-if="showRiskTrigger" class="fl-ms-risk-trigger">
+        <button
+          class="fl-ms-risk-btn"
+          type="button"
+          :disabled="analyzing"
+          @click="onAnalyzeRisk"
+        >
+          <AlertTriangle :size="13" />
+          {{ analyzing ? '分析中…' : '⚠️ AI 风险分析' }}
+        </button>
+      </div>
+
+      <!-- 风险结果卡片 -->
+      <div v-if="riskResult" class="fl-ms-risk-card" :data-level="riskResult.risk_level">
+        <div class="fl-ms-risk-head">
+          <span class="fl-ms-risk-badge">
+            {{ riskResult.risk_level === 'high' ? '🔴 高风险' : riskResult.risk_level === 'medium' ? '🟡 中等风险' : '🟢 低风险' }}
+          </span>
+        </div>
+        <p class="fl-ms-risk-summary">{{ riskResult.summary }}</p>
+        <ul class="fl-ms-risk-actions">
+          <li v-for="(action, i) in riskResult.actions" :key="i">{{ action }}</li>
+        </ul>
       </div>
     </section>
 
@@ -127,6 +192,51 @@ function formatDate(iso: string): string {
 </template>
 
 <style scoped>
+/* 风险预警 */
+.fl-ms-risk-trigger { margin-top: var(--sp-2); }
+.fl-ms-risk-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--r-md);
+  border: 1px solid color-mix(in srgb, var(--color-danger, #ef4444) 60%, transparent);
+  background: color-mix(in srgb, var(--color-danger, #ef4444) 8%, transparent);
+  color: var(--color-danger, #ef4444);
+  font-size: 12px; cursor: pointer;
+  transition: background var(--dur-fast);
+}
+.fl-ms-risk-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger, #ef4444) 15%, transparent);
+}
+.fl-ms-risk-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.fl-ms-risk-card {
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) var(--sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-subtle);
+}
+.fl-ms-risk-card[data-level="high"] {
+  border-color: color-mix(in srgb, var(--color-danger, #ef4444) 40%, transparent);
+  background: color-mix(in srgb, var(--color-danger, #ef4444) 5%, var(--color-bg-subtle));
+}
+.fl-ms-risk-card[data-level="medium"] {
+  border-color: color-mix(in srgb, #f59e0b 40%, transparent);
+  background: color-mix(in srgb, #f59e0b 5%, var(--color-bg-subtle));
+}
+.fl-ms-risk-head { margin-bottom: var(--sp-1); }
+.fl-ms-risk-badge { font-size: 12px; font-weight: var(--fw-semibold); }
+.fl-ms-risk-summary {
+  font-size: 12px; color: var(--color-text-secondary);
+  margin: 0 0 var(--sp-2);
+  line-height: 1.5;
+}
+.fl-ms-risk-actions {
+  margin: 0; padding-left: var(--sp-4);
+  font-size: 12px; color: var(--color-text-secondary);
+  display: flex; flex-direction: column; gap: 2px;
+}
+
 .fl-ms-info { display: flex; flex-direction: column; gap: var(--sp-5); }
 
 .fl-ms-info-sec { display: flex; flex-direction: column; gap: var(--sp-2); }

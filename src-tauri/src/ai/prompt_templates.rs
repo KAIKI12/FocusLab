@@ -241,6 +241,76 @@ pub fn milestone_breakdown_prompt(
 }
 
 /// 四象限自动分类模板
+/// 任务预估时长 Prompt（历史数据辅助）
+pub fn task_duration_prompt(
+    task_name: &str,
+    description: &str,
+    similar_history: &str,
+) -> String {
+    format!(
+        "你是一个任务时长预估助手。根据任务信息和历史数据，预估完成该任务所需的专注时长。\n\n\
+        严格返回如下 JSON，不要输出任何其他内容：\n\
+        {{\n\
+          \"estimated_minutes\": 60,\n\
+          \"confidence\": \"medium\",\n\
+          \"reasoning\": \"（≤40字说明预估依据）\",\n\
+          \"range\": {{\n\
+            \"min\": 45,\n\
+            \"max\": 75\n\
+          }}\n\
+        }}\n\n\
+        约束：\n\
+        - estimated_minutes 必须是 15 的倍数，范围 15-480\n\
+        - confidence 只能取 high / medium / low\n\
+        - reasoning 不超过 40 字，用中文\n\
+        - range.min 和 range.max 同样是 15 的倍数\n\
+        - 若历史数据为空，基于任务名称和描述进行合理估算\n\
+        - 只返回 JSON\n\n\
+        输入：\n\
+        - 任务名称：{task_name}\n\
+        - 任务描述：{description}\n\
+        - 历史相似任务（任务名 → 实际用时）：\n{similar_history}"
+    )
+}
+
+/// 里程碑风险预警 Prompt
+pub fn milestone_risk_prompt(
+    milestone_name: &str,
+    goal_name: &str,
+    target_date: &str,
+    remaining_days: i64,
+    done_subtasks: i64,
+    total_subtasks: i64,
+    recent_activity: &str,
+) -> String {
+    format!(
+        "你是一个里程碑进度风险分析助手。请根据以下里程碑信息，分析当前到期风险并给出具体的补救建议。\n\n\
+        严格返回如下 JSON，不要输出任何其他内容：\n\
+        {{\n\
+          \"risk_level\": \"high | medium | low\",\n\
+          \"summary\": \"（≤50字，描述当前风险状况）\",\n\
+          \"actions\": [\n\
+            \"（建议行动1，≤25字）\",\n\
+            \"（建议行动2，≤25字）\"\n\
+          ]\n\
+        }}\n\n\
+        约束：\n\
+        - risk_level 只能取 high / medium / low\n\
+        - summary 不超过50字，禁止使用「失败」「放弃」「完不成」等负面绝对化词汇\n\
+        - summary 应客观描述现状（剩余天数、当前完成率）和主要风险点\n\
+        - actions 数组2-4项，每项不超过25字，必须具体可执行\n\
+        - 若 total_subtasks 为0（无子任务），risk_level 应为 high，并在 actions 中建议先拆解子任务\n\
+        - 只返回 JSON，不输出任何解释或说明\n\n\
+        输入：\n\
+        - 里程碑名称：{milestone_name}\n\
+        - 所属目标：{goal_name}\n\
+        - 截止日期：{target_date}\n\
+        - 剩余天数：{remaining_days} 天\n\
+        - 子任务完成：{done_subtasks} / {total_subtasks} 项\n\
+        - 近7天专注时长：{recent_activity}"
+    )
+}
+
 pub fn classify_quadrant_prompt(task_name: &str, description: &str) -> String {
     format!(
         "你是一个艾森豪威尔矩阵分类助手。请判断以下任务属于哪个象限。\n\n\

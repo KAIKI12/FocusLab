@@ -539,3 +539,143 @@ pub async fn ai_weekly_summary(
     let result = ai.complete(messages, opts).await?;
     Ok(result)
 }
+
+// ---------- AI 任务预估时长 ----------
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EstimateTaskDurationInput {
+    pub task_name: String,
+    pub description: Option<String>,
+}
+
+#[tauri::command]
+pub async fn ai_estimate_task_duration(
+    input: EstimateTaskDurationInput,
+    ai: State<'_, AIService>,
+    db: State<'_, Db>,
+) -> AppResult<String> {
+    let intensity = {
+        let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+        check_ai_enabled(&conn)?;
+        load_intensity(&conn)
+    };
+
+    // 查询历史相似任务的实际用时（按任务名相似度，取最近 10 条）
+    let similar_history: String = {
+        let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+        let task_keyword = format!("%{}%", &input.task_name.chars().take(10).collect::<String>());
+        let mut stmt = conn
+            .prepare(
+                "SELECT t.name, COALESCE(SUM(s.actual_duration_minutes), 0) as total_min
+                 FROM tasks t
+                 JOIN sessions s ON s.task_id = t.id
+                 WHERE t.status = 'completed'
+                   AND s.status = 'completed'
+                   AND (t.name LIKE ?1 OR t.estimated_minutes IS NOT NULL)
+                 GROUP BY t.id
+                 ORDER BY t.updated_at DESC
+                 LIMIT 10",
+            )
+            .map_err(|e| AppError::Custom(e.to_string()))?;
+        let rows: Vec<String> = stmt
+            .query_map(rusqlite::params![task_keyword], |r| {
+                let name: String = r.get(0)?;
+                let mins: i64 = r.get(1)?;
+                Ok(format!("  - {name} → {mins} 分钟"))
+            })
+            .map_err(|e| AppError::Custom(e.to_string()))?
+            .filter_map(|r| r.ok())
+            .collect();
+        if rows.is_empty() {
+            "  （暂无历史数据）".to_string()
+        } else {
+            rows.join("\n")
+        }
+    };
+
+    let description = input.description.as_deref().unwrap_or("");
+    let prompt = prompt_templates::task_duration_prompt(
+        &input.task_name,
+        description,
+        &similar_history,
+    );
+    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let opts = intensity_to_opts(intensity, 200);
+    let result = ai.complete(messages, opts).await?;
+    // 校验：必须包含 estimated_minutes
+    if result.contains("\"estimated_minutes\"") {
+        Ok(result)
+    } else {
+        Ok("{\"estimated_minutes\":30,\"confidence\":\"low\",\"reasoning\":\"AI返回格式异常，已使用默认值\",\"range\":{\"min\":15,\"max\":60}}".to_string())
+    }
+}
+
+// ---------- AI 里程碑风险预警 ----------
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MilestoneRiskInput {
+    pub milestone_name: String,
+    pub goal_name: String,
+    pub target_date: String,
+    pub remaining_days: i64,
+    pub done_subtasks: i64,
+    pub total_subtasks: i64,
+    /// 近 7 天该里程碑关联任务的专注时长描述
+    pub milestone_id: Option<String>,
+}
+
+#[tauri::command]
+pub async fn ai_milestone_risk(
+    input: MilestoneRiskInput,
+    ai: State<'_, AIService>,
+    db: State<'_, Db>,
+) -> AppResult<String> {
+    let intensity = {
+        let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+        check_ai_enabled(&conn)?;
+        load_intensity(&conn)
+    };
+
+    // 查询近 7 天该里程碑关联任务的专注分钟数
+    let recent_activity: String = {
+        let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+        if let Some(ref ms_id) = input.milestone_id {
+            let mins: i64 = conn
+                .query_row(
+                    "SELECT COALESCE(SUM(s.actual_duration_minutes), 0)
+                     FROM sessions s
+                     JOIN tasks t ON t.id = s.task_id
+                     WHERE t.milestone_id = ?1
+                       AND s.status = 'completed'
+                       AND s.start_time >= datetime('now', '-7 days')",
+                    rusqlite::params![ms_id],
+                    |r| r.get(0),
+                )
+                .unwrap_or(0);
+            format!("{mins} 分钟")
+        } else {
+            "暂无记录".to_string()
+        }
+    };
+
+    let prompt = prompt_templates::milestone_risk_prompt(
+        &input.milestone_name,
+        &input.goal_name,
+        &input.target_date,
+        input.remaining_days,
+        input.done_subtasks,
+        input.total_subtasks,
+        &recent_activity,
+    );
+    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let opts = intensity_to_opts(intensity, 300);
+    let result = ai.complete(messages, opts).await?;
+    // 校验：必须含 risk_level
+    if result.contains("\"risk_level\"") {
+        Ok(result)
+    } else {
+        Ok("{\"risk_level\":\"high\",\"summary\":\"当前进度偏慢，存在延期风险\",\"actions\":[\"优先完成最核心子任务\",\"评估是否可调整截止日期\"]}".to_string())
+    }
+}

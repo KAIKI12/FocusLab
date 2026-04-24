@@ -4,10 +4,12 @@
  * task=null 时不渲染(关闭状态)。
  */
 
-import { Save, X } from "lucide-vue-next";
+import { Save, Sparkles, X } from "lucide-vue-next";
 import { ref, watch } from "vue";
 
 import { invokeCmd } from "@/composables/useTauriInvoke";
+import { useAIStore } from "@/stores/useAIStore";
+import type { TaskDurationEstimationResult } from "@/stores/useAIStore";
 import { useGoalStore } from "@/stores/useGoalStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 import type { Milestone, Task } from "@/types";
@@ -17,11 +19,14 @@ const emit = defineEmits<{ close: [] }>();
 
 const tasks = useTaskStore();
 const goals = useGoalStore();
+const ai = useAIStore();
 
 const name = ref("");
 const description = ref("");
 const quadrant = ref("important_not_urgent");
 const estimatedMinutes = ref<number | null>(null);
+const aiEstimation = ref<TaskDurationEstimationResult | null>(null);
+const estimating = ref(false);
 const dueDate = ref("");
 const recurrenceRule = ref("");
 const milestoneId = ref<string | null>(null);
@@ -63,6 +68,22 @@ const quadrants = [
   { value: "not_important_urgent", label: "紧急不重要", cls: "q3" },
   { value: "not_important_not_urgent", label: "不紧急不重要", cls: "q4" },
 ];
+
+async function onAIEstimate() {
+  if (!name.value.trim()) return;
+  estimating.value = true;
+  aiEstimation.value = null;
+  try {
+    const result = await ai.estimateTaskDuration(name.value.trim(), description.value || undefined);
+    aiEstimation.value = result;
+    // 自动填入预估值
+    estimatedMinutes.value = result.estimated_minutes;
+  } catch (e) {
+    console.error("[ai] estimate failed", e);
+  } finally {
+    estimating.value = false;
+  }
+}
 
 async function onSave() {
   if (!props.task || !name.value.trim()) return;
@@ -132,10 +153,28 @@ async function onSave() {
           </fieldset>
 
           <div class="fl-row">
-            <label class="fl-field fl-half">
+            <div class="fl-field fl-half">
               <span class="fl-label">预估(分钟)</span>
-              <input v-model.number="estimatedMinutes" class="fl-input" type="number" min="1" max="480" />
-            </label>
+              <div class="fl-est-row">
+                <input v-model.number="estimatedMinutes" class="fl-input fl-est-input" type="number" min="1" max="480" />
+                <button
+                  type="button"
+                  class="fl-ai-est-btn"
+                  :disabled="!name.trim() || estimating"
+                  :title="estimating ? '预估中…' : 'AI 智能预估时长'"
+                  @click="onAIEstimate"
+                >
+                  <Sparkles :size="13" />
+                </button>
+              </div>
+              <div v-if="aiEstimation" class="fl-ai-est-hint">
+                <span class="fl-ai-est-conf" :data-conf="aiEstimation.confidence">
+                  {{ aiEstimation.confidence === 'high' ? '★★★' : aiEstimation.confidence === 'medium' ? '★★☆' : '★☆☆' }}
+                </span>
+                <span class="fl-ai-est-reasoning">{{ aiEstimation.reasoning }}</span>
+                <span class="fl-ai-est-range">{{ aiEstimation.range.min }}–{{ aiEstimation.range.max }} 分钟</span>
+              </div>
+            </div>
             <label class="fl-field fl-half">
               <span class="fl-label">截止日期</span>
               <input v-model="dueDate" class="fl-input" type="date" />
@@ -356,5 +395,58 @@ async function onSave() {
 .fl-fade-enter-from,
 .fl-fade-leave-to {
   opacity: 0;
+}
+
+/* AI 预估时长 */
+.fl-est-row {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.fl-est-input {
+  flex: 1;
+}
+.fl-ai-est-btn {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 6px 8px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+.fl-ai-est-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+.fl-ai-est-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.fl-ai-est-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+.fl-ai-est-conf {
+  font-family: var(--font-mono);
+  color: var(--color-primary);
+}
+.fl-ai-est-conf[data-conf="low"] { color: var(--color-text-muted); }
+.fl-ai-est-conf[data-conf="medium"] { color: var(--color-text-secondary); }
+.fl-ai-est-conf[data-conf="high"] { color: var(--color-primary); }
+.fl-ai-est-reasoning {
+  flex: 1;
+  min-width: 0;
+}
+.fl-ai-est-range {
+  white-space: nowrap;
+  font-family: var(--font-mono);
 }
 </style>

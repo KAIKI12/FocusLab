@@ -32,6 +32,22 @@ export interface MilestoneBreakdownResult {
   }>;
 }
 
+export interface TaskDurationEstimationResult {
+  estimated_minutes: number;
+  confidence: "high" | "medium" | "low";
+  reasoning: string;
+  range: {
+    min: number;
+    max: number;
+  };
+}
+
+export interface MilestoneRiskResult {
+  risk_level: "high" | "medium" | "low";
+  summary: string;
+  actions: string[];
+}
+
 export const useAIStore = defineStore("ai", () => {
   const loading = ref(false);
   const configured = ref(false);
@@ -258,9 +274,79 @@ export const useAIStore = defineStore("ai", () => {
     }
   }
 
+  async function estimateTaskDuration(
+    taskName: string,
+    description?: string,
+  ): Promise<TaskDurationEstimationResult> {
+    loading.value = true;
+    try {
+      const raw = await invokeCmd<string>("ai_estimate_task_duration", {
+        input: {
+          taskName,
+          description: description ?? undefined,
+        },
+      });
+      const parsed = JSON.parse(raw) as TaskDurationEstimationResult;
+      if (typeof parsed.estimated_minutes !== "number") {
+        throw new Error("AI 返回格式异常");
+      }
+      return parsed;
+    } catch (e) {
+      console.error("[ai] estimateTaskDuration failed", e);
+      return {
+        estimated_minutes: 30,
+        confidence: "low",
+        reasoning: "AI 返回异常，已使用默认预估",
+        range: { min: 15, max: 60 },
+      };
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function milestoneRisk(
+    milestoneName: string,
+    goalName: string,
+    targetDate: string,
+    remainingDays: number,
+    doneSubtasks: number,
+    totalSubtasks: number,
+    milestoneId?: string,
+  ): Promise<MilestoneRiskResult> {
+    loading.value = true;
+    try {
+      const raw = await invokeCmd<string>("ai_milestone_risk", {
+        input: {
+          milestoneName,
+          goalName,
+          targetDate,
+          remainingDays,
+          doneSubtasks,
+          totalSubtasks,
+          milestoneId: milestoneId ?? undefined,
+        },
+      });
+      const parsed = JSON.parse(raw) as MilestoneRiskResult;
+      if (!parsed.risk_level || !Array.isArray(parsed.actions)) {
+        throw new Error("AI 返回格式异常");
+      }
+      return parsed;
+    } catch (e) {
+      console.error("[ai] milestoneRisk failed", e);
+      return {
+        risk_level: "high",
+        summary: "当前进度偏慢，存在延期风险",
+        actions: ["优先完成最核心子任务", "评估是否可调整截止日期"],
+      };
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     loading, configured, configure, testConnection,
     decomposeTask, generateNarrative, dailySuggestions, classifyQuadrant, weeklySummary,
     optimizeQuickNote, unfinishedReminder, taskFeedback, milestoneBreakdown,
+    estimateTaskDuration, milestoneRisk,
   };
 });

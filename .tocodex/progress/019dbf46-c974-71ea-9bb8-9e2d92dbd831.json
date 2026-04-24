@@ -95,8 +95,68 @@
       "id": "f7bb68de36f242b37c9bead2c6a87186",
       "content": "实现前端：MilestoneSubtasks.vue — 接入里程碑拆解",
       "status": "completed"
+    },
+    {
+      "id": "520acc1ae53e142ae1f0275856da7604",
+      "content": "编写 A+B 设计文档：任务预估时长+里程碑风险预警",
+      "status": "completed"
+    },
+    {
+      "id": "a07973101a5a5a5e1fb1717ceff630c7",
+      "content": "用户 review 设计文档",
+      "status": "completed"
+    },
+    {
+      "id": "8aae57d872b5e52d8356cb26bdb5185c",
+      "content": "修复 prompts：deadline-risk-warning.json JSON 语法",
+      "status": "completed"
+    },
+    {
+      "id": "4fdceda8eacb01776e100986d44e6745",
+      "content": "实现后端：prompt_templates.rs — 新增 task_duration_prompt / milestone_risk_prompt",
+      "status": "completed"
+    },
+    {
+      "id": "7c11774a95c135eff7086c326bb3b3f5",
+      "content": "实现后端：ai_commands.rs — 新增 ai_estimate_task_duration / ai_milestone_risk 命令",
+      "status": "completed"
+    },
+    {
+      "id": "93c85c217c3efb1d70a535aac3fed6fb",
+      "content": "注册新命令到 src-tauri/src/lib.rs",
+      "status": "completed"
+    },
+    {
+      "id": "063567ee1d1de39c8630c1be0f659bf2",
+      "content": "cargo check 验证 A+B 后端编译",
+      "status": "completed"
+    },
+    {
+      "id": "7d6f93e393e33661ec7489f7d135d89a",
+      "content": "实现前端：useAIStore.ts — 新增 estimateTaskDuration / milestoneRisk 方法",
+      "status": "completed"
+    },
+    {
+      "id": "c87f96cf5462969e2b6dbf0bb4b44442",
+      "content": "实现前端：TaskEditModal.vue — 接入任务预估时长",
+      "status": "completed"
+    },
+    {
+      "id": "d67b0e6ad673570138bebe35c4accc17",
+      "content": "实现前端：MilestoneInfoPanel.vue — 接入里程碑风险预警",
+      "status": "completed"
+    },
+    {
+      "id": "3f2efb95ef6e51112b10abeda7eab369",
+      "content": "vue-tsc --noEmit 验证前端类型",
+      "status": "completed"
+    },
+    {
+      "id": "8e4881c38e4407a1b9ca1e7cfedf8413",
+      "content": "git commit A+B 实现",
+      "status": "in_progress"
     }
   ],
-  "lastUpdated": 1777035969605,
+  "lastUpdated": 1777037549332,
   "status": "active"
 }

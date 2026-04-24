@@ -155,6 +155,8 @@ pub fn run() {
             commands::ai_commands::ai_unfinished_reminder,
             commands::ai_commands::ai_task_feedback,
             commands::ai_commands::ai_milestone_breakdown,
+            commands::ai_commands::ai_estimate_task_duration,
+            commands::ai_commands::ai_milestone_risk,
             // 数据导出
             commands::export_commands::export_tasks_json,
             commands::export_commands::export_sessions_csv,

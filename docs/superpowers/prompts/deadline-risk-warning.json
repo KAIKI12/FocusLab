@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "domain": "里程碑风险预警",
+    "topic": "到期风险分析与补救建议",
+    "version": "1.0.0",
+    "created": "2026-04-24",
+    "usage": "program-internal",
+    "trigger_condition": "remaining_days <= 5 && completion_rate < 0.5",
+    "analysis_dimensions": ["风险等级判断", "进度缺口量化", "可执行补救建议", "情绪安全", "可解析性"]
+  },
+  "input_variables": {
+    "milestone_name": "{{milestone_name}}",
+    "goal_name": "{{goal_name}}",
+    "target_date": "{{target_date}}",
+    "remaining_days": "{{remaining_days}}",
+    "done_subtasks": "{{done_subtasks}}",
+    "total_subtasks": "{{total_subtasks}}",
+    "recent_activity": "{{recent_activity}}"
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["risk_level", "summary", "actions"],
+    "properties": {
+      "risk_level": {
+        "type": "string",
+        "enum": ["high", "medium", "low"],
+        "description": "风险等级：high=极可能延期，medium=有风险但可控，low=尚在轨道"
+      },
+      "summary": {
+        "type": "string",
+        "description": "≤50字，描述当前风险状况，不使用「失败」「放弃」等词",
+        "maxLength": 50
+      },
+      "actions": {
+        "type": "array",
+        "description": "2-4条具体可执行建议，每条≤25字",
+        "minItems": 2,
+        "maxItems": 4,
+        "items": {
+          "type": "string",
+          "maxLength": 25
+        }
+      }
+    }
+  },
+  "final_prompt": "你是一个里程碑进度风险分析助手。请根据以下里程碑信息，分析当前到期风险并给出具体的补救建议。\n\n【输出规则】\n严格返回如下 JSON，不要输出任何其他内容：\n{\n  \"risk_level\": \"high | medium | low\",\n  \"summary\": \"（≤50字，描述当前风险状况）\",\n  \"actions\": [\n    \"（建议行动1，≤25字）\",\n    \"（建议行动2，≤25字）\"\n  ]\n}\n\n【约束】\n- risk_level 只能取 high / medium / low\n- summary 不超过50字，禁止使用「失败」「放弃」「完不成」等负面绝对化词汇\n- summary 应客观描述现状（剩余天数、当前完成率）和主要风险点\n- actions 数组2-4项，每项不超过25字，必须具体可执行\n- 若 total_subtasks 为0（无子任务），risk_level 应为 high，并在 actions 中建议先拆解子任务\n- 只返回 JSON，不输出任何解释或说明\n\n输入：\n- 里程碑名称：{{milestone_name}}\n- 所属目标：{{goal_name}}\n- 截止日期：{{target_date}}\n- 剩余天数：{{remaining_days}} 天\n- 子任务完成：{{done_subtasks}} / {{total_subtasks}} 项\n- 近7天专注时长：{{recent_activity}}"
+}
