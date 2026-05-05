@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusLab · 灵感速记 · 三方案 Demo</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --bg-elevated: #ffffff;
+    --bg-subtle: #f8f9fb;
+    --bg-hover: #eef0f3;
+    --border: #e5e7eb;
+    --divider: #f0f1f4;
+    --text: #1a1d23;
+    --text-2: #4b5563;
+    --text-muted: #9ca3af;
+    --primary: #5b6cff;
+    --primary-soft: #eef0ff;
+    --primary-dark: #3946d4;
+    --success: #16a34a;
+    --success-soft: #dcfce7;
+    --warn: #f59e0b;
+    --warn-soft: #fef3c7;
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-modal: 0 20px 50px rgba(0,0,0,0.18);
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 14px;
+    --r-pill: 999px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+
+  /* ---------- 页面外壳 ---------- */
+  .doc-wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+  .doc-head {
+    margin-bottom: 36px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .doc-head h1 {
+    margin: 0 0 8px;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.4px;
+  }
+  .doc-head p {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 14px;
+    max-width: 720px;
+  }
+  .doc-toc {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .doc-toc a {
+    padding: 5px 12px;
+    border-radius: var(--r-pill);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    font-size: 12px;
+    text-decoration: none;
+  }
+  .doc-toc a:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+
+  /* ---------- 方案 section ---------- */
+  .opt {
+    margin-top: 56px;
+  }
+  .opt-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .opt-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .opt-tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: var(--r-pill);
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+  }
+  .opt-sub {
+    color: var(--text-2);
+    font-size: 13px;
+    margin: 4px 0 0;
+  }
+  .opt-bullets {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .opt-bullets span {
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .opt-bullets span::before {
+    content: "·";
+    color: var(--text-muted);
+    margin-right: 6px;
+  }
+
+  /* ---------- mockup frame ---------- */
+  .frame {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    margin-top: 16px;
+  }
+  .frame-bar {
+    height: 36px;
+    border-bottom: 1px solid var(--divider);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 8px;
+    background: linear-gradient(180deg, #fafbfc, #f4f5f7);
+  }
+  .frame-dots { display: flex; gap: 6px; }
+  .frame-dot { width: 10px; height: 10px; border-radius: 50%; background: #d4d7dc; }
+  .frame-dot.r { background: #ff5f57; }
+  .frame-dot.y { background: #ffbd2e; }
+  .frame-dot.g { background: #28c840; }
+  .frame-url {
+    flex: 1;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: ui-monospace, SF Mono, Menlo, monospace;
+  }
+
+  .app {
+    display: flex;
+    height: 640px;
+    background: var(--bg);
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sb {
+    width: 200px;
+    background: var(--bg-elevated);
+    border-right: 1px solid var(--border);
+    padding: 20px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .sb-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px 18px;
+  }
+  .sb-logo {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary), #818cff);
+    color: #fff;
+    display: grid; place-items: center;
+    font-size: 12px; font-weight: 700;
+  }
+  .sb-name {
+    font-size: 15px; font-weight: 600;
+  }
+  .sb-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    color: var(--text-2);
+    font-size: 13px;
+    cursor: default;
+  }
+  .sb-item:hover { background: var(--bg-hover); }
+  .sb-item.is-active {
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    font-weight: 500;
+  }
+  .sb-item.is-new {
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    font-weight: 500;
+    position: relative;
+  }
+  .sb-item.is-new::after {
+    content: "新";
+    position: absolute;
+    right: 8px;
+    font-size: 9px;
+    background: var(--primary);
+    color: #fff;
+    padding: 1px 5px;
+    border-radius: var(--r-pill);
+  }
+  .sb-icon { font-size: 14px; width: 16px; text-align: center; }
+
+  /* ---------- 主区域通用 ---------- */
+  .main {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .pg {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 32px;
+  }
+  .pg-head {
+    margin-bottom: 18px;
+  }
+  .pg-title {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .pg-sub {
+    color: var(--text-2);
+    font-size: 13px;
+    margin: 4px 0 0;
+  }
+
+  /* ---------- 输入区(多个方案复用) ---------- */
+  .inp {
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--bg-elevated);
+    box-shadow: var(--shadow-card);
+    margin-bottom: 24px;
+    position: relative;
+  }
+  .inp::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary), transparent);
+    border-radius: var(--r-md) var(--r-md) 0 0;
+  }
+  .inp-text {
+    padding: 14px 16px 6px;
+    color: var(--text-muted);
+    font-size: 13px;
+    min-height: 48px;
+    line-height: 1.65;
+  }
+  .inp-text.has-content { color: var(--text); }
+  .inp-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px 8px 16px;
+    border-top: 1px solid var(--divider);
+  }
+  .inp-tip { color: var(--text-muted); font-size: 11px; }
+  .inp-actions { display: flex; gap: 8px; }
+  .btn {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    cursor: default;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-ghost { background: transparent; color: var(--text-2); }
+  .btn-secondary { background: var(--bg-hover); color: var(--text); border-color: var(--border); }
+  .btn-primary { background: var(--primary); color: #fff; }
+
+  /* ---------- 卡片(灵感) ---------- */
+  .card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 14px 14px 12px;
+    box-shadow: var(--shadow-card);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+  }
+  .card.is-converted {
+    opacity: 0.65;
+    background: var(--bg-subtle);
+  }
+  .card.is-new {
+    border-color: var(--primary);
+    background: linear-gradient(135deg, var(--primary-soft) 0%, var(--bg-elevated) 50%);
+  }
+  .card-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .card-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 7px;
+    border-radius: var(--r-pill);
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .card-tag-done { background: var(--success-soft); color: var(--success); }
+  .card-tag-ai   { background: var(--primary-soft); color: var(--primary-dark); }
+  .card-tag-new  { background: var(--warn-soft);    color: #b45309; }
+
+  /* ============================================================
+     方案 A: 独立页面 + 卡片墙(3 列网格)
+     ============================================================ */
+  .a-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .a-section-label {
+    margin: 18px 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .a-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .a-search {
+    flex: 1;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    border-radius: var(--r-pill);
+    padding: 5px 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .a-pill {
+    padding: 4px 10px;
+    border-radius: var(--r-pill);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .a-pill.is-active { background: var(--primary-soft); color: var(--primary-dark); border-color: var(--primary-soft); }
+
+  /* ============================================================
+     方案 B: Panel 升格(单列纵向 + 简朴)
+     ============================================================ */
+  .b-pg { max-width: 720px; margin: 0 auto; }
+  .b-list { display: flex; flex-direction: column; gap: 10px; }
+  .b-card {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+  }
+  .b-card-body { flex: 1; }
+  .b-card-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+    margin: 0 0 6px;
+  }
+  .b-card-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .b-card-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .b-action {
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    background: var(--bg-hover);
+    color: var(--text-2);
+    display: grid; place-items: center;
+    font-size: 11px;
+  }
+  .b-action.is-primary { background: var(--primary-soft); color: var(--primary-dark); }
+
+  /* ============================================================
+     方案 C: 双栏沉浸 quick-note 全页
+     ============================================================ */
+  .c-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 24px;
+    height: 100%;
+  }
+  .c-stage { min-width: 0; }
+  .c-stage .inp .inp-text { min-height: 100px; }
+  .c-cand-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .c-cand {
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--bg-elevated);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+  .c-cand.is-picked {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(91, 108, 255, 0.12);
+  }
+  .c-cand-head {
+    padding: 8px 10px;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--divider);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .c-cand-body {
+    padding: 10px;
+    font-size: 11px;
+    color: var(--text);
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .c-cand-chip {
+    margin-left: auto;
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    padding: 1px 6px;
+    border-radius: var(--r-pill);
+    font-size: 9px;
+    font-weight: 500;
+  }
+  .c-rail {
+    border-left: 1px solid var(--divider);
+    padding-left: 20px;
+    overflow-y: auto;
+  }
+  .c-rail-h {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .c-rail .card { padding: 10px 12px; }
+  .c-rail .card-text { font-size: 12px; -webkit-line-clamp: 3; }
+  .c-rail-list { display: flex; flex-direction: column; gap: 8px; }
+
+  /* ---------- 比较矩阵 ---------- */
+  .matrix {
+    margin-top: 64px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 24px 28px;
+  }
+  .matrix h2 { margin: 0 0 16px; font-size: 18px; font-weight: 600; }
+  .matrix table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .matrix th, .matrix td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--divider);
+  }
+  .matrix th {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 12px;
+    background: var(--bg-subtle);
+  }
+  .matrix td:first-child { color: var(--text-2); width: 22%; }
+  .matrix .yes { color: var(--success); }
+  .matrix .no  { color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="doc-wrap">
+  <header class="doc-head">
+    <h1>💡 灵感速记 · 三方案视觉对比</h1>
+    <p>三种把"灵感速记"做成左侧独立功能的实现路径,直接看 mockup 选一个。每个方案都用同一组示意数据,排除内容干扰,只看布局。</p>
+    <div class="doc-toc">
+      <a href="#a">方案 A · 独立页 + 卡片墙</a>
+      <a href="#b">方案 B · Panel 升格</a>
+      <a href="#c">方案 C · 双栏沉浸</a>
+      <a href="#cmp">差异速查表</a>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       方案 A
+       ============================================================ -->
+  <section class="opt" id="a">
+    <div class="opt-head">
+      <div>
+        <h2 class="opt-title">
+          <span class="opt-tag">A · 推荐</span>
+          独立页面 + 网格卡片墙
+        </h2>
+        <p class="opt-sub">侧边栏新加一项「💡 灵感」,点开是独立页面。顶部输入区 + 工具栏,下方 3 列卡片网格,完整呈现所有历史。</p>
+        <div class="opt-bullets">
+          <span>路由 /inspirations</span>
+          <span>3 列网格,可滚动</span>
+          <span>支持搜索/筛选</span>
+          <span>Modal 入口照旧保留</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <div class="frame-bar">
+        <div class="frame-dots"><i class="frame-dot r"></i><i class="frame-dot y"></i><i class="frame-dot g"></i></div>
+        <div class="frame-url">FocusLab — 灵感速记</div>
+      </div>
+      <div class="app">
+        <!-- Sidebar -->
+        <aside class="sb">
+          <div class="sb-brand">
+            <div class="sb-logo">FL</div>
+            <div class="sb-name">FocusLab</div>
+          </div>
+          <div class="sb-item"><span class="sb-icon">📅</span><span>今日</span></div>
+          <div class="sb-item"><span class="sb-icon">🎯</span><span>长线目标</span></div>
+          <div class="sb-item is-new"><span class="sb-icon">💡</span><span>灵感</span></div>
+          <div class="sb-item"><span class="sb-icon">🗓️</span><span>日历</span></div>
+          <div class="sb-item"><span class="sb-icon">📊</span><span>数据洞察</span></div>
+          <div class="sb-item"><span class="sb-icon">📦</span><span>搁置区</span></div>
+          <div class="sb-item"><span class="sb-icon">🏆</span><span>成就</span></div>
+          <div class="sb-item"><span class="sb-icon">👤</span><span>人格</span></div>
+          <div class="sb-item"><span class="sb-icon">⚙️</span><span>设置</span></div>
+        </aside>
+
+        <!-- Main -->
+        <div class="main">
+          <div class="pg">
+            <div class="pg-head">
+              <h3 class="pg-title">💡 灵感速记</h3>
+              <p class="pg-sub">所有冒出来的想法都在这里 · 共 24 条 · 已转任务 8 条</p>
+            </div>
+
+            <!-- 输入区 -->
+            <div class="inp">
+              <div class="inp-text">随手记下一个想法… (⌘↵ 保存,⌘⇧A 让 AI 整理)</div>
+              <div class="inp-foot">
+                <span class="inp-tip">支持关键词、半句话、跳跃表达</span>
+                <div class="inp-actions">
+                  <button class="btn btn-secondary">✨ AI 整理</button>
+                  <button class="btn btn-primary">+ 保存</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 工具栏 -->
+            <div class="a-toolbar">
+              <div class="a-search">🔍  搜索灵感…</div>
+              <span class="a-pill is-active">全部</span>
+              <span class="a-pill">未处理</span>
+              <span class="a-pill">已转任务</span>
+            </div>
+
+            <div class="a-section-label">今天</div>
+            <div class="a-grid">
+              <article class="card is-new">
+                <p class="card-text">明天先和导师过一下实验设计,登录页卡顿的原因别忘了查,还有周五汇报可能要先列个结构。</p>
+                <div class="card-meta">
+                  <span>刚刚</span>
+                  <span class="card-tag card-tag-new">最新</span>
+                </div>
+              </article>
+              <article class="card">
+                <p class="card-text">想到一个产品点:番茄钟结束时让用户用一个 emoji 标记当下心情,生成一周心情曲线。</p>
+                <div class="card-meta">
+                  <span>2 小时前</span>
+                  <span class="card-tag card-tag-ai">AI 整理过</span>
+                </div>
+              </article>
+              <article class="card is-converted">
+                <p class="card-text">买咖啡豆 + 测试新滤纸的萃取参数,周末一起试一下。</p>
+                <div class="card-meta">
+                  <span>5 小时前</span>
+                  <span class="card-tag card-tag-done">✓ 已转任务</span>
+                </div>
+              </article>
+            </div>
+
+            <div class="a-section-label">昨天</div>
+            <div class="a-grid">
+              <article class="card">
+                <p class="card-text">读到 Andrej Karpathy 关于评估方法的分享,值得整理成笔记,核心是"先把测试集做对"。</p>
+                <div class="card-meta">
+                  <span>昨天 23:14</span>
+                </div>
+              </article>
+              <article class="card is-converted">
+                <p class="card-text">把组里那个老的 ETL 脚本重写一下,Python 改 Rust 看看性能差多少。</p>
+                <div class="card-meta">
+                  <span>昨天 16:02</span>
+                  <span class="card-tag card-tag-done">✓ 已转任务</span>
+                </div>
+              </article>
+              <article class="card">
+                <p class="card-text">下次组会想提一下那个 contrastive learning 的简化方案,先把实验脚本起一下。</p>
+                <div class="card-meta">
+                  <span>昨天 10:33</span>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       方案 B
+       ============================================================ -->
+  <section class="opt" id="b">
+    <div class="opt-head">
+      <div>
+        <h2 class="opt-title">
+          <span class="opt-tag">B · 最省事</span>
+          Panel 升格(单列简朴流)
+        </h2>
+        <p class="opt-sub">直接把现有的 InspirationPanel 抽成独立页面,中间 720px 单列纵向,卡片宽长条样式,信息密度更高,无需重写组件。</p>
+        <div class="opt-bullets">
+          <span>路由 /inspirations</span>
+          <span>单列纵向流</span>
+          <span>复用现有样式</span>
+          <span>没有 AI 候选区</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <div class="frame-bar">
+        <div class="frame-dots"><i class="frame-dot r"></i><i class="frame-dot y"></i><i class="frame-dot g"></i></div>
+        <div class="frame-url">FocusLab — 灵感速记</div>
+      </div>
+      <div class="app">
+        <aside class="sb">
+          <div class="sb-brand">
+            <div class="sb-logo">FL</div>
+            <div class="sb-name">FocusLab</div>
+          </div>
+          <div class="sb-item"><span class="sb-icon">📅</span><span>今日</span></div>
+          <div class="sb-item"><span class="sb-icon">🎯</span><span>长线目标</span></div>
+          <div class="sb-item is-new"><span class="sb-icon">💡</span><span>灵感</span></div>
+          <div class="sb-item"><span class="sb-icon">🗓️</span><span>日历</span></div>
+          <div class="sb-item"><span class="sb-icon">📊</span><span>数据洞察</span></div>
+          <div class="sb-item"><span class="sb-icon">📦</span><span>搁置区</span></div>
+          <div class="sb-item"><span class="sb-icon">🏆</span><span>成就</span></div>
+          <div class="sb-item"><span class="sb-icon">👤</span><span>人格</span></div>
+          <div class="sb-item"><span class="sb-icon">⚙️</span><span>设置</span></div>
+        </aside>
+
+        <div class="main">
+          <div class="pg">
+            <div class="b-pg">
+              <div class="pg-head">
+                <h3 class="pg-title">💡 灵感</h3>
+                <p class="pg-sub">共 24 条 · 8 条已转任务</p>
+              </div>
+
+              <div class="inp">
+                <div class="inp-text">随手记下一个想法… (⌘↵ 保存)</div>
+                <div class="inp-foot">
+                  <span class="inp-tip">0 / 500</span>
+                  <div class="inp-actions">
+                    <button class="btn btn-primary">+ 保存灵感</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="b-list">
+                <div class="b-card">
+                  <div class="b-card-body">
+                    <p class="b-card-text">明天先和导师过一下实验设计,登录页卡顿的原因别忘了查,还有周五汇报可能要先列个结构。</p>
+                    <div class="b-card-meta">
+                      <span>刚刚</span>
+                      <span class="card-tag card-tag-new">最新</span>
+                    </div>
+                  </div>
+                  <div class="b-card-actions">
+                    <div class="b-action is-primary">→</div>
+                    <div class="b-action">✕</div>
+                  </div>
+                </div>
+
+                <div class="b-card">
+                  <div class="b-card-body">
+                    <p class="b-card-text">想到一个产品点:番茄钟结束时让用户用一个 emoji 标记当下心情,生成一周心情曲线。也许可以接到现有的 mood-check。</p>
+                    <div class="b-card-meta">
+                      <span>2 小时前</span>
+                      <span class="card-tag card-tag-ai">AI 整理过</span>
+                    </div>
+                  </div>
+                  <div class="b-card-actions">
+                    <div class="b-action is-primary">→</div>
+                    <div class="b-action">✕</div>
+                  </div>
+                </div>
+
+                <div class="b-card" style="opacity:0.65;background:var(--bg-subtle);">
+                  <div class="b-card-body">
+                    <p class="b-card-text">买咖啡豆 + 测试新滤纸的萃取参数,周末一起试一下。</p>
+                    <div class="b-card-meta">
+                      <span>5 小时前</span>
+                      <span class="card-tag card-tag-done">✓ 已转任务</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="b-card">
+                  <div class="b-card-body">
+                    <p class="b-card-text">读到 Andrej Karpathy 关于评估方法的分享,值得整理成笔记,核心是"先把测试集做对"。</p>
+                    <div class="b-card-meta">
+                      <span>昨天 23:14</span>
+                    </div>
+                  </div>
+                  <div class="b-card-actions">
+                    <div class="b-action is-primary">→</div>
+                    <div class="b-action">✕</div>
+                  </div>
+                </div>
+
+                <div class="b-card" style="opacity:0.65;background:var(--bg-subtle);">
+                  <div class="b-card-body">
+                    <p class="b-card-text">把组里那个老的 ETL 脚本重写一下,Python 改 Rust 看看性能差多少。</p>
+                    <div class="b-card-meta">
+                      <span>昨天 16:02</span>
+                      <span class="card-tag card-tag-done">✓ 已转任务</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       方案 C
+       ============================================================ -->
+  <section class="opt" id="c">
+    <div class="opt-head">
+      <div>
+        <h2 class="opt-title">
+          <span class="opt-tag">C · 最沉浸</span>
+          双栏全页(quick-note 原型版)
+        </h2>
+        <p class="opt-sub">仿原型 quick-note.html。左主区是输入 + AI 三版候选(同页连续流),右栏 280px 固定历史卡片墙,边写边看历史。</p>
+        <div class="opt-bullets">
+          <span>路由 /inspirations</span>
+          <span>左主区 + 右栏并行</span>
+          <span>AI 整理是主角</span>
+          <span>历史在视野内</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <div class="frame-bar">
+        <div class="frame-dots"><i class="frame-dot r"></i><i class="frame-dot y"></i><i class="frame-dot g"></i></div>
+        <div class="frame-url">FocusLab — 灵感速记</div>
+      </div>
+      <div class="app">
+        <aside class="sb">
+          <div class="sb-brand">
+            <div class="sb-logo">FL</div>
+            <div class="sb-name">FocusLab</div>
+          </div>
+          <div class="sb-item"><span class="sb-icon">📅</span><span>今日</span></div>
+          <div class="sb-item"><span class="sb-icon">🎯</span><span>长线目标</span></div>
+          <div class="sb-item is-new"><span class="sb-icon">💡</span><span>灵感</span></div>
+          <div class="sb-item"><span class="sb-icon">🗓️</span><span>日历</span></div>
+          <div class="sb-item"><span class="sb-icon">📊</span><span>数据洞察</span></div>
+          <div class="sb-item"><span class="sb-icon">📦</span><span>搁置区</span></div>
+          <div class="sb-item"><span class="sb-icon">🏆</span><span>成就</span></div>
+          <div class="sb-item"><span class="sb-icon">👤</span><span>人格</span></div>
+          <div class="sb-item"><span class="sb-icon">⚙️</span><span>设置</span></div>
+        </aside>
+
+        <div class="main">
+          <div class="pg" style="padding:24px 28px;">
+            <div class="c-layout">
+              <!-- 左:主舞台 -->
+              <div class="c-stage">
+                <div class="pg-head">
+                  <h3 class="pg-title">💡 灵感速记</h3>
+                  <p class="pg-sub">先记 → AI 整理 → 转任务/笔记,同页完成</p>
+                </div>
+
+                <div class="inp">
+                  <div class="inp-text has-content">
+                    明天先和导师过一下实验设计,登录页卡顿的原因别忘了查,还有周五汇报可能要先列个结构。
+                  </div>
+                  <div class="inp-foot">
+                    <span class="inp-tip">支持关键词、半句话、跳跃表达 · 58 / 500</span>
+                    <div class="inp-actions">
+                      <button class="btn btn-secondary">直接保存原文</button>
+                      <button class="btn btn-primary">✨ AI 整理一下</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="a-section-label" style="margin-top:14px;">AI 给了你 3 种整理方式</div>
+                <div class="c-cand-grid">
+                  <article class="c-cand is-picked">
+                    <div class="c-cand-head">
+                      ✓ 方案 A
+                      <span class="c-cand-chip">任务导向</span>
+                    </div>
+                    <div class="c-cand-body">明天需优先推进:与导师确认实验设计;排查登录页卡顿原因;为周五汇报整理简要提纲。</div>
+                  </article>
+                  <article class="c-cand">
+                    <div class="c-cand-head">
+                      ✎ 方案 B
+                      <span class="c-cand-chip">笔记梳理</span>
+                    </div>
+                    <div class="c-cand-body">这条速记主要围绕明天的沟通与后续准备:确认实验设计、排查登录页卡顿、搭好周五汇报结构。</div>
+                  </article>
+                  <article class="c-cand">
+                    <div class="c-cand-head">
+                      ⚡ 方案 C
+                      <span class="c-cand-chip">行动清单</span>
+                    </div>
+                    <div class="c-cand-body">1) 和导师确认实验设计;2) 排查登录页卡顿;3) 整理周五汇报提纲。</div>
+                  </article>
+                </div>
+
+                <div style="margin-top:14px;padding:10px 14px;border-radius:var(--r-md);background:var(--primary-soft);display:flex;align-items:center;justify-content:space-between;font-size:12px;">
+                  <span style="color:var(--primary-dark);font-weight:600;">● 已选 方案 A · 任务导向</span>
+                  <div style="display:flex;gap:6px;">
+                    <button class="btn btn-secondary">继续编辑</button>
+                    <button class="btn btn-secondary">保存笔记</button>
+                    <button class="btn btn-primary">+ 创建任务</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 右:历史卡片墙 -->
+              <aside class="c-rail">
+                <div class="c-rail-h">最近灵感 · 24</div>
+                <div class="c-rail-list">
+                  <article class="card">
+                    <p class="card-text">想到一个产品点:番茄钟结束时让用户用 emoji 标记心情,生成一周曲线。</p>
+                    <div class="card-meta">
+                      <span>2 小时前</span>
+                      <span class="card-tag card-tag-ai">AI</span>
+                    </div>
+                  </article>
+                  <article class="card is-converted">
+                    <p class="card-text">买咖啡豆 + 测试新滤纸萃取参数。</p>
+                    <div class="card-meta">
+                      <span>5 小时前</span>
+                      <span class="card-tag card-tag-done">✓</span>
+                    </div>
+                  </article>
+                  <article class="card">
+                    <p class="card-text">Karpathy 评估方法分享,整理成笔记。"先把测试集做对"。</p>
+                    <div class="card-meta">
+                      <span>昨天 23:14</span>
+                    </div>
+                  </article>
+                  <article class="card is-converted">
+                    <p class="card-text">把组里老的 ETL 脚本重写,Python → Rust。</p>
+                    <div class="card-meta">
+                      <span>昨天 16:02</span>
+                      <span class="card-tag card-tag-done">✓</span>
+                    </div>
+                  </article>
+                  <article class="card">
+                    <p class="card-text">组会提 contrastive learning 简化方案,先起实验脚本。</p>
+                    <div class="card-meta">
+                      <span>昨天 10:33</span>
+                    </div>
+                  </article>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       差异速查表
+       ============================================================ -->
+  <section class="matrix" id="cmp">
+    <h2>📊 差异速查表</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>维度</th>
+          <th>方案 A · 推荐</th>
+          <th>方案 B · 最省事</th>
+          <th>方案 C · 最沉浸</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>布局</td>
+          <td>顶部输入 + 3 列网格</td>
+          <td>720px 单列纵向</td>
+          <td>左主区 + 右侧栏</td>
+        </tr>
+        <tr>
+          <td>卡片密度</td>
+          <td class="yes">中等(网格紧凑)</td>
+          <td>低(单列宽松)</td>
+          <td>右栏小卡 · 主区无</td>
+        </tr>
+        <tr>
+          <td>AI 整理流</td>
+          <td>按钮触发 → 弹 Modal</td>
+          <td class="no">无(沿用 ⌘⇧N)</td>
+          <td class="yes">同页常驻三版候选</td>
+        </tr>
+        <tr>
+          <td>搜索/筛选</td>
+          <td class="yes">支持</td>
+          <td class="no">无</td>
+          <td class="no">无</td>
+        </tr>
+        <tr>
+          <td>时间分组</td>
+          <td class="yes">今天/昨天/本周</td>
+          <td>按时间倒序</td>
+          <td>按时间倒序</td>
+        </tr>
+        <tr>
+          <td>开发成本</td>
+          <td>中等(新建组件)</td>
+          <td class="yes">小(复用 Panel)</td>
+          <td>高(双栏 + AI 流重组)</td>
+        </tr>
+        <tr>
+          <td>合适场景</td>
+          <td>正常浏览/管理灵感</td>
+          <td>极简,只想先跑起来</td>
+          <td>"写下来 → 立刻整理"的工作流</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+
+</body>
+</html>
