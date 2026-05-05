@@ -1,5 +1,16 @@
 # Claude Code / AI assistant 本地设置 (含用户私有权限配置)
 .claude/settings.local.json
+# Claude Code 临时工作树 (不应跟踪)
+.claude/worktrees/
+
+# Codex / 其他 AI 工具的本地状态目录
+.tocodex/
+
+# Cargo 本地构建目录重定向 (因人而异)
+.cargo/
+
+# 个人临时图标残留
+图标1.png
 
 # macOS
 .DS_Store
