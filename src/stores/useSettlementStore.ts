@@ -6,7 +6,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 
 import { invokeCmd } from "@/composables/useTauriInvoke";
-import type { Settlement, SettleInput, YesterdaySummary } from "@/types";
+import type { Settlement, SettleInput, UnsettledYesterday, YesterdaySummary } from "@/types";
 
 export const useSettlementStore = defineStore("settlement", () => {
   const settlement = ref<Settlement | null>(null);
@@ -17,6 +17,10 @@ export const useSettlementStore = defineStore("settlement", () => {
   // 心情打卡前置流程(exp_mood_checkin 开启时)
   const showMoodPrompt = ref(false);
   const pendingInput = ref<SettleInput | null>(null);
+
+  // 昨日未结算补打卡：本次会话内 dismissed 后不再弹
+  const unsettledYesterday = ref<UnsettledYesterday | null>(null);
+  const unsettledDismissed = ref(false);
 
   function readMorningIntent(): number | null {
     const today = new Date().toISOString().slice(0, 10);
@@ -92,17 +96,44 @@ export const useSettlementStore = defineStore("settlement", () => {
     showDialog.value = false;
   }
 
+  /** 启动时检测昨日是否未结算（本次会话已 dismiss 则跳过） */
+  async function checkUnsettledYesterday() {
+    if (unsettledDismissed.value) return;
+    unsettledYesterday.value = await invokeCmd<UnsettledYesterday | null>(
+      "check_unsettled_yesterday",
+    );
+  }
+
+  /** 用户点"稍后再说":本次会话内不再弹 */
+  function dismissUnsettled() {
+    unsettledDismissed.value = true;
+    unsettledYesterday.value = null;
+  }
+
+  /** 补做昨日结算:走 settle 流程并指定 planDate */
+  async function settleYesterday() {
+    const target = unsettledYesterday.value;
+    if (!target) return;
+    await settle({ planDate: target.settleDate, triggerType: "makeup" });
+    unsettledYesterday.value = null;
+  }
+
   return {
     settlement,
     yesterday,
     showDialog,
     settling,
     showMoodPrompt,
+    unsettledYesterday,
+    unsettledDismissed,
     settle,
     confirmMood,
     loadSettlement,
     loadYesterday,
     openYesterdayDialog,
     closeDialog,
+    checkUnsettledYesterday,
+    dismissUnsettled,
+    settleYesterday,
   };
 });

@@ -134,6 +134,107 @@ pub struct StatsOverview {
     pub current_streak: i64,   // 连续结算天数
 }
 
+/// 徽章引擎用的额外统计 — session 级数据 + milestone 完成数
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BadgeExtraStats {
+    pub has_early_session: bool,    // 6-8 时段有完成的 session
+    pub has_night_session: bool,    // 22-2 时段有完成的 session
+    pub has_midnight_session: bool, // 0-3 时段有完成的 session
+    pub has_3am_session: bool,      // 3:00 时段完成的 session
+    pub morning_3_pomodoro_day: bool, // 某日 9-12 时段 ≥3 个番茄
+    pub evening_2_pomodoro_day: bool, // 某日 17-19 时段 ≥2 个番茄
+    pub max_day_focus_minutes: i64,
+    pub has_90min_session: bool,
+    pub free_mode_count: i64,
+    pub zero_interruption_days: i64,
+    pub completed_milestones: i64,
+}
+
+#[tauri::command]
+pub fn get_badge_extra_stats(db: State<'_, Db>) -> AppResult<BadgeExtraStats> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+
+    let has_early: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sessions WHERE status='completed' AND CAST(strftime('%H', start_time) AS INTEGER) BETWEEN 6 AND 7)",
+        [], |r| r.get(0),
+    ).unwrap_or(false);
+
+    let has_night: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sessions WHERE status='completed' AND (CAST(strftime('%H', start_time) AS INTEGER) >= 22 OR CAST(strftime('%H', start_time) AS INTEGER) <= 1))",
+        [], |r| r.get(0),
+    ).unwrap_or(false);
+
+    let has_midnight: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sessions WHERE status='completed' AND CAST(strftime('%H', start_time) AS INTEGER) BETWEEN 0 AND 2)",
+        [], |r| r.get(0),
+    ).unwrap_or(false);
+
+    let has_3am: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sessions WHERE status='completed' AND CAST(strftime('%H', start_time) AS INTEGER) = 3)",
+        [], |r| r.get(0),
+    ).unwrap_or(false);
+
+    let morning_3: bool = conn.query_row(
+        "SELECT EXISTS(
+            SELECT 1 FROM sessions
+            WHERE status='completed' AND mode='pomodoro'
+              AND CAST(strftime('%H', start_time) AS INTEGER) BETWEEN 9 AND 11
+            GROUP BY date(start_time) HAVING COUNT(*) >= 3
+        )", [], |r| r.get(0),
+    ).unwrap_or(false);
+
+    let evening_2: bool = conn.query_row(
+        "SELECT EXISTS(
+            SELECT 1 FROM sessions
+            WHERE status='completed' AND mode='pomodoro'
+              AND CAST(strftime('%H', start_time) AS INTEGER) BETWEEN 17 AND 18
+            GROUP BY date(start_time) HAVING COUNT(*) >= 2
+        )", [], |r| r.get(0),
+    ).unwrap_or(false);
+
+    let max_day_focus: i64 = conn.query_row(
+        "SELECT COALESCE(MAX(dm), 0) FROM (
+            SELECT SUM(actual_duration_minutes) AS dm FROM sessions
+            WHERE status='completed' GROUP BY date(start_time)
+        )", [], |r| r.get(0),
+    ).unwrap_or(0);
+
+    let has_90min: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sessions WHERE status='completed' AND actual_duration_minutes >= 90)",
+        [], |r| r.get(0),
+    ).unwrap_or(false);
+
+    let free_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM sessions WHERE status='completed' AND mode='free'",
+        [], |r| r.get(0),
+    ).unwrap_or(0);
+
+    let zero_int_days: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM settlements WHERE total_interruptions = 0",
+        [], |r| r.get(0),
+    ).unwrap_or(0);
+
+    let completed_ms: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM milestones WHERE status='completed'",
+        [], |r| r.get(0),
+    ).unwrap_or(0);
+
+    Ok(BadgeExtraStats {
+        has_early_session: has_early,
+        has_night_session: has_night,
+        has_midnight_session: has_midnight,
+        has_3am_session: has_3am,
+        morning_3_pomodoro_day: morning_3,
+        evening_2_pomodoro_day: evening_2,
+        max_day_focus_minutes: max_day_focus,
+        has_90min_session: has_90min,
+        free_mode_count: free_count,
+        zero_interruption_days: zero_int_days,
+        completed_milestones: completed_ms,
+    })
+}
+
 /// 总体统计概览
 #[tauri::command]
 pub fn get_stats_overview(days: Option<i64>, db: State<'_, Db>) -> AppResult<StatsOverview> {

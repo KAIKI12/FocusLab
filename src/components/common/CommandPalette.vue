@@ -8,12 +8,18 @@ import { Search, X } from "lucide-vue-next";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
+import { useTheme } from "@/composables/useTheme";
+import {
+  getShortcutDefinition,
+} from "@/shortcuts/definitions";
+import { formatShortcutForPlatform } from "@/shortcuts/display";
+import { detectShortcutPlatform } from "@/shortcuts/platform";
+import { useGoalStore } from "@/stores/useGoalStore";
 import { useSettlementStore } from "@/stores/useSettlementStore";
+import { useShortcutStore } from "@/stores/useShortcutStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
-import { useGoalStore } from "@/stores/useGoalStore";
 import { useUIStore } from "@/stores/useUIStore";
-import { useTheme } from "@/composables/useTheme";
 
 const visible = ref(false);
 const query = ref("");
@@ -25,75 +31,113 @@ const timer = useTimerStore();
 const settlement = useSettlementStore();
 const goals = useGoalStore();
 const ui = useUIStore();
+const shortcutStore = useShortcutStore();
 const router = useRouter();
 const { mode: themeMode, setMode } = useTheme();
+const platform = detectShortcutPlatform(window.navigator.platform);
 
 interface CmdItem {
   id: string;
   label: string;
   hint?: string;
   keys?: string;
-  action: () => void;
+  action: () => void | Promise<void>;
 }
 
-// ---------- 命令定义(对齐 docs/05 §8) ----------
+function commandKeys(actionId: string): string {
+  const binding = shortcutStore.bindings[actionId];
+  return formatShortcutForPlatform(binding?.shortcut ?? null, platform);
+}
 
-const timerCmds: CmdItem[] = [
-  {
-    id: "cmd-pause", label: "暂停 / 继续专注", hint: "焦点", keys: "Space",
-    action: () => { if (timer.isPaused) timer.resume(); else if (timer.isRunning) timer.pause(); },
+const commandActions: Record<string, () => void | Promise<void>> = {
+  "focus.togglePause": async () => {
+    if (timer.isPaused) await timer.resume();
+    else if (timer.isRunning) await timer.pause();
   },
-  {
-    id: "cmd-abandon", label: "结束当前番茄钟", hint: "焦点",
-    action: () => timer.abandon(),
+  "focus.abandonPomodoro": async () => {
+    await timer.abandon();
   },
-];
+  "task.quickAdd": () => {
+    ui.showQuickAdd = true;
+  },
+  "task.quickNote": () => {
+    ui.showQuickNote = true;
+  },
+  "day.settle": async () => {
+    await settlement.settle();
+  },
+  "nav.today": async () => { await router.push("/today"); },
+  "nav.goals": async () => { await router.push("/goals"); },
+  "nav.calendar": async () => { await router.push("/calendar"); },
+  "nav.stats": async () => { await router.push("/stats"); },
+  "nav.settings": async () => { await router.push("/settings"); },
+  "ui.commandPalette": () => {
+    visible.value = !visible.value;
+  },
+  "ui.toggleTheme": () => {
+    setMode(themeMode.value === "dark" ? "light" : "dark");
+  },
+};
 
-const taskCmds: CmdItem[] = [
-  {
-    id: "cmd-add-task", label: "快速添加任务", hint: "任务", keys: "⌘N",
-    action: () => { ui.showQuickAdd = true; },
-  },
-  {
-    id: "cmd-quick-note", label: "速记便签", hint: "任务", keys: "⌘⇧N",
-    action: () => { ui.showQuickNote = true; },
-  },
-  {
-    id: "cmd-settle", label: "结束今天 · 进入日结算", hint: "日结算", keys: "⌘⇧E",
-    action: () => settlement.settle(),
-  },
-  {
-    id: "cmd-yesterday", label: "查看昨日复盘", hint: "日结算",
-    action: () => settlement.loadYesterday(),
-  },
-];
+function createCommandItem(actionId: string): CmdItem {
+  const definition = getShortcutDefinition(actionId);
+  return {
+    id: actionId,
+    label: definition?.label ?? actionId,
+    hint: definition?.group,
+    keys: commandKeys(actionId),
+    action: commandActions[actionId],
+  };
+}
 
-const navCmds: CmdItem[] = [
-  { id: "nav-today", label: "今日计划", hint: "导航", keys: "⌘1", action: () => router.push("/today") },
-  { id: "nav-goals", label: "长线目标", hint: "导航", keys: "⌘2", action: () => router.push("/goals") },
-  { id: "nav-calendar", label: "日历视图", hint: "导航", keys: "⌘3", action: () => router.push("/calendar") },
-  { id: "nav-stats", label: "数据分析", hint: "导航", keys: "⌘4", action: () => router.push("/stats") },
-  { id: "nav-settings", label: "设置", hint: "导航", keys: "⌘,", action: () => router.push("/settings") },
-];
+const timerCmds = computed<CmdItem[]>(() => [
+  createCommandItem("focus.togglePause"),
+  createCommandItem("focus.abandonPomodoro"),
+]);
 
-const settingCmds: CmdItem[] = [
+const taskCmds = computed<CmdItem[]>(() => [
+  createCommandItem("task.quickAdd"),
+  createCommandItem("task.quickNote"),
+  createCommandItem("day.settle"),
   {
-    id: "cmd-toggle-theme", label: "切换深色/浅色主题", hint: "设置", keys: "⌘⇧T",
-    action: () => setMode(themeMode.value === "dark" ? "light" : "dark"),
+    id: "cmd-yesterday",
+    label: "查看昨日复盘",
+    hint: "任务/计划",
+    action: () => settlement.openYesterdayDialog(),
   },
+]);
+
+const navCmds = computed<CmdItem[]>(() => [
+  createCommandItem("nav.today"),
+  createCommandItem("nav.goals"),
+  createCommandItem("nav.calendar"),
+  createCommandItem("nav.stats"),
+  createCommandItem("nav.settings"),
+]);
+
+const settingCmds = computed<CmdItem[]>(() => [
+  createCommandItem("ui.commandPalette"),
+  createCommandItem("ui.toggleTheme"),
   {
-    id: "cmd-toggle-sidebar", label: "切换侧边栏", hint: "设置",
+    id: "cmd-toggle-sidebar",
+    label: "切换侧边栏",
+    hint: "设置/模式",
     action: () => ui.toggleSidebar(),
   },
   {
-    id: "cmd-toggle-sound", label: "切换音效", hint: "设置",
+    id: "cmd-toggle-sound",
+    label: "切换音效",
+    hint: "设置/模式",
     action: () => ui.toggleSound(),
   },
-];
+]);
 
-const allCommands = [...timerCmds, ...taskCmds, ...navCmds, ...settingCmds];
-
-// ---------- 搜索逻辑 ----------
+const allCommands = computed(() => [
+  ...timerCmds.value,
+  ...taskCmds.value,
+  ...navCmds.value,
+  ...settingCmds.value,
+]);
 
 const inputMode = computed(() => {
   const q = query.value;
@@ -122,7 +166,7 @@ const results = computed<CmdItem[]>(() => {
   const q = searchQuery.value;
 
   if (inputMode.value === "command") {
-    return allCommands.filter((c) => !q || c.label.toLowerCase().includes(q));
+    return allCommands.value.filter((c) => !q || c.label.toLowerCase().includes(q));
   }
 
   if (inputMode.value === "task") {
@@ -151,8 +195,7 @@ const results = computed<CmdItem[]>(() => {
       }));
   }
 
-  // mixed: 命令优先 → 任务
-  const cmdResults = allCommands.filter(
+  const cmdResults = allCommands.value.filter(
     (c) => !q || c.label.toLowerCase().includes(q),
   );
   const taskResults = tasks.tasks
@@ -179,20 +222,14 @@ watch(visible, (v) => {
 
 watch(results, () => { selectedIndex.value = 0; });
 
-function onKeydown(e: KeyboardEvent) {
-  // ⌘⇧N 或 Ctrl+Shift+N 速记便签
-  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "N") {
-    e.preventDefault();
-    ui.showQuickNote = true;
-    visible.value = false;
-    return;
-  }
-  // ⌘/ 或 Ctrl+/ 唤起
-  if ((e.metaKey || e.ctrlKey) && e.key === "/") {
-    e.preventDefault();
+function onShortcutEvent(event: Event) {
+  const shortcutEvent = event as CustomEvent<{ actionId?: string }>;
+  if (shortcutEvent.detail?.actionId === "ui.commandPalette") {
     visible.value = !visible.value;
-    return;
   }
+}
+
+function onKeydown(e: KeyboardEvent) {
   if (!visible.value) return;
   if (e.key === "Escape") { visible.value = false; return; }
   if (e.key === "ArrowDown") {
@@ -208,8 +245,15 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => window.addEventListener("keydown", onKeydown));
-onUnmounted(() => window.removeEventListener("keydown", onKeydown));
+onMounted(() => {
+  window.addEventListener("keydown", onKeydown);
+  window.addEventListener("focuslab:shortcut", onShortcutEvent as EventListener);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKeydown);
+  window.removeEventListener("focuslab:shortcut", onShortcutEvent as EventListener);
+});
 
 function selectItem(item: CmdItem) {
   item.action();
@@ -413,3 +457,4 @@ function selectItem(item: CmdItem) {
 .fl-fade-enter-from,
 .fl-fade-leave-to { opacity: 0; }
 </style>
+

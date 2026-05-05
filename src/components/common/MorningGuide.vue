@@ -1,16 +1,18 @@
 <script setup lang="ts">
 /**
- * MorningGuide · 晨起 5 步引导思考 — 对齐 prototype/onboarding/morning-guide.html。
+ * MorningGuide · 晨起 6 步引导思考 — 对齐 prototype/onboarding/morning-guide.html。
  * Step 1: 回顾昨日 · Step 2: 长线目标 · Step 3: 固定日程
- * Step 4: AI 建议 · Step 5: 能量状态
+ * Step 4: AI 建议 · Step 5: 能量状态 · Step 6: 推荐任务（一键加入今日计划）
  */
 
 import { computed, ref } from "vue";
 
 import { useFixedSchedule } from "@/composables/useFixedSchedule";
 import { useAIStore } from "@/stores/useAIStore";
+import { useAssignmentStore } from "@/stores/useAssignmentStore";
 import { useGoalStore } from "@/stores/useGoalStore";
 import { useSettlementStore } from "@/stores/useSettlementStore";
+import { useTaskStore } from "@/stores/useTaskStore";
 
 defineProps<{ visible: boolean }>();
 const emit = defineEmits<{ close: [] }>();
@@ -18,6 +20,8 @@ const emit = defineEmits<{ close: [] }>();
 const settlement = useSettlementStore();
 const goals = useGoalStore();
 const ai = useAIStore();
+const tasks = useTaskStore();
+const assignments = useAssignmentStore();
 const { byWeekday, totalMinutesForWeekday } = useFixedSchedule();
 
 // Step 3 · 固定日程数据
@@ -36,6 +40,38 @@ const energyLevel = ref<string | null>(null);
 const aiSuggestion = ref("");
 const loadingAI = ref(false);
 
+// Step 6 · 推荐任务
+const selectedTaskIds = ref<Set<string>>(new Set());
+const addingTasks = ref(false);
+const tasksAdded = ref(false);
+
+/** 取前 3 条待办任务：优先重要紧急象限，其次按有预估时长排序 */
+const recommendedTasks = computed(() => {
+  const pending = tasks.tasks.filter(
+    (t) => t.status === "pending" || t.status === "in_progress"
+  );
+  const sorted = [...pending].sort((a, b) => {
+    const qScore = (q: string) => (q === "important_urgent" ? 0 : q === "important_not_urgent" ? 1 : 2);
+    const qs = qScore(a.quadrant ?? "") - qScore(b.quadrant ?? "");
+    if (qs !== 0) return qs;
+    const ae = a.estimated_minutes ?? 0;
+    const be = b.estimated_minutes ?? 0;
+    return be - ae;
+  });
+  return sorted.slice(0, 3);
+});
+
+function toggleTask(id: string) {
+  const s = new Set(selectedTaskIds.value);
+  if (s.has(id)) s.delete(id);
+  else s.add(id);
+  selectedTaskIds.value = s;
+}
+
+function selectAll() {
+  selectedTaskIds.value = new Set(recommendedTasks.value.map((t) => t.id));
+}
+
 const ENERGY_OPTIONS = [
   { value: "low", emoji: "🌙", label: "比较累", desc: "轻量任务为主" },
   { value: "normal", emoji: "☀️", label: "状态一般", desc: "正常安排" },
@@ -49,16 +85,26 @@ const STEPS = [
   { num: 3, label: "固定日程" },
   { num: 4, label: "AI 建议" },
   { num: 5, label: "能量状态" },
+  { num: 6, label: "今日计划" },
 ];
 
 const yesterday = computed(() => settlement.yesterday);
 
 function nextStep() {
-  if (step.value < 5) {
+  if (step.value < 6) {
     step.value++;
     if (step.value === 4) loadAISuggestion();
+    if (step.value === 6) {
+      if (!tasks.tasks.length) {
+        void tasks.load().then(() => {
+          selectedTaskIds.value = new Set(recommendedTasks.value.map((t) => t.id));
+        });
+      } else {
+        selectedTaskIds.value = new Set(recommendedTasks.value.map((t) => t.id));
+      }
+    }
   } else {
-    finish();
+    void finish();
   }
 }
 
@@ -77,14 +123,32 @@ async function loadAISuggestion() {
   }
 }
 
-function finish() {
-  // 存储今日能量状态
+async function finish() {
   if (energyLevel.value) {
     const today = new Date().toISOString().slice(0, 10);
     localStorage.setItem(`fl-energy-${today}`, energyLevel.value);
   }
   localStorage.setItem(`fl-morning-${new Date().toISOString().slice(0, 10)}`, "done");
+
+  if (selectedTaskIds.value.size > 0 && !tasksAdded.value) {
+    addingTasks.value = true;
+    try {
+      await Promise.all(
+        [...selectedTaskIds.value].map((taskId) =>
+          assignments.create({ taskId, source: "guided", isPlanned: true })
+        )
+      );
+      tasksAdded.value = true;
+    } catch (e) {
+      console.error("[MorningGuide] 加入今日计划失败", e);
+    } finally {
+      addingTasks.value = false;
+    }
+  }
+
   step.value = 1;
+  selectedTaskIds.value = new Set();
+  tasksAdded.value = false;
   emit("close");
 }
 </script>
@@ -93,14 +157,12 @@ function finish() {
   <Transition name="fl-fade">
     <div v-if="visible" class="fl-mg-mask" @click.self="emit('close')">
       <div class="fl-mg-card">
-        <!-- Hero -->
         <div class="fl-mg-hero">
           <div class="fl-mg-emoji">🌅</div>
           <h2>晨起引导</h2>
-          <p>5 步思考，开启高效的一天</p>
+          <p>6 步思考，开启高效的一天</p>
         </div>
 
-        <!-- 步进器 -->
         <div class="fl-mg-stepper">
           <div
             v-for="s in STEPS"
@@ -113,9 +175,7 @@ function finish() {
           </div>
         </div>
 
-        <!-- Step 内容 -->
         <div class="fl-mg-body">
-          <!-- Step 1: 回顾昨日 -->
           <template v-if="step === 1">
             <h3>回顾昨日</h3>
             <div v-if="yesterday" class="fl-mg-yesterday">
@@ -130,7 +190,6 @@ function finish() {
             <div v-else class="fl-mg-empty">没有昨日数据，跳过即可</div>
           </template>
 
-          <!-- Step 2: 长线目标 -->
           <template v-else-if="step === 2">
             <h3>审视长线目标</h3>
             <div v-if="goals.goals.length" class="fl-mg-goals">
@@ -145,7 +204,6 @@ function finish() {
             <div v-else class="fl-mg-empty">还没有设置长线目标</div>
           </template>
 
-          <!-- Step 3: 固定日程 -->
           <template v-else-if="step === 3">
             <h3>检查固定日程</h3>
             <p class="fl-mg-sub">看看今天({{ todayWeekdayLabel }})有哪些已经占掉的时间</p>
@@ -162,7 +220,6 @@ function finish() {
             </div>
           </template>
 
-          <!-- Step 4: AI 建议 -->
           <template v-else-if="step === 4">
             <h3>AI 今日建议</h3>
             <div v-if="loadingAI" class="fl-mg-loading">正在生成建议…</div>
@@ -175,8 +232,7 @@ function finish() {
             </button>
           </template>
 
-          <!-- Step 5: 能量状态 -->
-          <template v-else>
+          <template v-else-if="step === 5">
             <h3>今日能量状态</h3>
             <div class="fl-mg-energy-grid">
               <button
@@ -192,14 +248,47 @@ function finish() {
               </button>
             </div>
           </template>
+
+          <template v-else>
+            <h3>加入今日计划</h3>
+            <p class="fl-mg-sub">选择今天想完成的任务，一键加入计划</p>
+            <div v-if="recommendedTasks.length" class="fl-mg-task-list">
+              <label
+                v-for="t in recommendedTasks"
+                :key="t.id"
+                class="fl-mg-task-item"
+                :class="{ 'is-selected': selectedTaskIds.has(t.id) }"
+              >
+                <input
+                  type="checkbox"
+                  class="fl-mg-task-check"
+                  :checked="selectedTaskIds.has(t.id)"
+                  @change="toggleTask(t.id)"
+                />
+                <span class="fl-mg-task-quadrant">
+                  {{ t.quadrant === 'important_urgent' ? '🔴' : t.quadrant === 'important_not_urgent' ? '🟡' : '⬜' }}
+                </span>
+                <span class="fl-mg-task-name">{{ t.name }}</span>
+                <span v-if="t.estimated_minutes" class="fl-mg-task-est">{{ t.estimated_minutes }}m</span>
+              </label>
+              <button
+                v-if="recommendedTasks.length > 1"
+                class="fl-mg-regen"
+                style="margin-top: var(--sp-2)"
+                @click="selectAll"
+              >
+                ✅ 全选
+              </button>
+            </div>
+            <div v-else class="fl-mg-empty">暂无待办任务，跳过即可</div>
+          </template>
         </div>
 
-        <!-- 底部操作 -->
         <div class="fl-mg-foot">
           <button v-if="step > 1" class="fl-mg-btn fl-mg-ghost" @click="prevStep">上一步</button>
           <button class="fl-mg-btn fl-mg-ghost" @click="emit('close')">跳过</button>
-          <button class="fl-mg-btn fl-mg-primary" @click="nextStep">
-            {{ step < 5 ? '下一步' : '开始今天' }}
+          <button class="fl-mg-btn fl-mg-primary" :disabled="addingTasks" @click="nextStep">
+            {{ addingTasks ? '加入中…' : step < 6 ? '下一步' : '开始今天 🚀' }}
           </button>
         </div>
       </div>
@@ -250,7 +339,6 @@ function finish() {
 .fl-mg-body { padding: var(--sp-5); min-height: 180px; }
 .fl-mg-body h3 { font-size: var(--fs-16); font-weight: var(--fw-semibold); margin: 0 0 var(--sp-4); }
 
-/* Yesterday */
 .fl-mg-yesterday {
   display: flex; gap: var(--sp-3); align-items: center;
   padding: var(--sp-3); background: var(--color-bg-subtle); border-radius: var(--r-md);
@@ -263,7 +351,6 @@ function finish() {
 }
 .fl-mg-carry { font-size: var(--fs-12); color: var(--color-text-muted); margin-top: 2px; }
 
-/* Goals */
 .fl-mg-goals { display: flex; flex-direction: column; gap: var(--sp-2); }
 .fl-mg-goal {
   display: flex; gap: var(--sp-3); align-items: center;
@@ -273,7 +360,6 @@ function finish() {
 .fl-mg-goal-name { font-size: var(--fs-14); font-weight: var(--fw-medium); }
 .fl-mg-goal-sub { font-size: var(--fs-12); color: var(--color-text-muted); }
 
-/* Schedule (Step 3) */
 .fl-mg-sub {
   font-size: var(--fs-12); color: var(--color-text-secondary);
   margin: 0 0 var(--sp-3); line-height: 1.5;
@@ -304,7 +390,6 @@ function finish() {
   font-size: var(--fs-16); font-weight: var(--fw-bold);
 }
 
-/* AI */
 .fl-mg-loading { color: var(--color-text-muted); font-size: var(--fs-14); }
 .fl-mg-ai-suggestion {
   display: flex; gap: var(--sp-3); padding: var(--sp-3);
@@ -320,7 +405,6 @@ function finish() {
 }
 .fl-mg-regen:hover { border-color: var(--color-primary); color: var(--color-primary); }
 
-/* Energy */
 .fl-mg-energy-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); }
 .fl-mg-energy {
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-1);
@@ -333,9 +417,48 @@ function finish() {
 .fl-mg-energy-label { font-size: var(--fs-14); font-weight: var(--fw-medium); }
 .fl-mg-energy-desc { font-size: var(--fs-12); color: var(--color-text-muted); }
 
+.fl-mg-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.fl-mg-task-item {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  background: var(--color-bg-elevated);
+  transition: all var(--dur-fast);
+}
+.fl-mg-task-item:hover {
+  background: var(--color-bg-hover);
+}
+.fl-mg-task-item.is-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.fl-mg-task-check {
+  accent-color: var(--color-primary);
+}
+.fl-mg-task-name {
+  font-size: var(--fs-14);
+  color: var(--color-text-primary);
+}
+.fl-mg-task-est {
+  font-size: var(--fs-12);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+.fl-mg-task-quadrant {
+  font-size: 14px;
+}
+
 .fl-mg-empty { color: var(--color-text-muted); font-size: var(--fs-14); text-align: center; padding: var(--sp-6); }
 
-/* Footer */
 .fl-mg-foot {
   display: flex; gap: var(--sp-2); justify-content: flex-end;
   padding: var(--sp-4) var(--sp-5); border-top: 1px solid var(--color-border);
@@ -346,6 +469,7 @@ function finish() {
 }
 .fl-mg-primary { background: var(--color-primary); color: #fff; }
 .fl-mg-primary:hover { background: var(--color-primary-dark); }
+.fl-mg-primary:disabled { opacity: 0.65; cursor: not-allowed; }
 .fl-mg-ghost { background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border); }
 
 .fl-fade-enter-active, .fl-fade-leave-active { transition: opacity var(--dur-base) var(--ease-smooth); }

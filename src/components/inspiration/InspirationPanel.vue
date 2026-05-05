@@ -1,30 +1,33 @@
 <script setup lang="ts">
 /**
- * InspirationPanel · 灵感速记面板。
+ * InspirationPanel · 灵感速记面板(今日页右栏简版)。
  * - 速记输入 + 保存
- * - 卡片列表（最近 6 条）
+ * - 卡片列表(最近 3 条)
+ * - "查看全部" 跳转到 /inspirations 完整页
  * - 一键转任务 / 删除
  */
 
-import { Lightbulb, Plus, Trash2, ArrowRight, Check } from "lucide-vue-next";
+import { ArrowRight, Check, Lightbulb, Plus, Trash2 } from "lucide-vue-next";
 import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 
 import { useInspirationStore } from "@/stores/useInspirationStore";
 
 const inspiration = useInspirationStore();
+const router = useRouter();
 
 const draft = ref("");
 const textareaEl = ref<HTMLTextAreaElement | null>(null);
-const justSaved = ref<string | null>(null); // 刚保存的卡片 id，用于短暂高亮
+const justSaved = ref<string | null>(null); // 刚保存的卡片 id,用于短暂高亮
 
 onMounted(() => {
   inspiration.ensureLoaded();
 });
 
-function onSave() {
+async function onSave() {
   const content = draft.value.trim();
   if (!content) return;
-  const item = inspiration.create(content);
+  const item = await inspiration.create(content);
   draft.value = "";
   if (item) {
     justSaved.value = item.id;
@@ -146,14 +149,24 @@ function fmtTime(iso: string) {
         </div>
       </TransitionGroup>
 
-      <div v-if="inspiration.totalCount > 6" class="fl-insp-more">
-        共 {{ inspiration.totalCount }} 条 · 已展示最近 6 条
+      <div v-if="inspiration.totalCount > 3" class="fl-insp-more">
+        <button class="fl-insp-more-btn" type="button" @click="router.push('/inspirations')">
+          查看全部 {{ inspiration.totalCount }} 条
+          <ArrowRight :size="11" />
+        </button>
       </div>
     </div>
 
     <!-- 空态 -->
     <div v-else class="fl-insp-empty">
       还没有灵感 · 随手记下你的第一个想法 ✨
+      <button
+        class="fl-insp-empty-link"
+        type="button"
+        @click="router.push('/inspirations')"
+      >
+        前往灵感页 →
+      </button>
     </div>
   </div>
 </template>
@@ -380,10 +393,26 @@ function fmtTime(iso: string) {
 
 /* ---------- 底部 ---------- */
 .fl-insp-more {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  text-align: center;
   padding-top: var(--sp-1);
+  display: flex;
+  justify-content: center;
+}
+.fl-insp-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+.fl-insp-more-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 /* ---------- 空态 ---------- */
@@ -392,8 +421,21 @@ function fmtTime(iso: string) {
   color: var(--color-text-muted);
   text-align: center;
   padding: var(--sp-4) 0;
-  line-height: 1.6;
+  line-height: 1.7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
 }
+.fl-insp-empty-link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+}
+.fl-insp-empty-link:hover { text-decoration: underline; }
 
 /* ---------- 动画 ---------- */
 .fl-insp-card-enter-active,

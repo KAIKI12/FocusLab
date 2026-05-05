@@ -50,6 +50,7 @@ watch(
     quadrant.value = t.quadrant;
     estimatedMinutes.value = t.estimated_minutes;
     dueDate.value = t.due_date ?? "";
+    recurrenceRule.value = t.recurrence_rule ?? "";
     milestoneId.value = t.milestone_id ?? null;
     // 根据 milestoneId 反推 goalId
     if (t.milestone_id) {
@@ -96,6 +97,7 @@ async function onSave() {
       estimatedMinutes: estimatedMinutes.value ?? undefined,
       dueDate: dueDate.value || undefined,
       milestoneId: milestoneId.value ?? undefined,
+      recurrenceRule: recurrenceRule.value || undefined,
     });
     emit("close");
   } catch (e) {

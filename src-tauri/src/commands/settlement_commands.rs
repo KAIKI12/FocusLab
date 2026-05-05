@@ -2,7 +2,7 @@
 
 use chrono::Utc;
 use rusqlite::params;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::State;
 use uuid::Uuid;
 
@@ -11,6 +11,15 @@ use crate::models::settlement::{DaySummary, Settlement, YesterdaySummary};
 use crate::models::settings;
 use crate::utils::datetime::current_logical_date;
 use crate::utils::errors::{AppError, AppResult};
+
+const PERSONA_HATCH_TOTAL_DAYS: i64 = 7;
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PersonaHatchProgress {
+    pub settlement_days: i64,
+    pub remaining_days: i64,
+}
 
 /// 评级逻辑(纯函数,可单测)
 pub fn compute_grade(planned: i64, completed: i64, extra_completed: i64) -> String {
@@ -278,6 +287,17 @@ pub fn list_day_summaries(from: String, to: String, db: State<'_, Db>) -> AppRes
     Ok(rows)
 }
 
+#[tauri::command]
+pub fn get_persona_hatch_progress(db: State<'_, Db>) -> AppResult<PersonaHatchProgress> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let settlement_days: i64 = conn.query_row("SELECT COUNT(*) FROM settlements", [], |r| r.get(0))?;
+
+    Ok(PersonaHatchProgress {
+        settlement_days,
+        remaining_days: (PERSONA_HATCH_TOTAL_DAYS - settlement_days).max(0),
+    })
+}
+
 /// 获取昨日摘要(打开应用时的 YesterdayCard 用)
 #[tauri::command]
 pub fn get_yesterday_summary(db: State<'_, Db>) -> AppResult<Option<YesterdaySummary>> {
@@ -343,6 +363,83 @@ pub fn get_yesterday_summary(db: State<'_, Db>) -> AppResult<Option<YesterdaySum
     }))
 }
 
+/// 昨日未结算检测结果（仅当昨日有 planned 任务且未结算时返回 Some）
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnsettledYesterday {
+    pub settle_date: String,
+    pub planned_tasks: i64,
+    pub completed_tasks: i64,
+}
+
+/// 检查昨日是否存在"有任务但未结算"的状态,用于第二天补打卡提醒。
+///
+/// 返回:
+/// - 已结算或昨日无任何 planned 任务 → `None`
+/// - 昨日有任务且未结算 → `Some(UnsettledYesterday { ... })`
+///
+/// 边界:沿用 `current_logical_date(boundary)` 的凌晨 4 点切日逻辑(详见 `utils::datetime`)。
+#[tauri::command]
+pub fn check_unsettled_yesterday(db: State<'_, Db>) -> AppResult<Option<UnsettledYesterday>> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let boundary = settings::get_boundary_hour(&conn)?;
+    let today = current_logical_date(boundary);
+    let yesterday = (today - chrono::Duration::days(1)).to_string();
+
+    // 已结算 → 无需提醒
+    let settled: bool = conn
+        .query_row(
+            "SELECT COUNT(*) > 0 FROM settlements WHERE settle_date = ?1",
+            params![yesterday],
+            |r| r.get(0),
+        )
+        .unwrap_or(false);
+    if settled {
+        return Ok(None);
+    }
+
+    // 查昨日 planned/completed 数量
+    let (planned, completed): (i64, i64) = conn
+        .query_row(
+            "SELECT
+              COALESCE(SUM(CASE WHEN is_planned = 1 THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(CASE WHEN is_planned = 1 AND day_status = 'completed' THEN 1 ELSE 0 END), 0)
+             FROM daily_task_assignments WHERE plan_date = ?1",
+            params![yesterday],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap_or((0, 0));
+
+    // 昨天没用 app(无 planned 任务)→ 不提醒
+    if planned == 0 {
+        return Ok(None);
+    }
+
+    Ok(Some(UnsettledYesterday {
+        settle_date: yesterday,
+        planned_tasks: planned,
+        completed_tasks: completed,
+    }))
+}
+
+/// 更新结算感想（允许在结算后补写）
+#[tauri::command]
+pub fn update_settlement_reflection(
+    settle_date: String,
+    reflection: String,
+    db: State<'_, Db>,
+) -> AppResult<()> {
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    let affected = conn.execute(
+        "UPDATE settlements SET user_reflection = ?1 WHERE settle_date = ?2",
+        rusqlite::params![reflection, settle_date],
+    )?;
+    if affected == 0 {
+        return Err(AppError::Custom(format!("settlement not found: {settle_date}")));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,5 +463,120 @@ mod tests {
     #[test]
     fn grade_zero_planned() {
         assert_eq!(compute_grade(0, 0, 0), "C");
+    }
+    #[test]
+    fn persona_remaining_days_stop_at_zero() {
+        let progress = PersonaHatchProgress {
+            settlement_days: 99,
+            remaining_days: (PERSONA_HATCH_TOTAL_DAYS - 99).max(0),
+        };
+
+        assert_eq!(progress.remaining_days, 0);
+    }
+
+    // ---- check_unsettled_yesterday：用内存 DB 覆盖三种返回 ----
+
+    use rusqlite::Connection;
+
+    fn setup_test_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE settlements (
+                id TEXT PRIMARY KEY,
+                settle_date TEXT NOT NULL UNIQUE,
+                total_tasks INTEGER, completed_tasks INTEGER, extra_tasks INTEGER, shelved_tasks INTEGER,
+                completion_rate REAL, total_focus_minutes INTEGER, total_pomodoros INTEGER,
+                total_interruptions INTEGER, grade TEXT,
+                longest_focus_task_id TEXT, longest_focus_minutes INTEGER,
+                ai_summary TEXT, user_reflection TEXT, trigger_type TEXT, created_at TEXT,
+                evening_mood INTEGER, morning_intent INTEGER
+             );
+             CREATE TABLE daily_task_assignments (
+                id TEXT PRIMARY KEY,
+                plan_date TEXT NOT NULL,
+                task_id TEXT NOT NULL,
+                is_planned INTEGER NOT NULL,
+                source TEXT,
+                day_status TEXT NOT NULL,
+                added_at TEXT,
+                sort_order INTEGER
+             );",
+        )
+        .unwrap();
+        conn
+    }
+
+    /// 复刻命令体逻辑（直接传 conn,不走 Db State）
+    fn check_unsettled(conn: &Connection, yesterday: &str) -> Option<UnsettledYesterday> {
+        let settled: bool = conn
+            .query_row(
+                "SELECT COUNT(*) > 0 FROM settlements WHERE settle_date = ?1",
+                params![yesterday],
+                |r| r.get(0),
+            )
+            .unwrap_or(false);
+        if settled {
+            return None;
+        }
+        let (planned, completed): (i64, i64) = conn
+            .query_row(
+                "SELECT
+                  COALESCE(SUM(CASE WHEN is_planned = 1 THEN 1 ELSE 0 END), 0),
+                  COALESCE(SUM(CASE WHEN is_planned = 1 AND day_status = 'completed' THEN 1 ELSE 0 END), 0)
+                 FROM daily_task_assignments WHERE plan_date = ?1",
+                params![yesterday],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap_or((0, 0));
+        if planned == 0 {
+            return None;
+        }
+        Some(UnsettledYesterday {
+            settle_date: yesterday.to_string(),
+            planned_tasks: planned,
+            completed_tasks: completed,
+        })
+    }
+
+    #[test]
+    fn unsettled_returns_none_when_already_settled() {
+        let conn = setup_test_db();
+        conn.execute(
+            "INSERT INTO settlements (id, settle_date, grade) VALUES ('s1', '2026-05-04', 'A')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO daily_task_assignments (id, plan_date, task_id, is_planned, day_status)
+             VALUES ('d1', '2026-05-04', 't1', 1, 'completed')",
+            [],
+        )
+        .unwrap();
+        assert!(check_unsettled(&conn, "2026-05-04").is_none());
+    }
+
+    #[test]
+    fn unsettled_returns_none_when_no_tasks() {
+        let conn = setup_test_db();
+        // 昨天没有 dta 行 → 用户昨天没用 app
+        assert!(check_unsettled(&conn, "2026-05-04").is_none());
+    }
+
+    #[test]
+    fn unsettled_returns_some_when_has_tasks_and_not_settled() {
+        let conn = setup_test_db();
+        conn.execute_batch(
+            "INSERT INTO daily_task_assignments (id, plan_date, task_id, is_planned, day_status)
+                VALUES ('d1', '2026-05-04', 't1', 1, 'completed');
+             INSERT INTO daily_task_assignments (id, plan_date, task_id, is_planned, day_status)
+                VALUES ('d2', '2026-05-04', 't2', 1, 'pending');
+             INSERT INTO daily_task_assignments (id, plan_date, task_id, is_planned, day_status)
+                VALUES ('d3', '2026-05-04', 't3', 0, 'completed');",
+        )
+        .unwrap();
+        let res = check_unsettled(&conn, "2026-05-04").unwrap();
+        assert_eq!(res.settle_date, "2026-05-04");
+        assert_eq!(res.planned_tasks, 2);
+        assert_eq!(res.completed_tasks, 1);
     }
 }

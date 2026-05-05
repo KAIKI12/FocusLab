@@ -96,9 +96,20 @@ const BADGE_DEFS: BadgeDef[] = [
 
 /**
  * 按徽章 id 判定是否解锁。
- * 未列出的 id(p5/p6/t2/t5/mX/g5/h1-h8/h11-h12)暂无数据源,保持锁定,
- * 后续补齐 session 级统计 / 日期监听 / AI 拆解计数后再填进来。
+ * h4(春节)、h5(中秋)需要农历,暂跳过;h12(???)保持神秘。
+ * t5(AI 拆解 10 次)后端未计数,暂锁定。
  */
+
+function isHolidayToday(month: number, day: number): boolean {
+  const d = new Date();
+  return d.getMonth() + 1 === month && d.getDate() === day;
+}
+
+function isGraduationSeason(): boolean {
+  const m = new Date().getMonth() + 1;
+  return m === 6 || m === 7;
+}
+
 function evaluateUnlocked(id: string, s: BadgeStats): boolean {
   switch (id) {
     // 番茄修行
@@ -106,6 +117,8 @@ function evaluateUnlocked(id: string, s: BadgeStats): boolean {
     case "p2": return s.totalPomodoros >= 50;
     case "p3": return s.totalPomodoros >= 500;
     case "p4": return s.totalPomodoros >= 2000;
+    case "p5": return s.has90minSession;
+    case "p6": return s.freeModeCount >= 10;
     case "p7": return s.maxDayPomodoros >= 4;
     // 连续打卡
     case "s1": return s.maxStreakDays >= 3;
@@ -120,14 +133,31 @@ function evaluateUnlocked(id: string, s: BadgeStats): boolean {
     case "g2": return s.maxConsecutiveAOrAbove >= 5;
     case "g3": return s.maxMonthSCount >= 10;
     case "g4": return s.maxAscendingStreak >= 3;
+    case "g5": return s.zeroInterruptionDays >= 1;
     case "g6": return s.hasPerfectMonth;
     case "g7": return s.hasAGrade;
     // 目标猎人
     case "t1": return s.totalGoalCount >= 1;
+    case "t2": return s.completedMilestones >= 1;
     case "t3": return s.completedGoalCount >= 1;
     case "t4": return s.activeGoalCount >= 3;
     case "t6": return s.completedGoalCount >= 5;
-    // 彩蛋(数值类)
+    // 时段
+    case "m1": return s.hasEarlySession;
+    case "m2": return s.hasNightSession;
+    case "m3": return s.maxDayFocusMinutes >= 480;
+    case "m4": return s.morning3PomodoroDay;
+    case "m5": return s.evening2PomodoroDay;
+    case "m6": return s.hasMidnightSession;
+    // 彩蛋 — 节日类(当天使用即解锁,一旦写入 localStorage 永久保持)
+    case "h1": return isHolidayToday(10, 31);
+    case "h2": return isHolidayToday(12, 25);
+    case "h3": return isHolidayToday(1, 1);
+    case "h6": return isHolidayToday(2, 14);
+    case "h7": return isGraduationSeason();
+    case "h8": return s.has3amSession;
+    case "h11": return isHolidayToday(2, 22);
+    // 彩蛋 — 数值类
     case "h9": return s.totalFocusMinutes >= 666;
     case "h10": return s.totalPomodoros >= 1024;
     default: return false;

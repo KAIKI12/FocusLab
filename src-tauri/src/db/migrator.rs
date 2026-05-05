@@ -31,6 +31,22 @@ const MIGRATIONS: &[Migration] = &[
         version: "003_milestone_v2",
         sql: include_str!("migrations/003_milestone_v2.sql"),
     },
+    Migration {
+        version: "004_inspiration_graph",
+        sql: include_str!("migrations/004_inspiration_graph.sql"),
+    },
+    Migration {
+        version: "005_ai_profiles",
+        sql: include_str!("migrations/005_ai_profiles.sql"),
+    },
+    Migration {
+        version: "006_ai_chat",
+        sql: include_str!("migrations/006_ai_chat.sql"),
+    },
+    Migration {
+        version: "007_ai_selected_models",
+        sql: include_str!("migrations/007_ai_selected_models.sql"),
+    },
 ];
 
 pub fn run(conn: &mut Connection) -> AppResult<()> {
@@ -68,6 +84,8 @@ pub fn run(conn: &mut Connection) -> AppResult<()> {
     }
 
     ensure_task_columns(conn)?;
+
+    crate::models::ai_profile::ensure_default_profile(conn)?;
 
     Ok(())
 }

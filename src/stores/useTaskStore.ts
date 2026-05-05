@@ -59,6 +59,12 @@ export const useTaskStore = defineStore("task", () => {
     tasks.value = tasks.value.filter((t) => t.id !== id);
   }
 
+  /** 搁置区物理删除（永久移除记录） */
+  async function removePermanently(id: string) {
+    await invokeCmd<void>("hard_delete_task", { id });
+    tasks.value = tasks.value.filter((t) => t.id !== id);
+  }
+
   /** 按四象限分组 */
   const tasksByQuadrant = computed(() => {
     const groups: Record<string, Task[]> = {
@@ -74,5 +80,5 @@ export const useTaskStore = defineStore("task", () => {
     return groups;
   });
 
-  return { tasks, loading, load, create, complete, update, cycleStatus, remove, tasksByQuadrant };
+  return { tasks, loading, load, create, complete, update, cycleStatus, remove, removePermanently, tasksByQuadrant };
 });

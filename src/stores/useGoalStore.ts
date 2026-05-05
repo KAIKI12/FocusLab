@@ -67,6 +67,15 @@ export const useGoalStore = defineStore("goal", () => {
       weeklyInvest.value = null;
       notesByMilestone.value = {};
     }
+    // B2: 通知 inspiration store 清空挂载该 goal 的灵感关联,避免脏 goalId。
+    // 动态 import 以避免 store 互相循环依赖。
+    try {
+      const { useInspirationStore } = await import("@/stores/useInspirationStore");
+      const inspiration = useInspirationStore();
+      await inspiration.syncGoalRemoval(id);
+    } catch (e) {
+      console.warn("[goal] notify inspiration after archive failed", e);
+    }
   }
 
   async function updateGoal(input: { id: string; name?: string; description?: string; targetDate?: string }) {

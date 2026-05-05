@@ -24,6 +24,8 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     estimated_minutes: null,
     due_date: null,
     is_background: false,
+    is_recurring: false,
+    recurrence_rule: null,
     milestone_id: null,
     shelved_at: null,
     created_at: "2026-04-21T00:00:00Z",

@@ -1,11 +1,11 @@
-//! 窗口管理命令 — show_main_window 供悬浮球唤起主窗口。
+//! 窗口管理命令 — 供悬浮球 / 快捷键唤起主窗口与页面内动作。
 
-use tauri::Manager;
+use serde_json::json;
+use tauri::{Emitter, Manager};
 
-/// 显示主窗口。如果窗口已关闭(被销毁),则重新创建。
-#[tauri::command]
-pub async fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
-    // 尝试找到现有主窗口
+const WINDOW_ACTION_EVENT: &str = "focuslab://window-action";
+
+async fn focus_main_window(app: &tauri::AppHandle) -> Result<(), String> {
     if let Some(win) = app.get_webview_window("main") {
         win.show().map_err(|e| e.to_string())?;
         win.unminimize().map_err(|e| e.to_string())?;
@@ -13,10 +13,9 @@ pub async fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    // 主窗口已被关闭,重新创建
     use tauri::WebviewUrl;
     tauri::WebviewWindowBuilder::new(
-        &app,
+        app,
         "main",
         WebviewUrl::App("index.html".into()),
     )
@@ -26,5 +25,32 @@ pub async fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
     .build()
     .map_err(|e| e.to_string())?;
 
+    Ok(())
+}
+
+/// 显示主窗口。如果窗口已关闭(被销毁),则重新创建。
+#[tauri::command]
+pub async fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
+    focus_main_window(&app).await
+}
+
+#[tauri::command]
+pub async fn show_quick_add_window(app: tauri::AppHandle) -> Result<(), String> {
+    focus_main_window(&app).await?;
+    let _ = app.emit(WINDOW_ACTION_EVENT, json!({ "type": "quick-add" }));
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn show_quick_note_window(app: tauri::AppHandle) -> Result<(), String> {
+    focus_main_window(&app).await?;
+    let _ = app.emit(WINDOW_ACTION_EVENT, json!({ "type": "quick-note" }));
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn show_command_palette_window(app: tauri::AppHandle) -> Result<(), String> {
+    focus_main_window(&app).await?;
+    let _ = app.emit(WINDOW_ACTION_EVENT, json!({ "type": "command-palette" }));
     Ok(())
 }

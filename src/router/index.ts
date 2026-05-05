@@ -27,6 +27,12 @@ const router = createRouter({
       meta: { title: "长线目标" },
     },
     {
+      path: "/inspirations",
+      name: "inspirations",
+      component: () => import("@/views/InspirationsView.vue"),
+      meta: { title: "灵感速记" },
+    },
+    {
       path: "/stats",
       name: "stats",
       component: () => import("@/views/StatsView.vue"),

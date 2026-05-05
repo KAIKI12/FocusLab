@@ -1,0 +1,43 @@
+{
+  "scene": "task_feedback",
+  "version": 1,
+  "description": "任务完成反馈本地语录池 — 按 quadrant(important/not_important) × deviation(ahead/on_time/over) 分 6 桶,支持 {task_name} 变量",
+  "buckets": {
+    "important_ahead": [
+      { "message": "「{task_name}」比预估快收工，节奏很对。", "badge": "💪" },
+      { "message": "重要任务提前完成，今天的专注质量稳。", "badge": "⭐" },
+      { "message": "「{task_name}」一气呵成，状态在线。", "badge": "🎯" },
+      { "message": "提前结束的重要任务，证明拆解做得好。", "badge": "✅" }
+    ],
+    "important_on_time": [
+      { "message": "「{task_name}」按计划落地，估时很准。", "badge": "🎯" },
+      { "message": "重要任务按节奏完成，这就是稳定输出。", "badge": "✅" },
+      { "message": "估时和实际吻合，今天的节奏值得记下来。", "badge": "⭐" },
+      { "message": "「{task_name}」如期收尾，干得漂亮。", "badge": "💪" }
+    ],
+    "important_over": [
+      { "message": "「{task_name}」用时多一些，但完成本身已经是胜利。", "badge": "✅" },
+      { "message": "重要任务交付了，下次可以把估时留更宽。", "badge": "💪" },
+      { "message": "推进过程比预期长，但结果到位了。", "badge": "⭐" },
+      { "message": "「{task_name}」啃下来了，难度比想象大也正常。", "badge": "🎯" }
+    ],
+    "not_important_ahead": [
+      { "message": "「{task_name}」快速搞定，节奏轻巧。", "badge": "✅" },
+      { "message": "小任务不拖泥带水，状态很顺。", "badge": "💪" },
+      { "message": "「{task_name}」一鼓作气完成，赞。", "badge": "🎯" },
+      { "message": "高效收尾，留出时间做更重要的事。", "badge": "⭐" }
+    ],
+    "not_important_on_time": [
+      { "message": "「{task_name}」按计划完成，简单清爽。", "badge": "✅" },
+      { "message": "节奏稳定，小事也办得利落。", "badge": "🎯" },
+      { "message": "估时准确，「{task_name}」按部就班。", "badge": "⭐" },
+      { "message": "完成了一项，整体清单更轻盈了。", "badge": "💪" }
+    ],
+    "not_important_over": [
+      { "message": "「{task_name}」完成了，下次可以提前判断要不要做。", "badge": "✅" },
+      { "message": "小任务多花了一点时间，但也清掉了一项。", "badge": "🎯" },
+      { "message": "结束就好，下次再优化估时。", "badge": "⭐" },
+      { "message": "「{task_name}」推进得久了点，明天先做更重要的事。", "badge": "💪" }
+    ]
+  }
+}

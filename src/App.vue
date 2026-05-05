@@ -11,13 +11,16 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import Sidebar from "@/components/common/Sidebar.vue";
+import ChatPanel from "@/components/chat/ChatPanel.vue";
 import CommandPalette from "@/components/common/CommandPalette.vue";
 import MoodCheck from "@/components/common/MoodCheck.vue";
 import RecoveryDialog from "@/components/recovery/RecoveryDialog.vue";
 import SettlementDialog from "@/components/settlement/SettlementDialog.vue";
 import BreakEndDialog from "@/components/timer/BreakEndDialog.vue";
+import { useShortcutRuntime } from "@/composables/useShortcutRuntime";
 import { useRecovery } from "@/composables/useRecovery";
 import { useSettlementStore } from "@/stores/useSettlementStore";
+import { useShortcutStore } from "@/stores/useShortcutStore";
 import { useTimerStore } from "@/stores/useTimerStore";
 import { useUIStore } from "@/stores/useUIStore";
 
@@ -27,6 +30,8 @@ const router = useRouter();
 const settlement = useSettlementStore();
 const timer = useTimerStore();
 const ui = useUIStore();
+const shortcutStore = useShortcutStore();
+const shortcutRuntime = useShortcutRuntime();
 
 const hideLayout = computed(() => route.meta.hideLayout === true);
 
@@ -73,6 +78,9 @@ async function handleTrayAction(payload: TrayAction) {
 }
 
 onMounted(async () => {
+  await shortcutStore.load();
+  shortcutRuntime.mount();
+
   // FTUE 检查
   const ftueDone = localStorage.getItem("fl-ftue-done");
   if (!ftueDone && route.path !== "/ftue") {
@@ -112,6 +120,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  shortcutRuntime.unmount();
   unlisteners.forEach((un) => un());
   unlisteners.length = 0;
 });
@@ -123,6 +132,7 @@ onUnmounted(() => {
     <main class="fl-main">
       <RouterView />
     </main>
+    <ChatPanel v-if="!hideLayout" />
     <template v-if="!hideLayout">
       <RecoveryDialog />
       <BreakEndDialog />
@@ -169,6 +179,7 @@ body,
   flex: 1;
   overflow: auto;
   padding: var(--sp-6) var(--sp-8);
+  min-width: 0;
 }
 
 .fl-app.is-fullscreen .fl-main {

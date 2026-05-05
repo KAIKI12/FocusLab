@@ -5,7 +5,8 @@
  */
 
 import { computed, ref, watch } from "vue";
-import { CheckCheck } from "lucide-vue-next";
+import { CheckCheck, ChevronRight } from "lucide-vue-next";
+import { useRouter } from "vue-router";
 
 import ParticleEffect from "@/components/settlement/ParticleEffect.vue";
 import { invokeCmd } from "@/composables/useTauriInvoke";
@@ -15,6 +16,7 @@ import type { AssignmentWithTask } from "@/types";
 
 const store = useSettlementStore();
 const ai = useAIStore();
+const router = useRouter();
 const s = computed(() => store.settlement);
 const reflection = ref("");
 const aiNarrative = ref("");
@@ -119,6 +121,26 @@ function fmtMin(m: number): string {
   return r > 0 ? `${h}h ${r}m` : `${h}h`;
 }
 
+const saving = ref(false);
+
+async function onSave() {
+  if (!s.value) { store.closeDialog(); return; }
+  if (reflection.value.trim()) {
+    saving.value = true;
+    try {
+      await invokeCmd("update_settlement_reflection", {
+        settleDate: s.value.settleDate,
+        reflection: reflection.value.trim(),
+      });
+    } catch (e) {
+      console.error("[settle] save reflection failed", e);
+    } finally {
+      saving.value = false;
+    }
+  }
+  store.closeDialog();
+}
+
 function onClose() {
   store.closeDialog();
 }
@@ -132,9 +154,16 @@ async function carryOver(a: AssignmentWithTask) {
 
 async function shelveTask(a: AssignmentWithTask) {
   try {
+    // 先把 DTA 标为 shelved，再软删除任务本身
+    await invokeCmd("update_assignment_status", { id: a.id, dayStatus: "shelved" });
     await invokeCmd("delete_task", { id: a.taskId });
     pendingTasks.value = pendingTasks.value.filter(t => t.id !== a.id);
-  } catch { /* */ }
+  } catch (e) { console.error("[settle] shelveTask failed", e); }
+}
+
+function goToWeeklyTrend() {
+  store.closeDialog();
+  void router.push({ name: "stats", query: { range: "7d", focus: "trend" } });
 }
 
 async function markDone(a: AssignmentWithTask) {
@@ -309,12 +338,17 @@ async function markDone(a: AssignmentWithTask) {
 
         <!-- 底部操作 -->
         <div class="fl-sd-foot">
-          <button class="fl-sd-btn fl-sd-btn-ghost" type="button" @click="onClose">
-            关闭
+          <button class="fl-sd-btn fl-sd-btn-ghost" type="button" @click="goToWeeklyTrend">
+            查看本周趋势 <ChevronRight :size="14" />
           </button>
-          <button class="fl-sd-btn fl-sd-btn-primary" type="button" @click="onClose">
-            保存结算
-          </button>
+          <div class="fl-sd-foot-actions">
+            <button class="fl-sd-btn fl-sd-btn-ghost" type="button" @click="onClose">
+              关闭
+            </button>
+            <button class="fl-sd-btn fl-sd-btn-primary" type="button" :disabled="saving" @click="onSave">
+              {{ saving ? '保存中…' : '保存结算' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -342,6 +376,12 @@ async function markDone(a: AssignmentWithTask) {
   box-shadow: var(--shadow-modal);
   display: flex;
   flex-direction: column;
+}
+
+.fl-sd-foot-actions {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
 }
 
 /* ---------- Hero ---------- */

@@ -2,7 +2,7 @@
  * 人格元数据 · 全量从 prototype/screens/persona-card.html + persona-hatch.html 移植。
  *
  * 数据覆盖:
- *   - 28 条 base(原型 30 减去实现里未采用的 BATS/OWL)
+ *   - 30 条 base(原型 30 全收;BATS/OWL 归入夜型门 gate=0)
  *   - 16 条 combo(原型 COMBOS 全部)
  *   - 7 天孵化剧情文案
  *
@@ -104,6 +104,22 @@ export const HATCH_DAYS: HatchDay[] = [
 /** name → metadata。name 与 PERSONA_FILES 解析的 name 一一对应。 */
 export const PERSONA_META: Record<string, PersonaMeta> = {
   // ---------- Base · 夜型 ----------
+  "猫头鹰研究员": {
+    kind: "base",
+    code: "OWL",
+    emoji: "🦉",
+    quote: "20 点准时进入战斗状态,像被人按了开关。",
+    hidden: "早会对你来说是一种酷刑",
+    dims: [4, 2, 3, 3, 2],
+  },
+  "实验室蝙蝠": {
+    kind: "base",
+    code: "BATS",
+    emoji: "🦇",
+    quote: "22 点之后你才真正上线,白天那个是替身。",
+    hidden: "深夜的图书馆是你的主场,保安都认识你",
+    dims: [5, 3, 2, 4, 2],
+  },
   "深夜幽灵": {
     kind: "base",
     code: "GHST",

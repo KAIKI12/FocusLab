@@ -59,6 +59,15 @@ function openDecompose(task: Task) {
   decomposingTask.value = task;
 }
 
+async function deleteParkedTask(task: Task) {
+  try {
+    await tasks.removePermanently(task.id);
+    shelvedTasks.value = shelvedTasks.value.filter((t) => t.id !== task.id);
+  } catch (e) {
+    console.error("[parked] delete failed", e);
+  }
+}
+
 /** 拆解采纳后,提示用户(原任务留在搁置区,用户决定是否删除) */
 function onDecomposed() {
   // 采纳后关闭弹窗;原搁置任务保持不变,由用户手动决定是否"删除"
@@ -127,7 +136,7 @@ const LANGUAGE_PRINCIPLES = [
         <div class="fl-parked-actions">
           <button class="fl-p-btn fl-p-restore" @click="restoreTask(t)">恢复</button>
           <button class="fl-p-btn fl-p-split" title="拆分成更小任务" @click="openDecompose(t)">拆分</button>
-          <button class="fl-p-btn fl-p-danger" @click="tasks.remove(t.id); shelvedTasks = shelvedTasks.filter(x => x.id !== t.id)">删除</button>
+          <button class="fl-p-btn fl-p-danger" @click="deleteParkedTask(t)">删除</button>
         </div>
       </li>
     </ul>

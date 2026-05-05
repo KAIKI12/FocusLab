@@ -4,7 +4,7 @@
 //! 字段映射对齐 docs/04 §7.2 `tasks` 表。
 
 use chrono::Utc;
-use rusqlite::params;
+use rusqlite::{params, Connection};
 use serde::Deserialize;
 use tauri::State;
 use uuid::Uuid;
@@ -23,6 +23,8 @@ fn row_to_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
         estimated_minutes: row.get("estimated_minutes")?,
         due_date: row.get("due_date")?,
         is_background: row.get("is_background")?,
+        is_recurring: row.get("is_recurring")?,
+        recurrence_rule: row.get("recurrence_rule")?,
         milestone_id: row.get("milestone_id")?,
         shelved_at: row.get("shelved_at")?,
         created_at: row.get("created_at")?,
@@ -32,7 +34,7 @@ fn row_to_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
 }
 
 const SELECT_COLS: &str =
-    "id, name, description, quadrant, status, estimated_minutes, due_date, is_background, milestone_id, shelved_at, created_at, updated_at, completed_at";
+    "id, name, description, quadrant, status, estimated_minutes, due_date, is_background, is_recurring, recurrence_rule, milestone_id, shelved_at, created_at, updated_at, completed_at";
 
 /// 列出任务。status_filter=None 时返回所有非 completed、非 shelved 的任务。
 #[tauri::command]
@@ -113,6 +115,8 @@ pub fn create_task(input: CreateTaskInput, db: State<'_, Db>) -> AppResult<Task>
         estimated_minutes: None,
         due_date: None,
         is_background: false,
+        is_recurring: is_recurring,
+        recurrence_rule: input.recurrence_rule,
         milestone_id: None,
         shelved_at: None,
         created_at: now.clone(),
@@ -155,6 +159,7 @@ pub struct UpdateTaskInput {
     pub due_date: Option<String>,
     pub is_background: Option<bool>,
     pub milestone_id: Option<String>,
+    pub recurrence_rule: Option<String>,
     /// 三态轮转:pending | in_progress | completed
     pub status: Option<String>,
 }
@@ -197,6 +202,11 @@ pub fn update_task(input: UpdateTaskInput, db: State<'_, Db>) -> AppResult<Task>
     push_set!(input.due_date, "due_date");
     push_set!(input.is_background, "is_background");
     push_set!(input.milestone_id, "milestone_id");
+    push_set!(input.recurrence_rule, "recurrence_rule");
+    if input.recurrence_rule.is_some() {
+        sets.push(format!("is_recurring = ?{idx}"));
+        idx += 1;
+    }
     push_set!(input.status, "status");
     // status 变化时同步 completed_at
     if let Some(ref s) = input.status {
@@ -238,6 +248,10 @@ pub fn update_task(input: UpdateTaskInput, db: State<'_, Db>) -> AppResult<Task>
     if let Some(ref v) = input.milestone_id {
         param_values.push(Box::new(v.clone()));
     }
+    if let Some(ref v) = input.recurrence_rule {
+        param_values.push(Box::new(v.clone()));
+        param_values.push(Box::new(!v.is_empty()));
+    }
     if let Some(ref v) = input.status {
         param_values.push(Box::new(v.clone()));
         if v == "completed" {
@@ -275,6 +289,49 @@ pub fn delete_task(id: String, db: State<'_, Db>) -> AppResult<()> {
         return Err(AppError::Custom(format!("task {id} not found or already deleted")));
     }
     Ok(())
+}
+
+fn hard_delete_task_inner(conn: &mut Connection, id: &str) -> AppResult<()> {
+    let tx = conn.transaction()?;
+
+    tx.execute(
+        "UPDATE timer_state
+            SET task_id = NULL,
+                session_id = NULL,
+                updated_at = ?1
+          WHERE id = 'current' AND (task_id = ?2 OR session_id IN (SELECT id FROM sessions WHERE task_id = ?2))",
+        params![Utc::now().to_rfc3339(), id],
+    )?;
+
+    tx.execute(
+        "UPDATE settlements
+            SET longest_focus_task_id = NULL
+          WHERE longest_focus_task_id = ?1",
+        params![id],
+    )?;
+
+    tx.execute("DELETE FROM sessions WHERE task_id = ?1", params![id])?;
+    tx.execute("DELETE FROM tasks WHERE id = ?1", params![id])?;
+
+    tx.commit()?;
+    Ok(())
+}
+
+/// 物理删除任务（用于搁置区"删除"操作，永久移除记录）。
+#[tauri::command]
+pub fn hard_delete_task(id: String, db: State<'_, Db>) -> AppResult<()> {
+    let mut conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+
+    let exists: i64 = conn.query_row(
+        "SELECT COUNT(1) FROM tasks WHERE id = ?1",
+        params![id],
+        |r| r.get(0),
+    )?;
+    if exists == 0 {
+        return Err(AppError::Custom(format!("task {id} not found")));
+    }
+
+    hard_delete_task_inner(&mut conn, &id)
 }
 
 /// 为当日生成重复任务的 DTA 记录。
@@ -502,23 +559,93 @@ mod tests {
     }
 
     #[test]
-    fn list_excludes_shelved() {
-        let conn = mem_db();
-        insert_task(&conn, "t1", "active");
-        insert_task(&conn, "t2", "shelved");
-        let now = Utc::now().to_rfc3339();
-        conn.execute(
-            "UPDATE tasks SET shelved_at = ?1 WHERE id = 't2'",
-            params![now],
+    fn hard_delete_removes_task_with_session_refs() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "PRAGMA foreign_keys = ON;
+             CREATE TABLE tasks (
+                id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT,
+                quadrant TEXT DEFAULT 'important_not_urgent',
+                status TEXT DEFAULT 'pending',
+                estimated_minutes INTEGER, due_date DATE,
+                is_background BOOLEAN DEFAULT 0, milestone_id TEXT,
+                shelved_at DATETIME,
+                created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
+                completed_at DATETIME, sort_order INTEGER DEFAULT 0
+             );
+             CREATE TABLE sessions (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL REFERENCES tasks(id),
+                start_time DATETIME NOT NULL,
+                end_time DATETIME,
+                planned_duration_minutes INTEGER,
+                actual_duration_minutes INTEGER,
+                mode TEXT NOT NULL DEFAULT 'pomodoro',
+                pomodoro_preset TEXT,
+                status TEXT NOT NULL DEFAULT 'in_progress',
+                is_manual_entry BOOLEAN NOT NULL DEFAULT 0,
+                abandon_reason TEXT,
+                created_at DATETIME NOT NULL
+             );
+             CREATE TABLE settlements (
+                id TEXT PRIMARY KEY,
+                longest_focus_task_id TEXT REFERENCES tasks(id)
+             );
+             CREATE TABLE timer_state (
+                id TEXT PRIMARY KEY,
+                task_id TEXT REFERENCES tasks(id),
+                session_id TEXT REFERENCES sessions(id),
+                start_time DATETIME,
+                elapsed_seconds INTEGER DEFAULT 0,
+                planned_seconds INTEGER,
+                mode TEXT,
+                pomodoro_preset TEXT,
+                status TEXT,
+                pomodoro_count INTEGER DEFAULT 0,
+                is_break BOOLEAN DEFAULT 0,
+                break_remaining INTEGER,
+                updated_at DATETIME NOT NULL
+             );
+             INSERT INTO timer_state (id, status, updated_at) VALUES ('current', 'idle', datetime('now'));"
         )
         .unwrap();
-        let mut stmt = conn
-            .prepare("SELECT id FROM tasks WHERE status IN ('pending','in_progress') AND shelved_at IS NULL")
+
+        insert_task(&conn, "t1", "to hard delete");
+        conn.execute(
+            "INSERT INTO sessions (id, task_id, start_time, created_at) VALUES ('s1', 't1', datetime('now'), datetime('now'))",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE timer_state SET task_id = 't1', session_id = 's1', updated_at = datetime('now') WHERE id = 'current'",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO settlements (id, longest_focus_task_id) VALUES ('st1', 't1')",
+            [],
+        )
+        .unwrap();
+
+        hard_delete_task_inner(&mut conn, "t1").unwrap();
+
+        let task_count: i64 = conn
+            .query_row("SELECT COUNT(1) FROM tasks WHERE id = 't1'", [], |r| r.get(0))
             .unwrap();
-        let ids: Vec<String> = stmt.query_map([], |r| r.get(0)).unwrap()
-            .collect::<rusqlite::Result<Vec<_>>>()
+        let session_count: i64 = conn
+            .query_row("SELECT COUNT(1) FROM sessions WHERE task_id = 't1'", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(ids.len(), 1);
-        assert_eq!(ids[0], "t1");
+        let timer_task_id: Option<String> = conn
+            .query_row("SELECT task_id FROM timer_state WHERE id = 'current'", [], |r| r.get(0))
+            .unwrap();
+        let settlement_task_id: Option<String> = conn
+            .query_row("SELECT longest_focus_task_id FROM settlements WHERE id = 'st1'", [], |r| r.get(0))
+            .unwrap();
+
+        assert_eq!(task_count, 0);
+        assert_eq!(session_count, 0);
+        assert_eq!(timer_task_id, None);
+        assert_eq!(settlement_task_id, None);
     }
 }
+

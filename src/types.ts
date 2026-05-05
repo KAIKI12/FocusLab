@@ -19,6 +19,8 @@ export interface Task {
   estimated_minutes: number | null;
   due_date: string | null;
   is_background: boolean;
+  is_recurring: boolean;
+  recurrence_rule: string | null;
   milestone_id: string | null;
   shelved_at: string | null;
   created_at: string;
@@ -41,6 +43,7 @@ export interface UpdateTaskInput {
   dueDate?: string;
   isBackground?: boolean;
   milestoneId?: string;
+  recurrenceRule?: string;
   /** 三态轮转:pending | in_progress | completed */
   status?: "pending" | "in_progress" | "completed";
 }
@@ -192,6 +195,47 @@ export interface CompletionStats {
   completionRate: number;
 }
 
+export type InspirationVerification =
+  | "none"
+  | "needs_check"
+  | "possibly_wrong"
+  | "verified"
+  | "overturned"
+  | "resolved"; // legacy: 早期版本用过,保留兼容,语义等同 "none"
+export type InspirationRelation = "related" | "contradicts";
+
+export interface InspirationRecord {
+  id: string;
+  content: string;
+  goalId: string | null;
+  summary: string | null;
+  keywords: string[];
+  verification: InspirationVerification;
+  embeddingStatus: "pending" | "done" | "failed";
+  convertedTaskId: string | null;
+  convertedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InspirationLink {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  relation: InspirationRelation;
+  sourceType: "manual" | "ai_accepted";
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface InspirationRecommendation {
+  candidateId: string;
+  candidateContent: string;
+  relation: InspirationRelation;
+  reason: string;
+  confidence: number;
+}
+
 // ---------- Goal + Milestone (Phase 2) ----------
 
 export interface Goal {
@@ -299,6 +343,13 @@ export interface YesterdaySummary {
   carriedOverCount: number;
 }
 
+/** 昨日未结算检测：仅当昨日有 planned 任务且未结算时返回 */
+export interface UnsettledYesterday {
+  settleDate: string;
+  plannedTasks: number;
+  completedTasks: number;
+}
+
 export interface SettleInput {
   planDate?: string;
   triggerType?: string;
@@ -357,4 +408,18 @@ export interface StatsOverview {
   avgDailyFocus: number;
   bestGradeCount: number;
   currentStreak: number;
+}
+
+export interface BadgeExtraStats {
+  hasEarlySession: boolean;
+  hasNightSession: boolean;
+  hasMidnightSession: boolean;
+  has3amSession: boolean;
+  morning3PomodoroDay: boolean;
+  evening2PomodoroDay: boolean;
+  maxDayFocusMinutes: number;
+  has90minSession: boolean;
+  freeModeCount: number;
+  zeroInterruptionDays: number;
+  completedMilestones: number;
 }

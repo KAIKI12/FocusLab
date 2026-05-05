@@ -1,10 +1,13 @@
 //! Tauri 命令注册总入口。
 
 pub mod ai_commands;
+pub mod ai_profile_commands;
 pub mod assignment_commands;
+pub mod chat_commands;
 pub mod export_commands;
 pub mod focus_commands;
 pub mod goal_commands;
+pub mod inspiration_commands;
 pub mod interruption_commands;
 pub mod recovery_commands;
 pub mod settlement_commands;

@@ -4,17 +4,21 @@
  * 同页连续流：输入区在上，AI 三版候选在下。
  */
 
-import { Sparkles, X, Check, Edit3, Zap, RefreshCw } from "lucide-vue-next";
+import { Sparkles, X, Check, Copy, Edit3, Zap, RefreshCw, MessageSquare } from "lucide-vue-next";
 import { nextTick, ref, watch } from "vue";
 
 import { useAIStore, type QuickNoteCandidate } from "@/stores/useAIStore";
+import { useChatStore } from "@/stores/useChatStore";
 import { useInspirationStore } from "@/stores/useInspirationStore";
+import { useUIStore } from "@/stores/useUIStore";
 
 const props = defineProps<{ visible: boolean }>();
 const emit = defineEmits<{ close: []; "create-task": [text: string, quadrant?: string] }>();
 
 const ai = useAIStore();
+const chat = useChatStore();
 const inspiration = useInspirationStore();
+const ui = useUIStore();
 
 const rawText = ref("");
 const textareaEl = ref<HTMLTextAreaElement | null>(null);
@@ -23,12 +27,14 @@ const candidates = ref<QuickNoteCandidate[]>([]);
 const pickedIndex = ref(0);
 const aiLoading = ref(false);
 const aiError = ref("");
+const copiedCandIdx = ref<number | null>(null);
 
 const candidateIcons = [Check, Edit3, Zap];
 
 watch(() => props.visible, (v) => {
   if (v) {
-    rawText.value = "";
+    rawText.value = ui.quickNotePrefilledText || "";
+    ui.quickNotePrefilledText = "";
     expanded.value = false;
     candidates.value = [];
     pickedIndex.value = 0;
@@ -41,11 +47,17 @@ function onClose() {
   emit("close");
 }
 
-function onSaveRaw() {
+function onCopyCand(idx: number, text: string) {
+  navigator.clipboard.writeText(text);
+  copiedCandIdx.value = idx;
+  setTimeout(() => { if (copiedCandIdx.value === idx) copiedCandIdx.value = null; }, 1500);
+}
+
+async function onSaveRaw() {
   const text = rawText.value.trim();
   if (!text) return;
-  inspiration.ensureLoaded();
-  inspiration.create(text);
+  await inspiration.ensureLoaded();
+  await inspiration.create(text);
   emit("close");
 }
 
@@ -77,11 +89,11 @@ function onContinueEdit() {
   nextTick(() => textareaEl.value?.focus());
 }
 
-function onSaveNote() {
+async function onSaveNote() {
   const c = candidates.value[pickedIndex.value];
   if (!c) return;
-  inspiration.ensureLoaded();
-  inspiration.create(c.text);
+  await inspiration.ensureLoaded();
+  await inspiration.create(c.text);
   emit("close");
 }
 
@@ -89,6 +101,19 @@ function onCreateTask() {
   const c = candidates.value[pickedIndex.value];
   if (!c) return;
   emit("create-task", c.text, c.quadrant);
+}
+
+/// 灵感"研究问题版"专属:保存为灵感,然后打开右侧 ChatPanel 与 AI 深入聊聊。
+async function onChatAboutQuestion() {
+  const c = candidates.value[pickedIndex.value];
+  if (!c || c.style !== "question") return;
+  const raw = rawText.value.trim();
+  await inspiration.ensureLoaded();
+  const created = await inspiration.create(c.text);
+  const noteId = created?.id ?? "";
+  await chat.createFromInspiration(noteId, raw, c.text);
+  if (!ui.showChat) ui.toggleChat();
+  emit("close");
 }
 
 function collapseAi() {
@@ -229,6 +254,10 @@ function onKeydown(e: KeyboardEvent) {
                 </div>
                 <div class="fl-qn-candidate-body">
                   <p>{{ c.text }}</p>
+                  <button class="fl-qn-copy-btn" type="button" title="复制" @click.stop="onCopyCand(i, c.text)">
+                    <Check v-if="copiedCandIdx === i" :size="12" />
+                    <Copy v-else :size="12" />
+                  </button>
                 </div>
               </article>
             </div>
@@ -244,6 +273,14 @@ function onKeydown(e: KeyboardEvent) {
                 </button>
                 <button class="fl-qn-btn fl-qn-btn-secondary fl-qn-btn-sm" type="button" @click="onSaveNote">
                   保存笔记
+                </button>
+                <button
+                  v-if="candidates[pickedIndex]?.style === 'question'"
+                  class="fl-qn-btn fl-qn-btn-secondary fl-qn-btn-sm fl-qn-btn-chat"
+                  type="button"
+                  @click="onChatAboutQuestion"
+                >
+                  <MessageSquare :size="12" /> 深入聊聊 →
                 </button>
                 <button class="fl-qn-btn fl-qn-btn-primary fl-qn-btn-sm" type="button" @click="onCreateTask">
                   创建任务
@@ -595,7 +632,27 @@ function onKeydown(e: KeyboardEvent) {
 }
 .fl-qn-candidate-body {
   padding: var(--sp-3);
+  position: relative;
 }
+.fl-qn-copy-btn {
+  position: absolute;
+  top: var(--sp-2);
+  right: var(--sp-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .15s, color .15s;
+}
+.fl-qn-candidate:hover .fl-qn-copy-btn { opacity: 1; }
+.fl-qn-copy-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
 .fl-qn-candidate-body p {
   font-size: var(--fs-14);
   line-height: 1.75;

@@ -95,42 +95,61 @@ pub fn weekly_summary_prompt(
     )
 }
 
-/// 速记便签 AI 优化模板 — 生成 3 种整理风格
+/// 速记便签 AI 优化模板 — 将不稳定输入梳理为 3 种思路版本
 pub fn quick_note_optimization_prompt(raw_text: &str) -> String {
     format!(
-        "你是一个专注力管理助手。用户会输入碎片化的想法或关键点,可能逻辑跳跃、不完整。\n\
-        你的任务是将这段速记整理为 3 种不同风格的表达。\n\n\
+        "你是一个专注力管理助手。用户会输入碎片化、跳跃、不完整的想法，可能只有关键词、半句话或未成型判断。\n\
+        你的任务不是把它转成任务，而是先理解用户输入意图，再把这段思路梳理为 3 个可保存为灵感的版本。\n\n\
         用户输入:\n{raw_text}\n\n\
         请返回 JSON 格式（不要包含 markdown 代码块标记）:\n\
         {{\n\
           \"candidates\": [\n\
             {{\n\
               \"label\": \"A\",\n\
-              \"style\": \"task\",\n\
-              \"styleName\": \"偏任务导向\",\n\
-              \"text\": \"整理为明确的待办事项描述,突出行动和优先级\",\n\
-              \"quadrant\": \"important_not_urgent\"\n\
+              \"style\": \"faithful\",\n\
+              \"styleName\": \"忠实整理版\",\n\
+              \"text\": \"在不改变原意的前提下，把跳跃表达整理成更连贯的思路\"\n\
             }},\n\
             {{\n\
               \"label\": \"B\",\n\
-              \"style\": \"note\",\n\
-              \"styleName\": \"偏笔记梳理\",\n\
-              \"text\": \"整理为连贯的笔记,保留上下文和思考过程\"\n\
+              \"style\": \"question\",\n\
+              \"styleName\": \"研究问题版\",\n\
+              \"text\": \"把输入中隐含的问题、假设或矛盾提炼成更清晰的研究问题\"\n\
             }},\n\
             {{\n\
               \"label\": \"C\",\n\
-              \"style\": \"checklist\",\n\
-              \"styleName\": \"偏简洁行动清单\",\n\
-              \"text\": \"整理为简短的编号清单,便于快速执行\"\n\
+              \"style\": \"direction\",\n\
+              \"styleName\": \"推进思路版\",\n\
+              \"text\": \"整理成一个可继续展开的思考方向，指出下一步值得思考什么\"\n\
             }}\n\
           ]\n\
         }}\n\n\
         要求:\n\
-        1. 每个候选的 text 字段应是 2-4 句话,不超过 120 字\n\
-        2. style=task 的候选必须包含 quadrant 字段(important_urgent / important_not_urgent / not_important_urgent / not_important_not_urgent)\n\
-        3. 保持用户原意,不要添加用户没有提到的内容\n\
-        4. 只返回 JSON,不要其他文字"
+        1. 三个候选都必须围绕用户的思路本身，不要转为待办、任务、执行清单或时间管理建议\n\
+        2. 每个 text 应尽可能理解用户输入意图，允许补足逻辑连接，但不要添加用户没有提到的事实\n\
+        3. 如果用户输入很短，也要保留不确定性，不要替用户下结论\n\
+        4. 每个 text 建议 2-4 句话，优先完整表达，不要为了短而截断\n\
+        5. 只返回 JSON，不要其他文字"
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::quick_note_optimization_prompt;
+
+    #[test]
+    fn quick_note_prompt_focuses_on_thought_versions_not_tasks() {
+        let prompt = quick_note_optimization_prompt("脑子里有个实验想法但还没理顺");
+
+        assert!(prompt.contains("专注力管理助手"));
+        assert!(prompt.contains("忠实整理版"));
+        assert!(prompt.contains("研究问题版"));
+        assert!(prompt.contains("推进思路版"));
+        assert!(prompt.contains("理解用户输入意图"));
+        assert!(!prompt.contains("偏任务导向"));
+        assert!(!prompt.contains("待办事项"));
+        assert!(!prompt.contains("转为任务"));
+    }
 }
 
 /// 未完成任务温和提醒模板
@@ -322,5 +341,48 @@ pub fn classify_quadrant_prompt(task_name: &str, description: &str) -> String {
         - not_important_urgent: 紧急不重要\n\
         - not_important_not_urgent: 不紧急不重要\n\n\
         只回复象限的英文标识(如 important_urgent),不要其他文字。"
+    )
+}
+
+// ---------- 灵感: AI 推荐归属目标 ----------
+pub fn suggest_goal_prompt(inspiration_content: &str, goals: &str) -> String {
+    format!(
+        "你是科研灵感归属助手。判断这条灵感最适合挂到哪个长线目标下,并给出简短理由。\n\n\
+        【灵感内容】\n{inspiration_content}\n\n\
+        【可选目标列表】(每行: id|name)\n{goals}\n\n\
+        要求:\n\
+        1. 选出最相关的 1 个目标 id (从列表中);若都不相关回 \"none\"。\n\
+        2. 给一句 ≤30 字的理由,说明为什么属于这个目标(或为什么不属于任何目标)。\n\n\
+        严格按 JSON 返回,不要其他文字:\n\
+        {{\"goalId\": \"<id 或 none>\", \"reason\": \"<理由>\"}}"
+    )
+}
+
+// ---------- 灵感: AI 起草后续实验 ----------
+pub fn draft_followup_prompt(parent_content: &str) -> String {
+    format!(
+        "你是科研助手。基于以下\"前置灵感\",起草一条\"后续实验\"灵感卡片,用来验证或推进这个想法。\n\n\
+        【前置灵感】\n{parent_content}\n\n\
+        要求:\n\
+        - 用 1-2 句话描述具体可执行的实验步骤或验证方式\n\
+        - 开头加上 [后续实验] 前缀\n\
+        - 字数控制在 80 字以内\n\
+        - 直接返回卡片正文,不要其他解释、不要引号包裹"
+    )
+}
+
+// ---------- 灵感: AI 纠偏分析 ----------
+pub fn correction_analysis_prompt(old_content: &str, new_content: &str) -> String {
+    format!(
+        "你是科研判断纠偏助手。用户在旧灵感中的判断,被新灵感所质疑/修正。请帮用户复盘。\n\n\
+        【旧灵感(可能有误的判断)】\n{old_content}\n\n\
+        【新灵感(质疑或修正)】\n{new_content}\n\n\
+        请用 JSON 返回纠偏分析,不要其他文字:\n\
+        {{\n\
+          \"summary\": \"<≤40字: 矛盾/纠偏关键点>\",\n\
+          \"oldJudgment\": \"<≤30字: 旧灵感的核心判断>\",\n\
+          \"newEvidence\": \"<≤30字: 新灵感提供的证据/视角>\",\n\
+          \"suggestion\": \"<≤40字: 建议下一步动作,如做对照实验/补充测量>\"\n\
+        }}"
     )
 }

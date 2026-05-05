@@ -15,7 +15,7 @@
 import { ref } from "vue";
 
 import { invokeCmd } from "@/composables/useTauriInvoke";
-import type { DaySummary, Goal } from "@/types";
+import type { BadgeExtraStats, DaySummary, Goal } from "@/types";
 
 export interface BadgeStats {
   totalPomodoros: number;
@@ -33,6 +33,18 @@ export interface BadgeStats {
   completedGoalCount: number;
   totalGoalCount: number;
   loaded: boolean;
+  // session 级额外统计
+  hasEarlySession: boolean;
+  hasNightSession: boolean;
+  hasMidnightSession: boolean;
+  has3amSession: boolean;
+  morning3PomodoroDay: boolean;
+  evening2PomodoroDay: boolean;
+  maxDayFocusMinutes: number;
+  has90minSession: boolean;
+  freeModeCount: number;
+  zeroInterruptionDays: number;
+  completedMilestones: number;
 }
 
 const EMPTY_STATS: BadgeStats = {
@@ -51,6 +63,17 @@ const EMPTY_STATS: BadgeStats = {
   completedGoalCount: 0,
   totalGoalCount: 0,
   loaded: false,
+  hasEarlySession: false,
+  hasNightSession: false,
+  hasMidnightSession: false,
+  has3amSession: false,
+  morning3PomodoroDay: false,
+  evening2PomodoroDay: false,
+  maxDayFocusMinutes: 0,
+  has90minSession: false,
+  freeModeCount: 0,
+  zeroInterruptionDays: 0,
+  completedMilestones: 0,
 };
 
 const GRADE_RANK: Record<string, number> = { S: 4, A: 3, B: 2, C: 1 };
@@ -186,10 +209,11 @@ const unlockedAtMap = ref<Record<string, string>>(readUnlockedMap());
 
 async function load(badgeIds: string[], evaluateUnlocked: (id: string, s: BadgeStats) => boolean) {
   try {
-    const [summaries, goalsActive, goalsAll] = await Promise.all([
+    const [summaries, goalsActive, goalsAll, extraStats] = await Promise.all([
       invokeCmd<DaySummary[]>("list_day_summaries", { from: "2020-01-01", to: "2099-12-31" }),
       invokeCmd<Goal[]>("list_goals", { includeArchived: false }),
       invokeCmd<Goal[]>("list_goals", { includeArchived: true }),
+      invokeCmd<BadgeExtraStats>("get_badge_extra_stats").catch(() => null),
     ]);
 
     const sorted = [...summaries].sort((a, b) => a.settleDate.localeCompare(b.settleDate));
@@ -211,6 +235,17 @@ async function load(badgeIds: string[], evaluateUnlocked: (id: string, s: BadgeS
       completedGoalCount: goalsAll.filter((g) => g.status === "completed").length,
       totalGoalCount: goalsAll.length,
       loaded: true,
+      hasEarlySession: extraStats?.hasEarlySession ?? false,
+      hasNightSession: extraStats?.hasNightSession ?? false,
+      hasMidnightSession: extraStats?.hasMidnightSession ?? false,
+      has3amSession: extraStats?.has3amSession ?? false,
+      morning3PomodoroDay: extraStats?.morning3PomodoroDay ?? false,
+      evening2PomodoroDay: extraStats?.evening2PomodoroDay ?? false,
+      maxDayFocusMinutes: extraStats?.maxDayFocusMinutes ?? 0,
+      has90minSession: extraStats?.has90minSession ?? false,
+      freeModeCount: extraStats?.freeModeCount ?? 0,
+      zeroInterruptionDays: extraStats?.zeroInterruptionDays ?? 0,
+      completedMilestones: extraStats?.completedMilestones ?? 0,
     };
   } catch (e) {
     // 边界错误容忍:后端命令失败时保持 empty stats,不阻塞 UI

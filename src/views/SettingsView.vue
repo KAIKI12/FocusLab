@@ -11,15 +11,24 @@ import AIPrivacyModal from "@/components/common/AIPrivacyModal.vue";
 import AIPayloadModal from "@/components/common/AIPayloadModal.vue";
 import DangerConfirmModal from "@/components/common/DangerConfirmModal.vue";
 import ExportModal from "@/components/common/ExportModal.vue";
+import ShortcutSettingsPanel from "@/components/settings/ShortcutSettingsPanel.vue";
 import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useAIStore } from "@/stores/useAIStore";
+import { useAIProfileStore, type ChatProfile, type EmbeddingProfile } from "@/stores/useAIProfileStore";
+import { detectShortcutPlatform } from "@/shortcuts/platform";
+import { useShortcutStore } from "@/stores/useShortcutStore";
 import { useTheme, type ThemeMode } from "@/composables/useTheme";
 import { useUIStore } from "@/stores/useUIStore";
+import { useChatStore } from "@/stores/useChatStore";
 
 const { mode, accent, setMode, setAccent } = useTheme();
 const ai = useAIStore();
+const profileStore = useAIProfileStore();
 const ui = useUIStore();
+const chat = useChatStore();
+const shortcutStore = useShortcutStore();
 const router = useRouter();
+const shortcutPlatform = detectShortcutPlatform(window.navigator.platform);
 
 const activeSection = ref("general");
 
@@ -59,13 +68,32 @@ const accents = [
 // A. 全局开关
 const aiEnabled = ref(true);
 
-// B. 连接配置
-const aiProvider = ref("openai");
-const aiApiFormat = ref("openai");   // 仅 custom provider 时用户可选
-const aiBaseUrl = ref("");
-const aiApiKey = ref("");
-const aiModel = ref("gpt-4o-mini");
-const aiConnStatus = ref("");        // success | fail | ""
+// B/C. Chat / Embedding profile 编辑草稿 - profile 列表来自 profileStore
+type ChatDraft = Omit<ChatProfile, "createdAt" | "updatedAt">;
+type EmbeddingDraft = Omit<EmbeddingProfile, "createdAt" | "updatedAt">;
+const blankChatDraft = (): ChatDraft => ({
+  id: "",
+  name: "",
+  provider: "openai",
+  apiFormat: "openai",
+  baseUrl: "",
+  apiKey: "",
+  modelFast: "gpt-4o-mini",
+  modelStrong: "gpt-4o-mini",
+  selectedModels: [],
+});
+const blankEmbeddingDraft = (): EmbeddingDraft => ({
+  id: "",
+  name: "",
+  baseUrl: "",
+  apiKey: "",
+  model: "text-embedding-3-small",
+});
+const chatDraft = ref<ChatDraft>(blankChatDraft());
+const embeddingDraft = ref<EmbeddingDraft>(blankEmbeddingDraft());
+const chatEditMode = ref<"new" | "edit" | null>(null);
+const embeddingEditMode = ref<"new" | "edit" | null>(null);
+const aiConnStatus = ref(""); // success | fail | ""
 const aiConnCheckedAt = ref("");
 
 // C. 语气风格
@@ -77,6 +105,16 @@ const aiIntensity = ref(3);
 
 // 测试结果提示
 const aiTestResult = ref("");
+
+// 模型列表动态获取
+const fetchedModels = ref<string[]>([]);
+const modelFetching = ref(false);
+const modelFetchError = ref("");
+
+// Embedding 模型列表动态获取
+const embeddingFetchedModels = ref<string[]>([]);
+const embeddingModelFetching = ref(false);
+const embeddingModelFetchError = ref("");
 
 // Provider 预设表（base_url 默认值）
 const providerPresets: Record<string, { baseUrl: string; models: string[]; format: string }> = {
@@ -91,13 +129,74 @@ const providerPresets: Record<string, { baseUrl: string; models: string[]; forma
 };
 
 function onProviderChange() {
-  const preset = providerPresets[aiProvider.value];
+  const preset = providerPresets[chatDraft.value.provider];
   if (preset) {
-    if (aiProvider.value !== "custom") {
-      aiBaseUrl.value = preset.baseUrl;
-      aiApiFormat.value = preset.format;
-      if (preset.models.length > 0) aiModel.value = preset.models[0];
+    if (chatDraft.value.provider !== "custom") {
+      chatDraft.value.baseUrl = preset.baseUrl;
+      chatDraft.value.apiFormat = preset.format;
+      if (preset.models.length > 0) {
+        chatDraft.value.modelFast = preset.models[0];
+        chatDraft.value.modelStrong = preset.models[0];
+      }
     }
+  }
+  fetchedModels.value = [];
+  modelFetchError.value = "";
+}
+
+async function onFetchModels() {
+  const baseUrl = chatDraft.value.baseUrl.trim();
+  if (!baseUrl) { modelFetchError.value = "请先填写 Base URL"; return; }
+  modelFetching.value = true;
+  modelFetchError.value = "";
+  try {
+    const models = await ai.fetchModels(baseUrl, chatDraft.value.apiKey, chatDraft.value.apiFormat);
+    fetchedModels.value = models;
+    if (models.length > 0 && !models.includes(chatDraft.value.modelFast)) {
+      chatDraft.value.modelFast = models[0];
+    }
+    if (models.length > 0 && !models.includes(chatDraft.value.modelStrong)) {
+      chatDraft.value.modelStrong = chatDraft.value.modelFast;
+    }
+    await invokeCmd("set_setting", {
+      key: `ai_fetched_models_${chatDraft.value.provider}`,
+      value: JSON.stringify(models),
+    }).catch(() => {});
+  } catch (e) {
+    modelFetchError.value = `获取失败: ${e}`;
+  } finally {
+    modelFetching.value = false;
+  }
+}
+
+function toggleSelectedModel(m: string) {
+  const idx = chatDraft.value.selectedModels.indexOf(m);
+  if (idx >= 0) {
+    chatDraft.value.selectedModels.splice(idx, 1);
+  } else {
+    chatDraft.value.selectedModels.push(m);
+  }
+}
+
+async function onFetchEmbeddingModels() {
+  const baseUrl = embeddingDraft.value.baseUrl.trim();
+  if (!baseUrl) { embeddingModelFetchError.value = "请先填写 Base URL"; return; }
+  embeddingModelFetching.value = true;
+  embeddingModelFetchError.value = "";
+  try {
+    // embedding 走 OpenAI 兼容协议(/v1/models)
+    const all = await ai.fetchModels(baseUrl, embeddingDraft.value.apiKey, "openai");
+    // 过滤出 embedding 模型(名字含 embed/embedding)
+    const filtered = all.filter((m) => /embed/i.test(m));
+    const list = filtered.length > 0 ? filtered : all;
+    embeddingFetchedModels.value = list;
+    if (list.length > 0 && !list.includes(embeddingDraft.value.model)) {
+      embeddingDraft.value.model = list[0];
+    }
+  } catch (e) {
+    embeddingModelFetchError.value = `获取失败: ${e}`;
+  } finally {
+    embeddingModelFetching.value = false;
   }
 }
 
@@ -111,21 +210,134 @@ const toneOptions = [
   { id: "custom",   icon: "✏️", name: "自定义", desc: "用自己的提示词" },
 ];
 
-async function onSaveAI() {
+// ---------- Chat profile 编辑/激活/删除 ----------
+function startNewChatProfile() {
+  chatDraft.value = blankChatDraft();
+  chatEditMode.value = "new";
+  fetchedModels.value = [];
+}
+
+function startEditChatProfile(p: ChatProfile) {
+  chatDraft.value = {
+    id: p.id, name: p.name, provider: p.provider, apiFormat: p.apiFormat,
+    baseUrl: p.baseUrl, apiKey: p.apiKey,
+    modelFast: p.modelFast, modelStrong: p.modelStrong,
+    selectedModels: [...p.selectedModels],
+  };
+  chatEditMode.value = "edit";
+  fetchedModels.value = [];
+  invokeCmd<string | null>("get_setting", { key: `ai_fetched_models_${p.provider}` })
+    .then((raw) => {
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) fetchedModels.value = parsed.filter((m): m is string => typeof m === "string");
+      } catch {}
+    })
+    .catch(() => {});
+}
+
+function cancelChatEdit() {
+  chatEditMode.value = null;
+  chatDraft.value = blankChatDraft();
+}
+
+async function saveChatProfile() {
+  if (!chatDraft.value.name.trim()) { aiTestResult.value = "❌ 请填写 Profile 名称"; return; }
+  // modelStrong 为空时回填 modelFast
+  if (!chatDraft.value.modelStrong.trim()) chatDraft.value.modelStrong = chatDraft.value.modelFast;
   try {
-    await ai.configure(
-      aiProvider.value,
-      aiApiFormat.value,
-      aiBaseUrl.value,
-      aiApiKey.value,
-      aiModel.value,
-      aiEnabled.value ? "1" : "0",
-      aiTone.value,
-      aiToneCustom.value,
-      String(aiIntensity.value),
-    );
-    aiTestResult.value = "✅ 已保存";
+    if (chatEditMode.value === "new") {
+      const id = await profileStore.createChat(chatDraft.value);
+      // 第一条 profile 自动激活
+      if (profileStore.chatProfiles.length === 1 || !profileStore.activeChatId) {
+        await profileStore.activateChat(id);
+      }
+      aiTestResult.value = "✅ 已新建 chat profile";
+    } else {
+      await profileStore.updateChat({
+        ...chatDraft.value,
+        createdAt: "", updatedAt: "", // 后端忽略
+      } as ChatProfile);
+      aiTestResult.value = "✅ 已保存修改";
+    }
+    cancelChatEdit();
+  } catch (e) {
+    aiTestResult.value = `❌ 保存失败: ${e}`;
+  }
+}
+
+async function activateChatProfile(id: string) {
+  try {
+    await profileStore.activateChat(id);
+    aiTestResult.value = "✅ 已切换激活 profile";
+  } catch (e) { aiTestResult.value = `❌ 激活失败: ${e}`; }
+}
+
+async function deleteChatProfile(id: string, name: string) {
+  if (!confirm(`确定删除 "${name}" 这条 chat profile?`)) return;
+  try {
+    await profileStore.deleteChat(id);
+    aiTestResult.value = "✅ 已删除";
+  } catch (e) { aiTestResult.value = `❌ 删除失败: ${e}`; }
+}
+
+// ---------- Embedding profile ----------
+function startNewEmbeddingProfile() {
+  embeddingDraft.value = blankEmbeddingDraft();
+  embeddingEditMode.value = "new";
+  embeddingFetchedModels.value = [];
+  embeddingModelFetchError.value = "";
+}
+
+function startEditEmbeddingProfile(p: EmbeddingProfile) {
+  embeddingDraft.value = {
+    id: p.id, name: p.name, baseUrl: p.baseUrl, apiKey: p.apiKey, model: p.model,
+  };
+  embeddingEditMode.value = "edit";
+  embeddingFetchedModels.value = [];
+  embeddingModelFetchError.value = "";
+}
+
+function cancelEmbeddingEdit() {
+  embeddingEditMode.value = null;
+  embeddingDraft.value = blankEmbeddingDraft();
+  embeddingFetchedModels.value = [];
+  embeddingModelFetchError.value = "";
+}
+
+async function saveEmbeddingProfile() {
+  if (!embeddingDraft.value.name.trim()) { aiTestResult.value = "❌ 请填写 Profile 名称"; return; }
+  try {
+    if (embeddingEditMode.value === "new") {
+      const id = await profileStore.createEmbedding(embeddingDraft.value);
+      if (profileStore.embeddingProfiles.length === 1 || !profileStore.activeEmbeddingId) {
+        await profileStore.activateEmbedding(id);
+      }
+      aiTestResult.value = "✅ 已新建 embedding profile";
+    } else {
+      await profileStore.updateEmbedding({
+        ...embeddingDraft.value, createdAt: "", updatedAt: "",
+      } as EmbeddingProfile);
+      aiTestResult.value = "✅ 已保存修改";
+    }
+    cancelEmbeddingEdit();
   } catch (e) { aiTestResult.value = `❌ 保存失败: ${e}`; }
+}
+
+async function activateEmbeddingProfile(id: string) {
+  try {
+    await profileStore.activateEmbedding(id);
+    aiTestResult.value = "✅ 已切换激活 embedding profile";
+  } catch (e) { aiTestResult.value = `❌ 激活失败: ${e}`; }
+}
+
+async function deleteEmbeddingProfile(id: string, name: string) {
+  if (!confirm(`确定删除 "${name}" 这条 embedding profile?`)) return;
+  try {
+    await profileStore.deleteEmbedding(id);
+    aiTestResult.value = "✅ 已删除";
+  } catch (e) { aiTestResult.value = `❌ 删除失败: ${e}`; }
 }
 
 async function onTestAI() {
@@ -243,6 +455,7 @@ async function onToggleSetting(target: ToggleKey) {
 
 // ---------- Init ----------
 onMounted(async () => {
+  shortcutStore.setPlatform(shortcutPlatform);
   const load = async (key: string, fallback: string) => {
     try {
       const v = await invokeCmd<string | null>("get_setting", { key });
@@ -263,16 +476,12 @@ onMounted(async () => {
   notifyDue.value = (await load("notify_due", "1")) === "1";
 
   aiEnabled.value = (await load("ai_enabled", "1")) === "1";
-  aiProvider.value = await load("ai_provider", "openai");
-  aiApiFormat.value = await load("ai_api_format", providerPresets[aiProvider.value]?.format ?? "openai");
-  aiBaseUrl.value = await load("ai_base_url", providerPresets[aiProvider.value]?.baseUrl ?? "");
-  aiApiKey.value = await load("ai_api_key", "");
-  aiModel.value = await load("ai_model", providerPresets[aiProvider.value]?.models?.[0] ?? "gpt-4o-mini");
   aiTone.value = await load("ai_tone", "academic");
   aiToneCustom.value = await load("ai_tone_custom", "");
   aiIntensity.value = Number(await load("ai_tone_intensity", "3"));
-  aiConnStatus.value = await load("ai_connection_status", "");
   aiConnCheckedAt.value = await load("ai_connection_checked_at", "");
+  // 加载 chat / embedding profile 池子 (Phase 3 重构)
+  try { await profileStore.loadAll(); } catch (e) { console.warn("[settings] load AI profiles failed", e); }
 
   statsEnabled.value = (await load("privacy_anonymous_stats", "0")) === "1";
   expMood.value = (await load("exp_mood_checkin", "1")) === "1";
@@ -284,8 +493,14 @@ onMounted(async () => {
 const exportResult = ref("");
 const showExportModal = ref(false);
 const showDangerModal = ref(false);
+const showClearChatModal = ref(false);
 const showAIPrivacy = ref(false);
 const showAIPayload = ref(false);
+
+async function onClearChat() {
+  showClearChatModal.value = false;
+  await chat.clearAllConversations();
+}
 </script>
 
 <template>
@@ -540,47 +755,108 @@ const showAIPayload = ref(false);
           </div>
         </div>
 
-        <div class="fl-set-subhead">B. 连接配置</div>
-        <div class="fl-ai-grid">
-          <label class="fl-ai-field">
-            <span>供应商</span>
-            <select v-model="aiProvider" class="fl-ai-input" @change="onProviderChange">
-              <option value="openai">OpenAI</option>
-              <option value="claude">Claude / Anthropic</option>
-              <option value="deepseek">DeepSeek</option>
-              <option value="moonshot">Moonshot</option>
-              <option value="qwen">通义千问</option>
-              <option value="gemini">Gemini</option>
-              <option value="ollama">Ollama 本地</option>
-              <option value="custom">自定义供应商</option>
-            </select>
-          </label>
+        <div class="fl-set-subhead">B. Chat Profile 池</div>
+        <div class="fl-set-desc" style="margin-bottom:var(--sp-2)">保存多份 chat 厂商连接,激活的那条会被所有 AI 调用使用。</div>
 
-          <label v-if="aiProvider === 'custom'" class="fl-ai-field">
-            <span>协议格式</span>
-            <select v-model="aiApiFormat" class="fl-ai-input">
-              <option value="openai">OpenAI 格式</option>
-              <option value="claude">Claude 格式</option>
-            </select>
-          </label>
+        <div class="fl-profile-list">
+          <div
+            v-for="p in profileStore.chatProfiles"
+            :key="p.id"
+            class="fl-profile-card"
+            :class="{ 'is-active': profileStore.activeChatId === p.id }"
+          >
+            <div class="fl-profile-card-head">
+              <strong>{{ p.name }}</strong>
+              <span v-if="profileStore.activeChatId === p.id" class="fl-profile-active-tag">当前激活</span>
+              <span class="fl-profile-provider">{{ p.provider }}</span>
+            </div>
+            <div class="fl-profile-card-meta">
+              <span>{{ p.baseUrl }}</span>
+              <span>fast: {{ p.modelFast || "—" }}</span>
+              <span v-if="p.modelStrong && p.modelStrong !== p.modelFast">strong: {{ p.modelStrong }}</span>
+            </div>
+            <div class="fl-profile-card-actions">
+              <button v-if="profileStore.activeChatId !== p.id" class="fl-set-btn fl-set-btn-ghost" @click="activateChatProfile(p.id)">激活</button>
+              <button class="fl-set-btn fl-set-btn-ghost" @click="startEditChatProfile(p)">编辑</button>
+              <button class="fl-set-btn fl-set-btn-ghost fl-profile-delete" @click="deleteChatProfile(p.id, p.name)">删除</button>
+            </div>
+          </div>
+          <button v-if="!chatEditMode" class="fl-set-btn fl-profile-add" @click="startNewChatProfile">+ 新建 chat profile</button>
+        </div>
 
-          <label class="fl-ai-field" :class="{ 'fl-ai-field-wide': aiProvider !== 'custom' }">
-            <span>Base URL</span>
-            <input v-model="aiBaseUrl" class="fl-ai-input" type="text" :placeholder="providerPresets[aiProvider]?.baseUrl || 'https://api.example.com'" />
-          </label>
-
-          <label v-if="aiProvider !== 'ollama'" class="fl-ai-field">
-            <span>API Key</span>
-            <input v-model="aiApiKey" class="fl-ai-input" type="password" placeholder="sk-... / claude-..." />
-          </label>
-
-          <label class="fl-ai-field">
-            <span>Model</span>
-            <select v-if="providerPresets[aiProvider]?.models?.length" v-model="aiModel" class="fl-ai-input">
-              <option v-for="m in providerPresets[aiProvider].models" :key="m" :value="m">{{ m }}</option>
-            </select>
-            <input v-else v-model="aiModel" class="fl-ai-input" type="text" placeholder="输入模型名，如 gpt-4o-mini" />
-          </label>
+        <div v-if="chatEditMode" class="fl-profile-form">
+          <div class="fl-profile-form-head">{{ chatEditMode === "new" ? "新建" : "编辑" }} Chat Profile</div>
+          <div class="fl-ai-grid">
+            <label class="fl-ai-field fl-ai-field-wide">
+              <span>Profile 名称</span>
+              <input v-model="chatDraft.name" class="fl-ai-input" type="text" placeholder="例如: 工作号 GPT / 实验室 DeepSeek" />
+            </label>
+            <label class="fl-ai-field">
+              <span>供应商</span>
+              <select v-model="chatDraft.provider" class="fl-ai-input" @change="onProviderChange">
+                <option value="openai">OpenAI</option>
+                <option value="claude">Claude / Anthropic</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="moonshot">Moonshot</option>
+                <option value="qwen">通义千问</option>
+                <option value="gemini">Gemini</option>
+                <option value="ollama">Ollama 本地</option>
+                <option value="custom">自定义供应商</option>
+              </select>
+            </label>
+            <label v-if="chatDraft.provider === 'custom'" class="fl-ai-field">
+              <span>协议格式</span>
+              <select v-model="chatDraft.apiFormat" class="fl-ai-input">
+                <option value="openai">OpenAI 格式</option>
+                <option value="claude">Claude 格式</option>
+              </select>
+            </label>
+            <label class="fl-ai-field" :class="{ 'fl-ai-field-wide': chatDraft.provider !== 'custom' }">
+              <span>Base URL</span>
+              <input v-model="chatDraft.baseUrl" class="fl-ai-input" type="text" :placeholder="providerPresets[chatDraft.provider]?.baseUrl || 'https://api.example.com'" />
+            </label>
+            <label v-if="chatDraft.provider !== 'ollama'" class="fl-ai-field fl-ai-field-wide">
+              <span>API Key</span>
+              <input v-model="chatDraft.apiKey" class="fl-ai-input" type="password" placeholder="sk-... / claude-..." />
+            </label>
+            <label class="fl-ai-field">
+              <span>Fast Model · 用于轻量场景</span>
+              <div class="fl-ai-model-row">
+                <select v-if="fetchedModels.length || providerPresets[chatDraft.provider]?.models?.length" v-model="chatDraft.modelFast" class="fl-ai-input fl-ai-model-select">
+                  <option v-for="m in (fetchedModels.length ? fetchedModels : providerPresets[chatDraft.provider]?.models ?? [])" :key="m" :value="m">{{ m }}</option>
+                </select>
+                <input v-else v-model="chatDraft.modelFast" class="fl-ai-input fl-ai-model-select" type="text" placeholder="如 gpt-4o-mini" />
+                <button class="fl-set-btn fl-set-btn-ghost fl-ai-fetch-btn" :disabled="modelFetching" @click="onFetchModels">
+                  {{ modelFetching ? "获取中…" : "获取模型" }}
+                </button>
+              </div>
+              <div v-if="modelFetchError" class="fl-ai-fetch-error">{{ modelFetchError }}</div>
+            </label>
+            <label class="fl-ai-field">
+              <span>Strong Model · 用于重量场景 (可选)</span>
+              <select v-if="fetchedModels.length || providerPresets[chatDraft.provider]?.models?.length" v-model="chatDraft.modelStrong" class="fl-ai-input">
+                <option v-for="m in (fetchedModels.length ? fetchedModels : providerPresets[chatDraft.provider]?.models ?? [])" :key="m" :value="m">{{ m }}</option>
+              </select>
+              <input v-else v-model="chatDraft.modelStrong" class="fl-ai-input" type="text" placeholder="留空则与 Fast 相同" />
+            </label>
+            <div v-if="fetchedModels.length" class="fl-ai-field">
+              <span>聊天可选模型 · 勾选后出现在聊天下拉</span>
+              <div class="fl-ai-model-checklist">
+                <label v-for="m in fetchedModels" :key="m" class="fl-ai-model-check">
+                  <input
+                    type="checkbox"
+                    :checked="chatDraft.selectedModels.includes(m)"
+                    @change="toggleSelectedModel(m)"
+                  />
+                  <span>{{ m }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="fl-ai-actions">
+            <button class="fl-set-btn" @click="saveChatProfile">{{ chatEditMode === "new" ? "新建" : "保存修改" }}</button>
+            <button class="fl-set-btn fl-set-btn-ghost" @click="cancelChatEdit">取消</button>
+          </div>
         </div>
 
         <div class="fl-ai-status-row">
@@ -594,13 +870,74 @@ const showAIPayload = ref(false);
         </div>
 
         <div class="fl-ai-actions">
-          <button class="fl-set-btn" @click="onSaveAI">保存配置</button>
-          <button class="fl-set-btn fl-set-btn-ghost" @click="onTestAI">测试连接</button>
+          <button class="fl-set-btn fl-set-btn-ghost" @click="onTestAI">测试激活的 profile 连接</button>
           <button class="fl-set-btn fl-set-btn-ghost" @click="showAIPayload = true">查看发送的数据示例</button>
         </div>
         <div v-if="aiTestResult" class="fl-ai-result">{{ aiTestResult }}</div>
 
-        <div class="fl-set-subhead">C. 语气风格</div>
+        <div class="fl-set-subhead">C. Embedding Profile 池</div>
+        <div class="fl-set-desc" style="margin-bottom:var(--sp-2)">为灵感图谱语义索引提供 embedding,与 chat 完全独立,可单独配置厂商。</div>
+
+        <div class="fl-profile-list">
+          <div
+            v-for="p in profileStore.embeddingProfiles"
+            :key="p.id"
+            class="fl-profile-card"
+            :class="{ 'is-active': profileStore.activeEmbeddingId === p.id }"
+          >
+            <div class="fl-profile-card-head">
+              <strong>{{ p.name }}</strong>
+              <span v-if="profileStore.activeEmbeddingId === p.id" class="fl-profile-active-tag">当前激活</span>
+            </div>
+            <div class="fl-profile-card-meta">
+              <span>{{ p.baseUrl }}</span>
+              <span>{{ p.model || "—" }}</span>
+            </div>
+            <div class="fl-profile-card-actions">
+              <button v-if="profileStore.activeEmbeddingId !== p.id" class="fl-set-btn fl-set-btn-ghost" @click="activateEmbeddingProfile(p.id)">激活</button>
+              <button class="fl-set-btn fl-set-btn-ghost" @click="startEditEmbeddingProfile(p)">编辑</button>
+              <button class="fl-set-btn fl-set-btn-ghost fl-profile-delete" @click="deleteEmbeddingProfile(p.id, p.name)">删除</button>
+            </div>
+          </div>
+          <button v-if="!embeddingEditMode" class="fl-set-btn fl-profile-add" @click="startNewEmbeddingProfile">+ 新建 embedding profile</button>
+        </div>
+
+        <div v-if="embeddingEditMode" class="fl-profile-form">
+          <div class="fl-profile-form-head">{{ embeddingEditMode === "new" ? "新建" : "编辑" }} Embedding Profile</div>
+          <div class="fl-ai-grid">
+            <label class="fl-ai-field fl-ai-field-wide">
+              <span>Profile 名称</span>
+              <input v-model="embeddingDraft.name" class="fl-ai-input" type="text" placeholder="例如: OpenAI Embedding" />
+            </label>
+            <label class="fl-ai-field fl-ai-field-wide">
+              <span>Embedding Base URL</span>
+              <input v-model="embeddingDraft.baseUrl" class="fl-ai-input" type="text" placeholder="https://api.openai.com" />
+            </label>
+            <label class="fl-ai-field">
+              <span>Embedding API Key</span>
+              <input v-model="embeddingDraft.apiKey" class="fl-ai-input" type="password" placeholder="sk-..." />
+            </label>
+            <label class="fl-ai-field">
+              <span>Embedding Model</span>
+              <div class="fl-ai-model-row">
+                <select v-if="embeddingFetchedModels.length" v-model="embeddingDraft.model" class="fl-ai-input fl-ai-model-select">
+                  <option v-for="m in embeddingFetchedModels" :key="m" :value="m">{{ m }}</option>
+                </select>
+                <input v-else v-model="embeddingDraft.model" class="fl-ai-input fl-ai-model-select" type="text" placeholder="text-embedding-3-small" />
+                <button class="fl-set-btn fl-set-btn-ghost fl-ai-fetch-btn" :disabled="embeddingModelFetching" @click="onFetchEmbeddingModels">
+                  {{ embeddingModelFetching ? "获取中…" : "获取模型" }}
+                </button>
+              </div>
+              <div v-if="embeddingModelFetchError" class="fl-ai-fetch-error">{{ embeddingModelFetchError }}</div>
+            </label>
+          </div>
+          <div class="fl-ai-actions">
+            <button class="fl-set-btn" @click="saveEmbeddingProfile">{{ embeddingEditMode === "new" ? "新建" : "保存修改" }}</button>
+            <button class="fl-set-btn fl-set-btn-ghost" @click="cancelEmbeddingEdit">取消</button>
+          </div>
+        </div>
+
+        <div class="fl-set-subhead">D. 语气风格</div>
         <div class="fl-tone-grid">
           <button
             v-for="tone in toneOptions"
@@ -672,28 +1009,21 @@ const showAIPayload = ref(false);
             <button class="fl-toggle" :class="{ 'is-on': statsEnabled }" @click="onToggleSetting('stats')"><span class="fl-toggle-dot" /></button>
           </div>
         </div>
+        <div class="fl-set-row fl-set-row-danger">
+          <div class="fl-set-info">
+            <div class="fl-set-label">清空所有 AI 对话</div>
+            <div class="fl-set-desc">删除全部聊天记录与对话历史，不可撤销</div>
+          </div>
+          <div class="fl-set-control">
+            <button class="fl-set-btn fl-set-btn-danger-outline" @click="showClearChatModal = true">清空</button>
+          </div>
+        </div>
       </div>
 
       <!-- 快捷键 -->
       <div v-if="activeSection === 'shortcuts'" class="fl-set-group">
         <h2>快捷键</h2>
-        <div class="fl-sc-list">
-          <div class="fl-sc-section">焦点/番茄钟</div>
-          <div class="fl-sc-row"><span>暂停 / 继续</span><kbd>Space</kbd></div>
-          <div class="fl-sc-row"><span>结束番茄钟</span><kbd>⌘⇧X</kbd></div>
-          <div class="fl-sc-section">任务/计划</div>
-          <div class="fl-sc-row"><span>快速添加任务</span><kbd>⌘N</kbd></div>
-          <div class="fl-sc-row"><span>结束今天</span><kbd>⌘⇧E</kbd></div>
-          <div class="fl-sc-section">视图/导航</div>
-          <div class="fl-sc-row"><span>今日计划</span><kbd>⌘1</kbd></div>
-          <div class="fl-sc-row"><span>长线目标</span><kbd>⌘2</kbd></div>
-          <div class="fl-sc-row"><span>日历视图</span><kbd>⌘3</kbd></div>
-          <div class="fl-sc-row"><span>数据分析</span><kbd>⌘4</kbd></div>
-          <div class="fl-sc-section">设置/模式</div>
-          <div class="fl-sc-row"><span>命令面板</span><kbd>⌘/</kbd></div>
-          <div class="fl-sc-row"><span>切换主题</span><kbd>⌘⇧T</kbd></div>
-          <div class="fl-sc-row"><span>打开设置</span><kbd>⌘,</kbd></div>
-        </div>
+        <ShortcutSettingsPanel />
       </div>
 
       <!-- 实验功能 -->
@@ -776,6 +1106,15 @@ const showAIPayload = ref(false);
     confirm-text="RESET"
     @close="showDangerModal = false"
     @confirmed="showDangerModal = false"
+  />
+  <DangerConfirmModal
+    :visible="showClearChatModal"
+    title="清空所有 AI 对话"
+    description="此操作不可撤销，将永久删除全部聊天记录"
+    :items="[{ label: '对话 & 消息', count: '全部' }]"
+    confirm-text="DELETE"
+    @close="showClearChatModal = false"
+    @confirmed="onClearChat"
   />
 </template>
 
@@ -910,6 +1249,48 @@ const showAIPayload = ref(false);
   padding: var(--sp-3) var(--sp-4); border: 1px solid var(--color-border);
   background: var(--color-bg-subtle); border-radius: var(--r-md);
 }
+
+/* AI Profile Pool */
+.fl-profile-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+.fl-profile-card {
+  border: 1px solid var(--color-border); border-radius: var(--r-md);
+  padding: var(--sp-3); background: var(--color-bg-subtle);
+  border-left: 3px solid transparent;
+}
+.fl-profile-card.is-active {
+  border-left-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.fl-profile-card-head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--fs-14); margin-bottom: 4px;
+}
+.fl-profile-active-tag {
+  font-size: 10px; padding: 2px 6px; border-radius: 8px;
+  background: var(--color-primary); color: #fff;
+}
+.fl-profile-provider {
+  font-size: 11px; padding: 2px 6px; border-radius: 4px;
+  background: var(--color-bg-elevated); color: var(--color-text-secondary);
+  margin-left: auto;
+}
+.fl-profile-card-meta {
+  display: flex; flex-wrap: wrap; gap: var(--sp-3);
+  font-size: 11px; color: var(--color-text-muted);
+  margin-bottom: var(--sp-2); font-family: var(--font-mono, monospace);
+}
+.fl-profile-card-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.fl-profile-delete:hover { color: #ef4444; border-color: #ef4444; }
+.fl-profile-add {
+  border-style: dashed; color: var(--color-text-muted); padding: var(--sp-2) var(--sp-4);
+}
+.fl-profile-form {
+  margin-top: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--color-primary);
+  border-radius: var(--r-md); background: var(--color-bg-elevated);
+  display: flex; flex-direction: column; gap: var(--sp-3);
+}
+.fl-profile-form-head { font-weight: var(--fw-semibold); font-size: var(--fs-14); }
+
 .fl-ai-grid {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3);
 }
@@ -922,6 +1303,33 @@ const showAIPayload = ref(false);
   color: var(--color-text-primary); font-size: var(--fs-14); font-family: inherit; outline: none;
 }
 .fl-ai-input:focus { border-color: var(--color-primary); }
+.fl-ai-model-row { display: flex; gap: var(--sp-2); align-items: center; }
+.fl-ai-model-select { flex: 1; min-width: 0; }
+.fl-ai-fetch-btn { white-space: nowrap; flex-shrink: 0; font-size: var(--fs-12); padding: var(--sp-2) var(--sp-3); }
+.fl-ai-model-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: var(--sp-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: var(--color-bg);
+}
+.fl-ai-model-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-12);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.fl-ai-model-check input[type="checkbox"] {
+  accent-color: var(--color-primary);
+}
+.fl-ai-fetch-error { font-size: var(--fs-12); color: var(--color-danger, #e53e3e); margin-top: var(--sp-1); }
 .fl-ai-textarea { resize: vertical; min-height: 92px; }
 .fl-ai-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .fl-ai-result {
@@ -997,6 +1405,8 @@ const showAIPayload = ref(false);
 }
 .fl-set-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .fl-set-btn-ghost { background: transparent; color: var(--color-text-secondary); }
+.fl-set-btn-danger-outline { background: transparent; color: #ef4444; border-color: #ef4444; }
+.fl-set-btn-danger-outline:hover { background: color-mix(in srgb, #ef4444 10%, transparent); }
 
 /* Privacy */
 .fl-privacy-info { font-size: var(--fs-14); color: var(--color-text-secondary); line-height: 1.6; }

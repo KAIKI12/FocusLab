@@ -21,6 +21,22 @@ export interface QuickNoteCandidate {
   quadrant?: string;
 }
 
+interface OptimizeCacheEntry {
+  candidates: QuickNoteCandidate[];
+  error: string;
+  loading: boolean;
+  ts: number;
+}
+
+/** 当前会话的梳理状态 — 路由切换后仍可恢复 */
+interface OptimizeSession {
+  draftText: string;
+  candidates: QuickNoteCandidate[];
+  error: string;
+  loading: boolean;
+  show: boolean;
+}
+
 export interface MilestoneBreakdownResult {
   goal_understanding: string;
   milestones: Array<{
@@ -52,10 +68,11 @@ export const useAIStore = defineStore("ai", () => {
   const loading = ref(false);
   const configured = ref(false);
 
-  /**
-   * 配置 AI provider。
-   * 所有参数持久化到 settings KV；apiFormat 仅在 provider === "custom" 时生效。
-   */
+  // AI 梳理结果缓存 — key 为原文, 路由切换后仍可恢复
+  const optimizeCache = ref<Map<string, OptimizeCacheEntry>>(new Map());
+  // 当前会话梳理状态（含原文，不依赖组件内 draft ref）
+  const optimizeSession = ref<OptimizeSession | null>(null);
+
   async function configure(
     provider: string,
     apiFormat: string,
@@ -81,8 +98,26 @@ export const useAIStore = defineStore("ai", () => {
     configured.value = true;
   }
 
+  async function configureEmbedding(
+    baseUrl: string,
+    apiKey: string,
+    model: string,
+    enabled?: string,
+  ) {
+    await invokeCmd<void>("configure_embedding", {
+      baseUrl,
+      apiKey,
+      model,
+      enabled,
+    });
+  }
+
   async function testConnection(): Promise<string> {
     return invokeCmd<string>("test_ai_connection");
+  }
+
+  async function fetchModels(baseUrl: string, apiKey: string, apiFormat: string): Promise<string[]> {
+    return invokeCmd<string[]>("fetch_ai_models", { baseUrl, apiKey, apiFormat });
   }
 
   async function decomposeTask(taskName: string, description?: string): Promise<SubTask[]> {
@@ -151,15 +186,25 @@ export const useAIStore = defineStore("ai", () => {
   }
 
   async function optimizeQuickNote(rawText: string): Promise<QuickNoteCandidate[]> {
+    // 先查缓存
+    const cached = optimizeCache.value.get(rawText);
+    if (cached && !cached.loading && !cached.error) return cached.candidates;
+
     loading.value = true;
+    // 写入 session 供路由恢复
+    optimizeSession.value = { draftText: rawText, candidates: [], error: "", loading: true, show: true };
+    optimizeCache.value.set(rawText, { candidates: [], error: "", loading: true, ts: Date.now() });
     try {
       const raw = await invokeCmd<string>("ai_optimize_quick_note", {
         input: { rawText },
       });
-      const parsed = JSON.parse(raw);
-      const candidates: QuickNoteCandidate[] = (parsed.candidates ?? [])
+      console.debug("[ai] optimizeQuickNote raw:", raw);
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const candidates: QuickNoteCandidate[] = (
+        (parsed.candidates as Record<string, unknown>[]) ?? []
+      )
         .slice(0, 3)
-        .map((c: Record<string, unknown>) => ({
+        .map((c) => ({
           label: String(c.label ?? ""),
           style: String(c.style ?? "note"),
           styleName: String(c.styleName ?? ""),
@@ -167,9 +212,14 @@ export const useAIStore = defineStore("ai", () => {
           quadrant: c.quadrant ? String(c.quadrant) : undefined,
         }));
       if (candidates.length < 3) throw new Error("AI 返回候选不足 3 个");
+      optimizeCache.value.set(rawText, { candidates, error: "", loading: false, ts: Date.now() });
+      optimizeSession.value = { draftText: rawText, candidates, error: "", loading: false, show: true };
       return candidates;
     } catch (e) {
       console.error("[ai] optimizeQuickNote failed", e);
+      const msg = e instanceof Error ? e.message : String(e);
+      optimizeCache.value.set(rawText, { candidates: [], error: msg, loading: false, ts: Date.now() });
+      optimizeSession.value = { draftText: rawText, candidates: [], error: msg, loading: false, show: true };
       throw e;
     } finally {
       loading.value = false;
@@ -343,10 +393,57 @@ export const useAIStore = defineStore("ai", () => {
     }
   }
 
+  function clearOptimizeCache() {
+    optimizeCache.value.clear();
+  }
+
+  // ---- 灵感: AI 推荐归属目标 ----
+  // D2: 失败时显式抛出,调用方决定是否提示用户/降级。
+  // 不在此处返回伪造的 "AI 推荐失败" 占位 — 那会让上游误以为成功调用。
+  async function suggestGoalForInspiration(
+    inspirationContent: string,
+    goals: Array<{ id: string; name: string }>,
+  ): Promise<{ goalId: string | null; reason: string }> {
+    return await invokeCmd<{ goalId: string | null; reason: string }>(
+      "ai_suggest_goal_for_inspiration",
+      {
+        input: {
+          inspirationContent,
+          goals: goals.map((g) => [g.id, g.name]),
+        },
+      },
+    );
+  }
+
+  // ---- 灵感: AI 起草后续实验 ----
+  // D2: 失败时显式抛出,UI 决定是否提示并提供"用模板代替"选项。
+  async function draftFollowupExperiment(parentContent: string): Promise<string> {
+    return await invokeCmd<string>("ai_draft_followup_experiment", {
+      input: { parentContent },
+    });
+  }
+
+  // ---- 灵感: AI 纠偏分析 ----
+  // D2: 失败时显式抛出。原本返回 null 的 silent fallback 让 UI 无法区分
+  // "AI 没意见" 与 "AI 调用失败" 两种语义。
+  async function analyzeCorrection(
+    oldContent: string,
+    newContent: string,
+  ): Promise<{ summary: string; oldJudgment: string; newEvidence: string; suggestion: string }> {
+    return await invokeCmd<{
+      summary: string;
+      oldJudgment: string;
+      newEvidence: string;
+      suggestion: string;
+    }>("ai_analyze_correction", { input: { oldContent, newContent } });
+  }
+
   return {
-    loading, configured, configure, testConnection,
+    loading, configured, configure, configureEmbedding, testConnection, fetchModels,
     decomposeTask, generateNarrative, dailySuggestions, classifyQuadrant, weeklySummary,
-    optimizeQuickNote, unfinishedReminder, taskFeedback, milestoneBreakdown,
+    optimizeQuickNote, optimizeCache, optimizeSession, clearOptimizeCache,
+    unfinishedReminder, taskFeedback, milestoneBreakdown,
     estimateTaskDuration, milestoneRisk,
+    suggestGoalForInspiration, draftFollowupExperiment, analyzeCorrection,
   };
 });

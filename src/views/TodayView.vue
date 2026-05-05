@@ -70,13 +70,17 @@ onMounted(async () => {
       for (const m of ms) { goalLabels.value[m.id] = `🎯 ${g.name}`; }
     } catch { /* */ }
   }
-  // 每日自动弹出晨起引导(当日未完成过)
+  // 每日自动弹出晨起引导：当天只自动弹出一次
   const today = new Date().toISOString().slice(0, 10);
-  if (!localStorage.getItem(`fl-morning-${today}`)) {
+  const morningShownKey = `fl-morning-shown-${today}`;
+  if (!localStorage.getItem(morningShownKey)) {
+    localStorage.setItem(morningShownKey, "1");
     showMorningGuide.value = true;
   }
   // 获取 AI 建议(异步，不阻塞)
   loadAISuggestion();
+  // 昨日未结算补打卡检测(失败静默,不影响 today 加载)
+  settlement.checkUnsettledYesterday().catch(() => { /* silent */ });
 });
 
 async function loadAISuggestion() {
@@ -244,8 +248,66 @@ function fmtMin(m: number): string {
         <button class="fl-action-btn" type="button" title="悬浮球" @click="openBubble">
           <Minimize2 :size="14" /> 悬浮球
         </button>
+        <button
+          class="fl-action-btn fl-action-settle"
+          type="button"
+          title="结束今天 · 进入日结算"
+          :disabled="settlement.settling"
+          @click="settlement.settle()"
+        >
+          <Moon :size="14" /> 结束今天
+        </button>
       </div>
     </header>
+
+    <!-- 昨日未结算补打卡提醒 -->
+    <div
+      v-if="settlement.unsettledYesterday && !settlement.unsettledDismissed"
+      class="fl-makeup-bar"
+    >
+      <span class="fl-makeup-icon">🌅</span>
+      <span class="fl-makeup-text">
+        昨日 ({{ settlement.unsettledYesterday.settleDate }}) 还没结算 ·
+        完成 {{ settlement.unsettledYesterday.completedTasks }}/{{ settlement.unsettledYesterday.plannedTasks }}
+      </span>
+      <button
+        class="fl-makeup-btn fl-makeup-primary"
+        type="button"
+        :disabled="settlement.settling"
+        @click="settlement.settleYesterday()"
+      >
+        补做结算
+      </button>
+      <button
+        class="fl-makeup-btn"
+        type="button"
+        @click="settlement.dismissUnsettled()"
+      >
+        稍后再说
+      </button>
+    </div>
+
+    <!-- 计划锁定状态条 -->
+    <div
+      v-if="assignments.stats"
+      class="fl-plan-lock-bar"
+      :class="{ 'is-locked': assignments.stats.isLocked }"
+    >
+      <span class="fl-plan-lock-icon">{{ assignments.stats.isLocked ? '🔒' : '📋' }}</span>
+      <span class="fl-plan-lock-text">
+        {{ assignments.stats.isLocked
+          ? `今日计划已锁定 · ${assignments.stats.completedCount}/${assignments.stats.plannedCount} 完成`
+          : `今日计划 · ${assignments.stats.plannedCount} 项任务` }}
+      </span>
+      <button
+        v-if="!assignments.stats.isLocked"
+        class="fl-plan-lock-btn"
+        type="button"
+        @click="assignments.lockPlan()"
+      >
+        锁定计划
+      </button>
+    </div>
 
     <!-- 双栏主体 -->
     <div class="fl-grid">
@@ -568,6 +630,41 @@ function fmtMin(m: number): string {
   gap: var(--sp-5);
 }
 
+/* ---------- Plan Lock Bar ---------- */
+.fl-plan-lock-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+  font-size: var(--fs-13, 13px);
+  color: var(--color-text-secondary);
+}
+.fl-plan-lock-bar.is-locked {
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-success) 30%, transparent);
+  color: var(--color-text-primary);
+}
+.fl-plan-lock-icon { font-size: 16px; line-height: 1; }
+.fl-plan-lock-text { flex: 1; }
+.fl-plan-lock-btn {
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  transition: all var(--dur-fast);
+}
+.fl-plan-lock-btn:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
 /* ---------- Page Head ---------- */
 .fl-page-head {
   display: flex;
@@ -586,6 +683,54 @@ function fmtMin(m: number): string {
   transition: all var(--dur-fast) var(--ease-smooth);
 }
 .fl-action-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+.fl-action-settle {
+  border-color: color-mix(in srgb, var(--color-primary) 50%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-elevated));
+  color: var(--color-primary);
+  font-weight: var(--fw-medium);
+}
+.fl-action-settle:hover {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+.fl-action-settle:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---------- 昨日未结算补打卡 ---------- */
+.fl-makeup-bar {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  margin-bottom: var(--sp-3);
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent);
+  border-radius: var(--r-md);
+  font-size: var(--fs-13, 13px);
+  color: var(--color-text-primary);
+}
+.fl-makeup-icon { font-size: 16px; line-height: 1; }
+.fl-makeup-text { flex: 1; }
+.fl-makeup-btn {
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  border-radius: var(--r-sm, 4px);
+  font-size: 12px; cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+.fl-makeup-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.fl-makeup-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.fl-makeup-primary {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+.fl-makeup-primary:hover {
+  background: var(--color-primary-dark);
+  color: #fff;
+  border-color: var(--color-primary-dark);
+}
 
 /* ---------- Grid ---------- */
 .fl-grid {

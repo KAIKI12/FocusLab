@@ -1,0 +1,25 @@
+{
+  "scene": "unfinished_reminder",
+  "version": 1,
+  "description": "未完成任务温和提醒本地语录池 — 按未完成数量分 3 桶,支持 {first_task} {count} {available_time} 变量",
+  "buckets": {
+    "single": [
+      { "message": "今天已经做得不错，「{first_task}」明天接着推进就好。", "next_step": "明早花 25 分钟先开个头" },
+      { "message": "只剩「{first_task}」这一项，明天用最舒服的时段啃下来。", "next_step": "把它放到明天首项的位置" },
+      { "message": "差「{first_task}」一项就清场了，节奏掌控得很好。", "next_step": "明天先做 15 分钟再决定继续多久" },
+      { "message": "「{first_task}」可以留到明天精力最好的时段。", "next_step": "今晚先把它拆成两小步" }
+    ],
+    "few": [
+      { "message": "今天积累的部分已经到位，剩下 {count} 项明天分两段处理。", "next_step": "明早从最容易的那项开始" },
+      { "message": "今天完成了不少，剩 {count} 项明天接着推进。", "next_step": "明早第一件事:做 25 分钟最容易的那项" },
+      { "message": "节奏没断，{count} 项未完成可以拆到明天的两个时段里。", "next_step": "明天先做 25 分钟「{first_task}」" },
+      { "message": "今天的努力都算数，明天再补 {count} 项就稳了。", "next_step": "把「{first_task}」放到明早首项" }
+    ],
+    "many": [
+      { "message": "今天清单偏满，{count} 项明天分多段慢慢推就好。", "next_step": "只挑「{first_task}」一项做 25 分钟，其余先不焦虑" },
+      { "message": "节奏被打乱很正常，明天重新分 {count} 项的优先级。", "next_step": "明天先做 25 分钟「{first_task}」找回手感" },
+      { "message": "未完成项较多，可以重新看一眼哪些其实可以延后。", "next_step": "明天只挑 1-2 项作为重点，其余顺延" },
+      { "message": "今天先休息，明天的清单不必和今天一样长。", "next_step": "明天用 25 分钟先完成「{first_task}」" }
+    ]
+  }
+}

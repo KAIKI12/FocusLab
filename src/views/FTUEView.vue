@@ -10,12 +10,14 @@ import { useRouter } from "vue-router";
 
 import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useAIStore } from "@/stores/useAIStore";
+import { useAIProfileStore } from "@/stores/useAIProfileStore";
 import { useGoalStore } from "@/stores/useGoalStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTheme, type ThemeMode } from "@/composables/useTheme";
 
 const router = useRouter();
 const ai = useAIStore();
+const profileStore = useAIProfileStore();
 const goals = useGoalStore();
 const tasks = useTaskStore();
 const { setMode } = useTheme();
@@ -50,11 +52,24 @@ async function onFinish() {
   // 应用偏好
   setMode(themeMode.value);
 
-  // AI 配置
+  // AI 配置 - 创建一条名为"默认"的 chat profile 并自动激活
   if (!skipAI.value && aiApiKey.value) {
     try {
-      await ai.configure(aiProvider.value, "openai", aiBaseUrl.value, aiApiKey.value, aiModel.value);
-    } catch { /* 可选 */ }
+      const id = await profileStore.createChat({
+        name: "默认",
+        provider: aiProvider.value,
+        apiFormat: "openai",
+        baseUrl: aiBaseUrl.value,
+        apiKey: aiApiKey.value,
+        modelFast: aiModel.value,
+        modelStrong: aiModel.value,
+        selectedModels: [],
+      });
+      await profileStore.activateChat(id);
+    } catch {
+      // fallback: 旧路径 (后端命令保留)
+      try { await ai.configure(aiProvider.value, "openai", aiBaseUrl.value, aiApiKey.value, aiModel.value); } catch { /* */ }
+    }
   }
 
   // 第一个目标

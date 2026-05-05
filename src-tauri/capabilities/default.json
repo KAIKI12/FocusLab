@@ -20,6 +20,10 @@
     "core:window:allow-set-always-on-top",
     "core:webview:default",
     "core:webview:allow-create-webview-window",
-    "opener:default"
+    "opener:default",
+    "global-shortcut:allow-is-registered",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-unregister-all"
   ]
 }
