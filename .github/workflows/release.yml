@@ -1,6 +1,6 @@
 # 三平台自动构建 + 发 Release
 # 触发：push 形如 v0.1.0 / v1.2.3 的 tag
-# 产出：Windows (.exe + .msi) / macOS (.dmg, arm64 + x64) / Linux (.deb + .AppImage)
+# 产出：Windows (.exe + .msi) / macOS Universal (.dmg, arm64+x64 通吃) / Linux (.deb + .AppImage)
 # 上传到 GitHub Releases 草稿,需手动点 Publish 才公开
 
 name: Release
@@ -19,18 +19,15 @@ jobs:
   build:
     permissions:
       contents: write
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         include:
-          # macOS Apple Silicon (M1/M2/M3/M4)
+          # macOS Universal Binary (arm64 + x64,Apple Silicon runner 上交叉编译产出)
           - platform: macos-latest
-            args: "--target aarch64-apple-darwin"
-            name: macos-arm64
-          # macOS Intel
-          - platform: macos-13
-            args: "--target x86_64-apple-darwin"
-            name: macos-x64
+            args: "--target universal-apple-darwin"
+            name: macos-universal
           # Linux x64
           - platform: ubuntu-22.04
             args: ""
@@ -63,11 +60,11 @@ jobs:
             wget \
             file
 
-      # ── Rust 工具链 ──
+      # ── Rust 工具链 (macOS universal 需要同时装 arm64 + x64 target) ──
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || matrix.platform == 'macos-13' && 'x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -102,8 +99,7 @@ jobs:
             ## 📥 下载
 
             - **Windows**：选 `*-setup.exe`（推荐）或 `*.msi`
-            - **macOS Apple Silicon**（M 系列芯片）：选 `*_aarch64.dmg`
-            - **macOS Intel**：选 `*_x64.dmg`
+            - **macOS**（无论 Apple Silicon / Intel）：选 `*_universal.dmg`,一个文件通吃所有 Mac
             - **Linux**：选 `*.AppImage` 或 `*.deb`
 
             > ⚠️ macOS 用户首次启动若提示"无法验证开发者"，请右键应用 → 打开 → 仍然继续；
