@@ -1,6 +1,6 @@
 [package]
 name = "focuslab"
-version = "0.1.0"
+version = "0.1.1"
 description = "FocusLab — 面向研究生的桌面番茄钟 + AI 陪伴工具"
 authors = ["FocusLab"]
 edition = "2021"

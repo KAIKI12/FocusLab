@@ -8,34 +8,56 @@
  */
 
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 
 let bubble: WebviewWindow | null = null;
 
 const POS_KEY = "fl-bubble-pos";
 const BUBBLE_SIZE = 64;
+const SCREEN_MARGIN = 16;
+
+function clampPosition(pos: { x: number; y: number }): { x: number; y: number } {
+  const maxX = Math.max(SCREEN_MARGIN, window.screen.width - BUBBLE_SIZE - SCREEN_MARGIN);
+  const maxY = Math.max(SCREEN_MARGIN, window.screen.height - BUBBLE_SIZE - SCREEN_MARGIN);
+  const x = Number.isFinite(pos.x) ? pos.x : maxX;
+  const y = Number.isFinite(pos.y) ? pos.y : maxY;
+
+  return {
+    x: Math.max(SCREEN_MARGIN, Math.min(x, maxX)),
+    y: Math.max(SCREEN_MARGIN, Math.min(y, maxY)),
+  };
+}
 
 function loadPosition(): { x: number; y: number } {
   try {
     const saved = localStorage.getItem(POS_KEY);
     if (saved) {
       const pos = JSON.parse(saved);
-      if (typeof pos.x === "number" && typeof pos.y === "number") return pos;
+      if (typeof pos.x === "number" && typeof pos.y === "number") return clampPosition(pos);
     }
   } catch { /* */ }
   // 默认右下角
-  return { x: window.screen.width - BUBBLE_SIZE - 20, y: window.screen.height - BUBBLE_SIZE - 120 };
+  return clampPosition({ x: window.screen.width - BUBBLE_SIZE - 20, y: window.screen.height - BUBBLE_SIZE - 120 });
 }
 
 function savePosition(x: number, y: number) {
   try {
-    localStorage.setItem(POS_KEY, JSON.stringify({ x, y }));
+    localStorage.setItem(POS_KEY, JSON.stringify(clampPosition({ x, y })));
   } catch { /* */ }
 }
 
 export function useBubble() {
   async function open() {
     if (bubble) {
-      try { await bubble.setFocus(); return; } catch { bubble = null; }
+      try {
+        const current = await bubble.outerPosition();
+        const pos = clampPosition({ x: current.x, y: current.y });
+        await bubble.setSize(new LogicalSize(BUBBLE_SIZE, BUBBLE_SIZE));
+        await bubble.setPosition(new LogicalPosition(pos.x, pos.y));
+        await bubble.show();
+        await bubble.setFocus();
+        return;
+      } catch { bubble = null; }
     }
 
     const pos = loadPosition();
