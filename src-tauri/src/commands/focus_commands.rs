@@ -17,9 +17,12 @@ use crate::utils::errors::{AppError, AppResult};
 pub async fn start_pomodoro(
     task_id: String,
     preset: String,
+    custom_planned_seconds: Option<i64>,
     timer: State<'_, TimerService>,
 ) -> AppResult<TimerSnapshot> {
-    timer.start_pomodoro(task_id, preset).await
+    timer
+        .start_pomodoro(task_id, preset, custom_planned_seconds)
+        .await
 }
 
 #[tauri::command]

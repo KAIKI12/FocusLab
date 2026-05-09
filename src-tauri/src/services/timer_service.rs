@@ -30,6 +30,8 @@ const TICK_INTERVAL_SECS: u64 = 1;
 const PERSIST_INTERVAL_SECS: i64 = 30;
 /// 长休息时长(每 4 个番茄触发)— docs/02 §2.1 "15-30 分钟",2a 取 15 分钟
 const LONG_BREAK_SECONDS: i64 = 15 * 60;
+const MIN_CUSTOM_SECONDS: i64 = 60;
+const MAX_CUSTOM_SECONDS: i64 = 180 * 60;
 
 // ---------- 纯函数(单测) ----------
 
@@ -42,6 +44,20 @@ pub fn compute_planned_seconds(preset: &str) -> i64 {
     }
 }
 
+fn resolve_planned_seconds(preset: &str, custom_planned_seconds: Option<i64>) -> AppResult<i64> {
+    if preset != "custom" {
+        return Ok(compute_planned_seconds(preset));
+    }
+
+    let Some(seconds) = custom_planned_seconds else {
+        return Err(AppError::Custom("自定义番茄钟需要提供时长".into()));
+    };
+    if !(MIN_CUSTOM_SECONDS..=MAX_CUSTOM_SECONDS).contains(&seconds) {
+        return Err(AppError::Custom("自定义番茄钟时长需在 1-180 分钟之间".into()));
+    }
+    Ok(seconds)
+}
+
 pub fn compute_break_seconds(preset: &str, pomodoro_count: i64) -> i64 {
     if pomodoro_count > 0 && pomodoro_count % 4 == 0 {
         return LONG_BREAK_SECONDS;
@@ -50,6 +66,7 @@ pub fn compute_break_seconds(preset: &str, pomodoro_count: i64) -> i64 {
         "classic_25" => 5 * 60,
         "deep_45" => 10 * 60,
         "immersive_90" => 15 * 60,
+        "custom" => 5 * 60,
         _ => 5 * 60,
     }
 }
@@ -154,6 +171,7 @@ impl TimerService {
         &self,
         task_id: String,
         preset: String,
+        custom_planned_seconds: Option<i64>,
     ) -> AppResult<TimerSnapshot> {
         {
             let guard = self.state.lock().await;
@@ -164,7 +182,7 @@ impl TimerService {
             }
         }
 
-        let planned = compute_planned_seconds(&preset);
+        let planned = resolve_planned_seconds(&preset, custom_planned_seconds)?;
         let now = Utc::now();
 
         // 创建 session
@@ -310,7 +328,7 @@ impl TimerService {
 
     /// 休息结束后继续同一个任务 — 创建新 session,重置为 running
     pub async fn continue_same_task(&self) -> AppResult<TimerSnapshot> {
-        let (task_id, preset, count) = {
+        let (task_id, preset, planned, count) = {
             let guard = self.state.lock().await;
             let t = guard
                 .as_ref()
@@ -318,7 +336,12 @@ impl TimerService {
             if t.status != "break_ended" {
                 return Err(AppError::Custom("当前不在休息结束状态".into()));
             }
-            (t.task_id.clone(), t.preset.clone(), t.pomodoro_count)
+            (
+                t.task_id.clone(),
+                t.preset.clone(),
+                t.planned_seconds,
+                t.pomodoro_count,
+            )
         };
 
         // 清空旧状态
@@ -327,7 +350,6 @@ impl TimerService {
 
         // 复用 start_pomodoro 的逻辑,但保留 pomodoro_count
         let preset_str = preset.unwrap_or_else(|| "classic_25".into());
-        let planned = compute_planned_seconds(&preset_str);
         let now = Utc::now();
 
         let session_id = {
@@ -361,7 +383,7 @@ impl TimerService {
 
     /// 休息结束后切换到另一个任务
     pub async fn switch_task(&self, new_task_id: String) -> AppResult<TimerSnapshot> {
-        {
+        let (count, preset_str, planned) = {
             let guard = self.state.lock().await;
             let t = guard
                 .as_ref()
@@ -369,15 +391,17 @@ impl TimerService {
             if t.status != "break_ended" {
                 return Err(AppError::Custom("当前不在休息结束状态".into()));
             }
-        }
+            (
+                t.pomodoro_count,
+                t.preset.clone().unwrap_or_else(|| "classic_25".into()),
+                t.planned_seconds,
+            )
+        };
 
         // 清空旧状态,用新 task_id 启动
         self.abort_tick().await;
-        let count = self.state.lock().await.as_ref().map(|t| t.pomodoro_count).unwrap_or(0);
-        let preset_str = self.state.lock().await.as_ref().and_then(|t| t.preset.clone()).unwrap_or_else(|| "classic_25".into());
         *self.state.lock().await = None;
 
-        let planned = compute_planned_seconds(&preset_str);
         let now = Utc::now();
 
         let session_id = {
@@ -774,6 +798,14 @@ mod tests {
     }
 
     #[test]
+    fn custom_planned_seconds_requires_valid_range() {
+        assert_eq!(resolve_planned_seconds("custom", Some(30 * 60)).unwrap(), 1800);
+        assert!(resolve_planned_seconds("custom", None).is_err());
+        assert!(resolve_planned_seconds("custom", Some(59)).is_err());
+        assert!(resolve_planned_seconds("custom", Some(181 * 60)).is_err());
+    }
+
+    #[test]
     fn break_seconds_short_vs_long() {
         // 第 1/2/3 个番茄 → 短休
         assert_eq!(compute_break_seconds("classic_25", 1), 300);
@@ -789,6 +821,7 @@ mod tests {
     fn deep_and_immersive_breaks() {
         assert_eq!(compute_break_seconds("deep_45", 1), 600);
         assert_eq!(compute_break_seconds("immersive_90", 1), 900);
+        assert_eq!(compute_break_seconds("custom", 1), 300);
         // 第 4 个即便 immersive 也是 15min(碰巧等于常规值)
         assert_eq!(compute_break_seconds("immersive_90", 4), 900);
     }

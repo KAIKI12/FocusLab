@@ -16,6 +16,22 @@ import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useSound } from "@/composables/useSound";
 import type { PomodoroPreset, TimerSnapshot } from "@/types";
 
+const DEFAULT_CUSTOM_MINUTES = 30;
+const MIN_CUSTOM_MINUTES = 1;
+const MAX_CUSTOM_MINUTES = 180;
+
+function normalizeCustomMinutes(value: unknown): number {
+  const minutes = Math.round(Number(value));
+  if (
+    !Number.isFinite(minutes)
+    || minutes < MIN_CUSTOM_MINUTES
+    || minutes > MAX_CUSTOM_MINUTES
+  ) {
+    throw new Error("自定义番茄钟时长需在 1-180 分钟之间");
+  }
+  return minutes;
+}
+
 /** 从后端 timer_state 行转成 TimerSnapshot — 启动时初始化用 */
 function stateRowToSnapshot(row: {
   task_id: string | null;
@@ -81,6 +97,7 @@ export const useTimerStore = defineStore("timer", () => {
 
   /** 当前选中的 preset(idle 时由 PresetSwitcher 设置) */
   const selectedPreset = ref<PomodoroPreset | "free">("classic_25");
+  const selectedCustomMinutes = ref(DEFAULT_CUSTOM_MINUTES);
 
   async function ensureListeners() {
     if (listenerGuard) return listenerGuard;
@@ -120,9 +137,12 @@ export const useTimerStore = defineStore("timer", () => {
   // ---------- actions ----------
 
   async function startPomodoro(taskId: string, preset: PomodoroPreset = "classic_25") {
+    const customMinutes = normalizeCustomMinutes(selectedCustomMinutes.value);
+    if (preset === "custom") selectedCustomMinutes.value = customMinutes;
     snapshot.value = await invokeCmd<TimerSnapshot>("start_pomodoro", {
       taskId,
       preset,
+      customPlannedSeconds: preset === "custom" ? customMinutes * 60 : null,
     });
   }
 
@@ -178,6 +198,7 @@ export const useTimerStore = defineStore("timer", () => {
     remainingSeconds,
     progress,
     selectedPreset,
+    selectedCustomMinutes,
     init,
     startPomodoro,
     pause,

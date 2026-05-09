@@ -89,7 +89,7 @@ export interface TimerStatePatch {
 
 // ---------- TimerSnapshot (Week 2a) ----------
 
-export type PomodoroPreset = "classic_25" | "deep_45" | "immersive_90";
+export type PomodoroPreset = "classic_25" | "deep_45" | "immersive_90" | "custom";
 
 export interface TimerSnapshot {
   status: TimerStatus;

@@ -560,8 +560,7 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
 .fl-mp {
   width: 100%;
   height: 100%;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--color-bg-elevated, #fff) 96%, white), var(--color-bg-elevated, #fff));
+  background: var(--color-bg-elevated, #fff);
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--color-border, #e5e7eb) 86%, white);
   box-shadow:
@@ -571,7 +570,6 @@ onUnmounted(() => { unlisteners.forEach((fn) => fn()); });
   flex-direction: column;
   overflow: hidden;
   color: var(--color-text-primary, #1a1a2e);
-  backdrop-filter: blur(18px);
 }
 
 .fl-mp-head {
