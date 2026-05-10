@@ -158,6 +158,11 @@ export const useInspirationStore = defineStore("inspiration", () => {
 
   async function ensureLoaded() {
     if (loaded.value) return;
+    await reload();
+    invokeCmd("batch_embed_pending").catch(() => {});
+  }
+
+  async function reload() {
     void ensureRecommendationListener();
     try {
       const listed = await invokeCmd<InspirationItem[]>("list_inspirations");
@@ -184,7 +189,6 @@ export const useInspirationStore = defineStore("inspiration", () => {
       items.value = readLegacyStorage();
     }
     loaded.value = true;
-    invokeCmd("batch_embed_pending").catch(() => {});
   }
 
   const totalCount = computed(() => items.value.length);
@@ -437,6 +441,7 @@ export const useInspirationStore = defineStore("inspiration", () => {
     pendingCount,
     latestItems,
     ensureLoaded,
+    reload,
     create,
     remove,
     assignGoal,

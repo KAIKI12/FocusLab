@@ -5,6 +5,7 @@
  */
 
 import { Sparkles, X, Check, Copy, Edit3, Zap, RefreshCw, MessageSquare } from "lucide-vue-next";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { nextTick, ref, watch } from "vue";
 
 import { useAIStore, type QuickNoteCandidate } from "@/stores/useAIStore";
@@ -12,13 +13,23 @@ import { useChatStore } from "@/stores/useChatStore";
 import { useInspirationStore } from "@/stores/useInspirationStore";
 import { useUIStore } from "@/stores/useUIStore";
 
-const props = defineProps<{ visible: boolean }>();
-const emit = defineEmits<{ close: []; "create-task": [text: string, quadrant?: string] }>();
+const props = withDefaults(defineProps<{
+  standalone?: boolean;
+  visible: boolean;
+}>(), {
+  standalone: false,
+});
+const emit = defineEmits<{
+  close: [];
+  "create-task": [text: string, quadrant?: string];
+  saved: [];
+}>();
 
 const ai = useAIStore();
 const chat = useChatStore();
 const inspiration = useInspirationStore();
 const ui = useUIStore();
+const appWindow = getCurrentWindow();
 
 const rawText = ref("");
 const textareaEl = ref<HTMLTextAreaElement | null>(null);
@@ -40,6 +51,11 @@ watch(() => props.visible, (v) => {
     pickedIndex.value = 0;
     aiError.value = "";
     nextTick(() => textareaEl.value?.focus());
+    if (props.standalone) {
+      appWindow.setFocus().catch((err) => {
+        console.error("[quick-note] set focus failed", err);
+      });
+    }
   }
 });
 
@@ -58,6 +74,7 @@ async function onSaveRaw() {
   if (!text) return;
   await inspiration.ensureLoaded();
   await inspiration.create(text);
+  emit("saved");
   emit("close");
 }
 
@@ -94,6 +111,7 @@ async function onSaveNote() {
   if (!c) return;
   await inspiration.ensureLoaded();
   await inspiration.create(c.text);
+  emit("saved");
   emit("close");
 }
 
@@ -110,6 +128,7 @@ async function onChatAboutQuestion() {
   const raw = rawText.value.trim();
   await inspiration.ensureLoaded();
   const created = await inspiration.create(c.text);
+  emit("saved");
   const noteId = created?.id ?? "";
   await chat.createFromInspiration(noteId, raw, c.text);
   if (!ui.showChat) ui.toggleChat();
@@ -130,8 +149,14 @@ function onKeydown(e: KeyboardEvent) {
 
 <template>
   <Transition name="fl-fade">
-    <div v-if="visible" class="fl-qn-mask" @click.self="onClose" @keydown="onKeydown">
-      <section class="fl-qn" role="dialog" aria-modal="true">
+    <div
+      v-if="visible"
+      class="fl-qn-mask"
+      :class="{ 'is-standalone': standalone }"
+      @click.self="standalone ? undefined : onClose"
+      @keydown="onKeydown"
+    >
+      <section class="fl-qn" :class="{ 'is-standalone': standalone }" role="dialog" aria-modal="true">
         <!-- Head -->
         <div class="fl-qn-head">
           <div class="fl-qn-title-wrap">
@@ -275,7 +300,7 @@ function onKeydown(e: KeyboardEvent) {
                   保存笔记
                 </button>
                 <button
-                  v-if="candidates[pickedIndex]?.style === 'question'"
+                  v-if="!standalone && candidates[pickedIndex]?.style === 'question'"
                   class="fl-qn-btn fl-qn-btn-secondary fl-qn-btn-sm fl-qn-btn-chat"
                   type="button"
                   @click="onChatAboutQuestion"
@@ -322,6 +347,11 @@ function onKeydown(e: KeyboardEvent) {
   padding-right: var(--sp-4);
 }
 
+.fl-qn-mask.is-standalone {
+  background: transparent;
+  padding: 0;
+}
+
 .fl-qn {
   width: min(680px, 100%);
   max-height: calc(100vh - 12vh);
@@ -330,6 +360,21 @@ function onKeydown(e: KeyboardEvent) {
   border: 1px solid var(--color-border);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-modal);
+}
+
+.fl-qn.is-standalone {
+  width: 100%;
+  max-height: 100vh;
+  min-height: 100vh;
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.fl-qn.is-standalone .fl-qn-head,
+.fl-qn.is-standalone .fl-qn-body {
+  padding-left: var(--sp-5);
+  padding-right: var(--sp-5);
 }
 
 /* ---------- Head ---------- */

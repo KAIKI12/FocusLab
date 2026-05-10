@@ -12,24 +12,30 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import Sidebar from "@/components/common/Sidebar.vue";
 import ChatPanel from "@/components/chat/ChatPanel.vue";
-import CommandPalette from "@/components/common/CommandPalette.vue";
 import MoodCheck from "@/components/common/MoodCheck.vue";
 import RecoveryDialog from "@/components/recovery/RecoveryDialog.vue";
 import SettlementDialog from "@/components/settlement/SettlementDialog.vue";
 import BreakEndDialog from "@/components/timer/BreakEndDialog.vue";
 import { useShortcutRuntime } from "@/composables/useShortcutRuntime";
 import { useRecovery } from "@/composables/useRecovery";
+import { invokeCmd } from "@/composables/useTauriInvoke";
+import { useInspirationStore } from "@/stores/useInspirationStore";
 import { useSettlementStore } from "@/stores/useSettlementStore";
 import { useShortcutStore } from "@/stores/useShortcutStore";
+import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
-import { useUIStore } from "@/stores/useUIStore";
+import {
+  INSPIRATIONS_CHANGED_EVENT,
+  TASKS_CHANGED_EVENT,
+} from "@/toolWindows";
 
 const { checkOnMount } = useRecovery();
 const route = useRoute();
 const router = useRouter();
+const tasks = useTaskStore();
+const inspiration = useInspirationStore();
 const settlement = useSettlementStore();
 const timer = useTimerStore();
-const ui = useUIStore();
 const shortcutStore = useShortcutStore();
 const shortcutRuntime = useShortcutRuntime();
 
@@ -61,14 +67,10 @@ async function handleTrayAction(payload: TrayAction) {
       await router.push("/today");
       break;
     case "quick-add":
-      await ensureLayoutRoute();
-      if (route.path !== "/today") await router.push("/today");
-      ui.showQuickAdd = true;
+      await invokeCmd("show_quick_add_window");
       break;
     case "quick-note":
-      await ensureLayoutRoute();
-      if (route.path !== "/today") await router.push("/today");
-      ui.showQuickNote = true;
+      await invokeCmd("show_quick_note_window");
       break;
     case "settle-today":
       await ensureLayoutRoute();
@@ -117,6 +119,22 @@ onMounted(async () => {
       });
     }),
   );
+
+  unlisteners.push(
+    await listen(TASKS_CHANGED_EVENT, () => {
+      tasks.load().catch((err) => {
+        console.error("[task-sync] reload failed", err);
+      });
+    }),
+  );
+
+  unlisteners.push(
+    await listen(INSPIRATIONS_CHANGED_EVENT, () => {
+      inspiration.reload().catch((err) => {
+        console.error("[inspiration-sync] reload failed", err);
+      });
+    }),
+  );
 });
 
 onUnmounted(() => {
@@ -137,7 +155,6 @@ onUnmounted(() => {
       <RecoveryDialog />
       <BreakEndDialog />
       <SettlementDialog />
-      <CommandPalette />
       <MoodCheck
         :visible="settlement.showMoodPrompt"
         mode="evening"

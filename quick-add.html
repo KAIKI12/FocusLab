@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FocusLab Quick Add</title>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("fl-theme");
+          var d = document.documentElement;
+          if (t === "auto") {
+            var pd = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+            d.dataset.theme = pd ? "dark" : "light";
+          } else if (t) { d.dataset.theme = t; }
+          var a = localStorage.getItem("fl-accent");
+          if (a && a !== "default") { d.dataset.accentTheme = a; }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/tool-main.ts"></script>
+  </body>
+</html>

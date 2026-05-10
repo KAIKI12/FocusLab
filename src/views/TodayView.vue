@@ -16,8 +16,6 @@ import InspirationPanel from "@/components/inspiration/InspirationPanel.vue";
 import { invokeCmd } from "@/composables/useTauriInvoke";
 import PresetSwitcher from "@/components/timer/PresetSwitcher.vue";
 import QuadrantGrid from "@/components/task/QuadrantGrid.vue";
-import QuickAddModal from "@/components/task/QuickAddModal.vue";
-import QuickNoteModal from "@/components/common/QuickNoteModal.vue";
 import TaskEditModal from "@/components/task/TaskEditModal.vue";
 import { useBubble } from "@/composables/useBubble";
 import { useAssignmentStore } from "@/stores/useAssignmentStore";
@@ -25,7 +23,6 @@ import { useGoalStore } from "@/stores/useGoalStore";
 import { useSettlementStore } from "@/stores/useSettlementStore";
 import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
-import { useUIStore } from "@/stores/useUIStore";
 import { useAIStore } from "@/stores/useAIStore";
 import type { AssignmentWithTask, Task } from "@/types";
 
@@ -34,7 +31,6 @@ const assignments = useAssignmentStore();
 const timer = useTimerStore();
 const settlement = useSettlementStore();
 const goals = useGoalStore();
-const ui = useUIStore();
 const ai = useAIStore();
 const { open: openBubble } = useBubble();
 const router = useRouter();
@@ -46,12 +42,6 @@ const editingTask = ref<Task | null>(null);
 const showManualSession = ref(false);
 const showMorningGuide = ref(false);
 
-function onQuickNoteCreateTask(text: string, quadrant?: string) {
-  ui.showQuickNote = false;
-  ui.quickNotePrefilledTitle = text;
-  if (quadrant) ui.quickNotePrefilledQuadrant = quadrant;
-  ui.showQuickAdd = true;
-}
 const goalLabels = ref<Record<string, string>>({});
 const aiSuggestion = ref("优先处理紧急重要象限的任务，上午注意力最佳时段可一鼓作气拿下核心任务。");
 const aiLoading = ref(false);
@@ -90,6 +80,10 @@ async function loadAISuggestion() {
     if (text) aiSuggestion.value = text;
   } catch { /* fallback 保持默认文案 */ }
   finally { aiLoading.value = false; }
+}
+
+async function openQuickAddWindow() {
+  await invokeCmd("show_quick_add_window");
 }
 
 const assignedTaskIds = computed(
@@ -508,7 +502,7 @@ function fmtMin(m: number): string {
               <span class="fl-bg-chip" :class="{ 'is-on': isBackground }">后台</span>
             </label>
             <button type="submit" :disabled="!name.trim()">添加</button>
-            <button type="button" class="fl-quick-add-btn" @click="ui.showQuickAdd = true" title="⌘N 快速添加">+</button>
+            <button type="button" class="fl-quick-add-btn" @click="openQuickAddWindow" title="⌘N 快速添加">+</button>
           </form>
         </div>
       </div>
@@ -610,12 +604,6 @@ function fmtMin(m: number): string {
 
     <!-- 弹窗 -->
     <TaskEditModal :task="editingTask" @close="editingTask = null" />
-    <QuickAddModal :visible="ui.showQuickAdd" @close="ui.showQuickAdd = false" @created="ui.showQuickAdd = false" />
-    <QuickNoteModal
-      :visible="ui.showQuickNote"
-      @close="ui.showQuickNote = false"
-      @create-task="onQuickNoteCreateTask"
-    />
     <ManualSessionModal :visible="showManualSession" @close="showManualSession = false" />
     <MorningGuide :visible="showMorningGuide" @close="showMorningGuide = false" />
   </section>

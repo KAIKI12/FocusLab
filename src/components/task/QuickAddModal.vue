@@ -7,19 +7,28 @@
 import { Plus, X } from "lucide-vue-next";
 import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
 import { invokeCmd } from "@/composables/useTauriInvoke";
 import { useGoalStore } from "@/stores/useGoalStore";
 import { useTaskStore } from "@/stores/useTaskStore";
+import { consumeQuickAddPrefill } from "@/toolWindows";
 import type { Milestone } from "@/types";
 
 import { useUIStore } from "@/stores/useUIStore";
 
-const props = defineProps<{ visible: boolean }>();
+const props = withDefaults(defineProps<{
+  standalone?: boolean;
+  visible: boolean;
+}>(), {
+  standalone: false,
+});
 const emit = defineEmits<{ close: []; created: [taskId: string] }>();
 
 const tasks = useTaskStore();
 const goals = useGoalStore();
 const ui = useUIStore();
+const appWindow = getCurrentWindow();
 
 const titleEl = ref<HTMLInputElement | null>(null);
 const title = ref("");
@@ -66,15 +75,25 @@ watch(selectedGoalId, async (gid) => {
 // 打开时 auto-focus + 预填充
 watch(() => props.visible, (v) => {
   if (v) {
+    const prefill = consumeQuickAddPrefill();
     if (ui.quickNotePrefilledTitle) {
       title.value = ui.quickNotePrefilledTitle;
       ui.quickNotePrefilledTitle = "";
+    } else if (prefill?.title) {
+      title.value = prefill.title;
     }
     if (ui.quickNotePrefilledQuadrant) {
       quadrant.value = ui.quickNotePrefilledQuadrant;
       ui.quickNotePrefilledQuadrant = "";
+    } else if (prefill?.quadrant) {
+      quadrant.value = prefill.quadrant;
     }
     nextTick(() => titleEl.value?.focus());
+    if (props.standalone) {
+      appWindow.setFocus().catch((err) => {
+        console.error("[quick-add] set focus failed", err);
+      });
+    }
   }
   else resetForm();
 });
@@ -121,8 +140,13 @@ onUnmounted(() => document.removeEventListener("keydown", onKeyDown));
 
 <template>
   <Transition name="fl-fade">
-    <div v-if="visible" class="fl-modal-mask" @click.self="emit('close')">
-      <div class="fl-qa" role="dialog" aria-modal="true">
+    <div
+      v-if="visible"
+      class="fl-modal-mask"
+      :class="{ 'is-standalone': standalone }"
+      @click.self="standalone ? undefined : emit('close')"
+    >
+      <div class="fl-qa" :class="{ 'is-standalone': standalone }" role="dialog" aria-modal="true">
         <!-- Head -->
         <div class="fl-qa-head">
           <Plus :size="18" class="fl-qa-icon" />
@@ -215,6 +239,11 @@ onUnmounted(() => document.removeEventListener("keydown", onKeyDown));
   z-index: var(--z-modal); padding: var(--sp-4);
 }
 
+.fl-modal-mask.is-standalone {
+  background: transparent;
+  padding: 0;
+}
+
 .fl-qa {
   width: min(520px, 100%);
   max-height: calc(100vh - 32px);
@@ -224,6 +253,15 @@ onUnmounted(() => document.removeEventListener("keydown", onKeyDown));
   border: 1px solid var(--color-border);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-modal);
+}
+
+.fl-qa.is-standalone {
+  width: 100%;
+  max-height: 100vh;
+  min-height: 100vh;
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
 }
 
 /* Head */
@@ -291,6 +329,15 @@ onUnmounted(() => document.removeEventListener("keydown", onKeyDown));
   padding: var(--sp-3) var(--sp-4);
   background: var(--color-bg-subtle);
   border-top: 1px solid var(--color-border);
+}
+.fl-qa.is-standalone .fl-qa-head,
+.fl-qa.is-standalone .fl-qa-foot {
+  padding-left: var(--sp-5);
+  padding-right: var(--sp-5);
+}
+
+.fl-qa.is-standalone .fl-qa-body {
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
 }
 .fl-qa-hint { font-size: 11px; color: var(--color-text-muted); display: flex; gap: 4px; align-items: center; }
 .fl-kbd {

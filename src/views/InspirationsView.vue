@@ -26,7 +26,6 @@ import InspirationGoalPicker from "@/components/inspiration/InspirationGoalPicke
 import InspirationGraphFullscreenModal from "@/components/inspiration/InspirationGraphFullscreenModal.vue";
 import InspirationGraphView from "@/components/inspiration/InspirationGraphView.vue";
 import InspirationLinkModal from "@/components/inspiration/InspirationLinkModal.vue";
-import QuickNoteModal from "@/components/common/QuickNoteModal.vue";
 import { useGoalStore } from "@/stores/useGoalStore";
 import { useInspirationStore, type InspirationItem } from "@/stores/useInspirationStore";
 import { useAIStore, type QuickNoteCandidate } from "@/stores/useAIStore";
@@ -213,13 +212,6 @@ async function onChatFromDraft(candidate: QuickNoteCandidate) {
   showAiDrafts.value = false;
   draft.value = "";
   ai.optimizeSession = null;
-}
-
-function onModalCreateTask(text: string, quadrant?: string) {
-  ui.showQuickNote = false;
-  ui.quickNotePrefilledTitle = text;
-  if (quadrant) ui.quickNotePrefilledQuadrant = quadrant;
-  ui.showQuickAdd = true;
 }
 
 // ---------- 时间分组 ----------
@@ -935,13 +927,6 @@ const allPendingRecommendations = computed(() => {
         </section>
       </aside>
     </div>
-
-    <!-- ⌘⇧N 速记 Modal -->
-    <QuickNoteModal
-      :visible="ui.showQuickNote"
-      @close="ui.showQuickNote = false"
-      @create-task="onModalCreateTask"
-    />
 
     <!-- D2: AI/契约错误显式提示 toast,4 秒自动消失 -->
     <Transition name="fl-bar">

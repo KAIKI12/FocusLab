@@ -21,6 +21,9 @@ export default defineConfig(async () => ({
       input: {
         main: resolve(__dirname, "index.html"),
         bubble: resolve(__dirname, "bubble.html"),
+        quickAdd: resolve(__dirname, "quick-add.html"),
+        quickNote: resolve(__dirname, "quick-note.html"),
+        commandPalette: resolve(__dirname, "command-palette.html"),
       },
     },
   },

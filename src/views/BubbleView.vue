@@ -252,6 +252,18 @@ async function focusMainWindow() {
 
 async function closeBubble() { await appWindow.close(); }
 
+async function openQuickAddWindow() {
+  try {
+    await invoke("show_quick_add_window");
+  } catch (e) { console.error("[bubble] openQuickAddWindow failed", e); }
+}
+
+async function openQuickNoteWindow() {
+  try {
+    await invoke("show_quick_note_window");
+  } catch (e) { console.error("[bubble] openQuickNoteWindow failed", e); }
+}
+
 async function emitTrayAction(type: "switch-task" | "quick-add" | "quick-note" | "settle-today") {
   await focusMainWindow();
   await emit("focuslab:tray:action", { type });
@@ -292,8 +304,8 @@ async function openContextMenu(e: MouseEvent) {
           items: opacityItems,
         },
         { item: "Separator" },
-        { id: "quick-add", text: "快速添加任务", accelerator: "Ctrl+N", action: () => { void emitTrayAction("quick-add"); } },
-        { id: "quick-note", text: "速记便签", accelerator: "Ctrl+Shift+N", action: () => { void emitTrayAction("quick-note"); } },
+        { id: "quick-add", text: "快速添加任务", accelerator: "Ctrl+N", action: () => { void openQuickAddWindow(); } },
+        { id: "quick-note", text: "速记便签", accelerator: "Ctrl+Shift+N", action: () => { void openQuickNoteWindow(); } },
         { id: "settle-today", text: "结束今天", action: () => { void emitTrayAction("settle-today"); } },
         { item: "Separator" },
         { id: "settings", text: "设置", accelerator: "Ctrl+,", action: () => { void openSettings(); } },

@@ -6,9 +6,12 @@
 
 import { Search, X } from "lucide-vue-next";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { emit as emitEvent } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useRouter } from "vue-router";
 
 import { useTheme } from "@/composables/useTheme";
+import { invokeCmd } from "@/composables/useTauriInvoke";
 import {
   getShortcutDefinition,
 } from "@/shortcuts/definitions";
@@ -21,10 +24,15 @@ import { useTaskStore } from "@/stores/useTaskStore";
 import { useTimerStore } from "@/stores/useTimerStore";
 import { useUIStore } from "@/stores/useUIStore";
 
-const visible = ref(false);
+const props = withDefaults(defineProps<{ standalone?: boolean }>(), {
+  standalone: false,
+});
+
+const visible = ref(props.standalone);
 const query = ref("");
 const inputEl = ref<HTMLInputElement | null>(null);
 const selectedIndex = ref(0);
+const appWindow = getCurrentWindow();
 
 const tasks = useTaskStore();
 const timer = useTimerStore();
@@ -49,6 +57,35 @@ function commandKeys(actionId: string): string {
   return formatShortcutForPlatform(binding?.shortcut ?? null, platform);
 }
 
+async function closeStandaloneWindow() {
+  if (!props.standalone) return;
+  await appWindow.close();
+}
+
+async function navigateMain(path: string) {
+  await invokeCmd("show_main_window");
+  await emitEvent("focuslab:tray:navigate", path);
+  await closeStandaloneWindow();
+}
+
+async function openStandaloneQuickAdd() {
+  if (!props.standalone) {
+    ui.showQuickAdd = true;
+    return;
+  }
+  await invokeCmd("show_quick_add_window");
+  await closeStandaloneWindow();
+}
+
+async function openStandaloneQuickNote() {
+  if (!props.standalone) {
+    ui.showQuickNote = true;
+    return;
+  }
+  await invokeCmd("show_quick_note_window");
+  await closeStandaloneWindow();
+}
+
 const commandActions: Record<string, () => void | Promise<void>> = {
   "focus.togglePause": async () => {
     if (timer.isPaused) await timer.resume();
@@ -57,20 +94,22 @@ const commandActions: Record<string, () => void | Promise<void>> = {
   "focus.abandonPomodoro": async () => {
     await timer.abandon();
   },
-  "task.quickAdd": () => {
-    ui.showQuickAdd = true;
-  },
-  "task.quickNote": () => {
-    ui.showQuickNote = true;
-  },
+  "task.quickAdd": () => openStandaloneQuickAdd(),
+  "task.quickNote": () => openStandaloneQuickNote(),
   "day.settle": async () => {
+    if (props.standalone) {
+      await invokeCmd("show_main_window");
+      await emitEvent("focuslab:tray:action", { type: "settle-today" });
+      await closeStandaloneWindow();
+      return;
+    }
     await settlement.settle();
   },
-  "nav.today": async () => { await router.push("/today"); },
-  "nav.goals": async () => { await router.push("/goals"); },
-  "nav.calendar": async () => { await router.push("/calendar"); },
-  "nav.stats": async () => { await router.push("/stats"); },
-  "nav.settings": async () => { await router.push("/settings"); },
+  "nav.today": async () => { if (props.standalone) await navigateMain("/today"); else await router.push("/today"); },
+  "nav.goals": async () => { if (props.standalone) await navigateMain("/goals"); else await router.push("/goals"); },
+  "nav.calendar": async () => { if (props.standalone) await navigateMain("/calendar"); else await router.push("/calendar"); },
+  "nav.stats": async () => { if (props.standalone) await navigateMain("/stats"); else await router.push("/stats"); },
+  "nav.settings": async () => { if (props.standalone) await navigateMain("/settings"); else await router.push("/settings"); },
   "ui.commandPalette": () => {
     visible.value = !visible.value;
   },
@@ -99,12 +138,12 @@ const taskCmds = computed<CmdItem[]>(() => [
   createCommandItem("task.quickAdd"),
   createCommandItem("task.quickNote"),
   createCommandItem("day.settle"),
-  {
+  ...(!props.standalone ? [{
     id: "cmd-yesterday",
     label: "查看昨日复盘",
     hint: "任务/计划",
     action: () => settlement.openYesterdayDialog(),
-  },
+  }] : []),
 ]);
 
 const navCmds = computed<CmdItem[]>(() => [
@@ -116,9 +155,9 @@ const navCmds = computed<CmdItem[]>(() => [
 ]);
 
 const settingCmds = computed<CmdItem[]>(() => [
-  createCommandItem("ui.commandPalette"),
+  ...(!props.standalone ? [createCommandItem("ui.commandPalette")] : []),
   createCommandItem("ui.toggleTheme"),
-  {
+  ...(!props.standalone ? [{
     id: "cmd-toggle-sidebar",
     label: "切换侧边栏",
     hint: "设置/模式",
@@ -129,7 +168,7 @@ const settingCmds = computed<CmdItem[]>(() => [
     label: "切换音效",
     hint: "设置/模式",
     action: () => ui.toggleSound(),
-  },
+  }] : []),
 ]);
 
 const allCommands = computed(() => [
@@ -191,7 +230,7 @@ const results = computed<CmdItem[]>(() => {
         id: `goal-${g.id}`,
         label: g.name,
         hint: "目标",
-        action: () => router.push("/goals"),
+        action: () => props.standalone ? navigateMain("/goals") : router.push("/goals"),
       }));
   }
 
@@ -200,13 +239,14 @@ const results = computed<CmdItem[]>(() => {
   );
   const taskResults = tasks.tasks
     .filter((t) => !q || t.name.toLowerCase().includes(q))
-    .slice(0, 6)
-    .map((t) => ({
+      .slice(0, 6)
+      .map((t) => ({
       id: `task-${t.id}`,
       label: t.name,
       hint: t.is_background ? "后台" : t.quadrant.replace(/_/g, " "),
-      action: () => {
+      action: async () => {
         if (!t.is_background && timer.isIdle) timer.startFree(t.id);
+        if (props.standalone) await closeStandaloneWindow();
       },
     }));
   return [...cmdResults, ...taskResults];
@@ -217,6 +257,10 @@ watch(visible, (v) => {
     query.value = "";
     selectedIndex.value = 0;
     nextTick(() => inputEl.value?.focus());
+  } else if (props.standalone) {
+    closeStandaloneWindow().catch((err) => {
+      console.error("[command-palette] close standalone window failed", err);
+    });
   }
 });
 
@@ -246,13 +290,28 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 onMounted(() => {
+  if (props.standalone) {
+    shortcutStore.setPlatform(platform);
+    Promise.all([
+      shortcutStore.load(),
+      tasks.load(),
+      goals.loadGoals(),
+      timer.init(),
+    ]).catch((err) => {
+      console.error("[command-palette] preload failed", err);
+    });
+  }
   window.addEventListener("keydown", onKeydown);
-  window.addEventListener("focuslab:shortcut", onShortcutEvent as EventListener);
+  if (!props.standalone) {
+    window.addEventListener("focuslab:shortcut", onShortcutEvent as EventListener);
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener("keydown", onKeydown);
-  window.removeEventListener("focuslab:shortcut", onShortcutEvent as EventListener);
+  if (!props.standalone) {
+    window.removeEventListener("focuslab:shortcut", onShortcutEvent as EventListener);
+  }
 });
 
 function selectItem(item: CmdItem) {
@@ -266,10 +325,11 @@ function selectItem(item: CmdItem) {
     <div
       v-if="visible"
       class="fl-cp-mask"
+      :class="{ 'is-standalone': standalone }"
       role="presentation"
       @click.self="visible = false"
     >
-      <div class="fl-cp-card" role="dialog" aria-modal="true">
+      <div class="fl-cp-card" :class="{ 'is-standalone': standalone }" role="dialog" aria-modal="true">
         <div class="fl-cp-search">
           <Search :size="16" class="fl-cp-icon" />
           <input
@@ -326,6 +386,12 @@ function selectItem(item: CmdItem) {
   z-index: calc(var(--z-modal) + 1);
 }
 
+.fl-cp-mask.is-standalone {
+  background: transparent;
+  padding-top: 0;
+  align-items: stretch;
+}
+
 .fl-cp-card {
   width: min(560px, 90%);
   max-height: 420px;
@@ -336,6 +402,28 @@ function selectItem(item: CmdItem) {
   display: flex;
   flex-direction: column;
   align-self: flex-start;
+}
+
+.fl-cp-card.is-standalone {
+  width: 100%;
+  max-height: 100vh;
+  height: 100vh;
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+  align-self: stretch;
+}
+
+.fl-cp-card.is-standalone .fl-cp-search {
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.fl-cp-card.is-standalone .fl-cp-list {
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.fl-cp-card.is-standalone .fl-cp-footer {
+  padding: var(--sp-3) var(--sp-5);
 }
 
 .fl-cp-search {
@@ -457,4 +545,3 @@ function selectItem(item: CmdItem) {
 .fl-fade-enter-from,
 .fl-fade-leave-to { opacity: 0; }
 </style>
-
