@@ -47,7 +47,12 @@ pub fn list_goals(conn: &Connection, include_archived: bool) -> AppResult<Vec<Go
     Ok(rows)
 }
 
-pub fn create_goal(conn: &Connection, name: &str, description: Option<&str>, target_date: Option<&str>) -> AppResult<Goal> {
+pub fn create_goal(
+    conn: &Connection,
+    name: &str,
+    description: Option<&str>,
+    target_date: Option<&str>,
+) -> AppResult<Goal> {
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     conn.execute(
@@ -68,17 +73,32 @@ pub fn create_goal(conn: &Connection, name: &str, description: Option<&str>, tar
     })
 }
 
-pub fn update_goal(conn: &Connection, id: &str, name: Option<&str>, description: Option<&str>, target_date: Option<&str>) -> AppResult<()> {
+pub fn update_goal(
+    conn: &Connection,
+    id: &str,
+    name: Option<&str>,
+    description: Option<&str>,
+    target_date: Option<&str>,
+) -> AppResult<()> {
     let now = Utc::now().to_rfc3339();
     // 简单全字段 UPDATE(非 None 才覆盖)
     if let Some(n) = name {
-        conn.execute("UPDATE goals SET name = ?1, updated_at = ?2 WHERE id = ?3", params![n, now, id])?;
+        conn.execute(
+            "UPDATE goals SET name = ?1, updated_at = ?2 WHERE id = ?3",
+            params![n, now, id],
+        )?;
     }
     if let Some(d) = description {
-        conn.execute("UPDATE goals SET description = ?1, updated_at = ?2 WHERE id = ?3", params![d, now, id])?;
+        conn.execute(
+            "UPDATE goals SET description = ?1, updated_at = ?2 WHERE id = ?3",
+            params![d, now, id],
+        )?;
     }
     if let Some(t) = target_date {
-        conn.execute("UPDATE goals SET target_date = ?1, updated_at = ?2 WHERE id = ?3", params![t, now, id])?;
+        conn.execute(
+            "UPDATE goals SET target_date = ?1, updated_at = ?2 WHERE id = ?3",
+            params![t, now, id],
+        )?;
     }
     Ok(())
 }
@@ -106,7 +126,8 @@ mod tests {
                 created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
                 completed_at DATETIME
              );",
-        ).unwrap();
+        )
+        .unwrap();
         conn
     }
 
@@ -137,7 +158,9 @@ mod tests {
         let g = create_goal(&conn, "Draft", None, None).unwrap();
         update_goal(&conn, &g.id, Some("Final"), None, None).unwrap();
         let name: String = conn
-            .query_row("SELECT name FROM goals WHERE id = ?1", params![g.id], |r| r.get(0))
+            .query_row("SELECT name FROM goals WHERE id = ?1", params![g.id], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(name, "Final");
     }

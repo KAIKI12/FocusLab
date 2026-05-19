@@ -10,9 +10,7 @@ use tauri::State;
 
 use crate::ai::AIService;
 use crate::db::Db;
-use crate::models::ai_profile::{
-    self, ChatProfile, EmbeddingProfile,
-};
+use crate::models::ai_profile::{self, ChatProfile, EmbeddingProfile};
 use crate::utils::errors::{AppError, AppResult};
 
 // ---------- list ----------
@@ -90,7 +88,13 @@ pub async fn create_embedding_profile(
     db: State<'_, Db>,
 ) -> AppResult<String> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
-    ai_profile::insert_embedding(&conn, &input.name, &input.base_url, &input.api_key, &input.model)
+    ai_profile::insert_embedding(
+        &conn,
+        &input.name,
+        &input.base_url,
+        &input.api_key,
+        &input.model,
+    )
 }
 
 // ---------- update ----------
@@ -187,7 +191,8 @@ pub async fn update_embedding_profile(
             let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
             ai_profile::set_active_embedding(&conn, &input.id)?;
         }
-        ai.configure_embedding(&input.base_url, &input.api_key, &input.model).await;
+        ai.configure_embedding(&input.base_url, &input.api_key, &input.model)
+            .await;
     }
     Ok(())
 }
@@ -209,8 +214,19 @@ pub async fn delete_chat_profile(
         }
     };
     if let Some(p) = next_active {
-        let primary = if !p.model_fast.is_empty() { p.model_fast } else { p.model_strong };
-        ai.configure(&p.provider, &p.api_format, &p.base_url, &p.api_key, &primary).await;
+        let primary = if !p.model_fast.is_empty() {
+            p.model_fast
+        } else {
+            p.model_strong
+        };
+        ai.configure(
+            &p.provider,
+            &p.api_format,
+            &p.base_url,
+            &p.api_key,
+            &primary,
+        )
+        .await;
     }
     Ok(())
 }
@@ -232,7 +248,8 @@ pub async fn delete_embedding_profile(
         }
     };
     if let Some(p) = next_active {
-        ai.configure_embedding(&p.base_url, &p.api_key, &p.model).await;
+        ai.configure_embedding(&p.base_url, &p.api_key, &p.model)
+            .await;
     }
     Ok(())
 }
@@ -279,6 +296,7 @@ pub async fn activate_embedding_profile(
         ai_profile::get_embedding(&conn, &id)?
             .ok_or_else(|| AppError::Custom("embedding profile 不存在".into()))?
     };
-    ai.configure_embedding(&profile.base_url, &profile.api_key, &profile.model).await;
+    ai.configure_embedding(&profile.base_url, &profile.api_key, &profile.model)
+        .await;
     Ok(())
 }

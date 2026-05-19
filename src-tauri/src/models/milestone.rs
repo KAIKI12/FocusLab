@@ -45,7 +45,12 @@ pub fn list_milestones(conn: &Connection, goal_id: &str) -> AppResult<Vec<Milest
     Ok(rows)
 }
 
-pub fn create_milestone(conn: &Connection, goal_id: &str, name: &str, description: Option<&str>) -> AppResult<Milestone> {
+pub fn create_milestone(
+    conn: &Connection,
+    goal_id: &str,
+    name: &str,
+    description: Option<&str>,
+) -> AppResult<Milestone> {
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     // sort_order = 当前最大 +1
@@ -76,13 +81,25 @@ pub fn create_milestone(conn: &Connection, goal_id: &str, name: &str, descriptio
     })
 }
 
-pub fn update_milestone(conn: &Connection, id: &str, name: Option<&str>, description: Option<&str>, status: Option<&str>) -> AppResult<()> {
+pub fn update_milestone(
+    conn: &Connection,
+    id: &str,
+    name: Option<&str>,
+    description: Option<&str>,
+    status: Option<&str>,
+) -> AppResult<()> {
     let now = Utc::now().to_rfc3339();
     if let Some(n) = name {
-        conn.execute("UPDATE milestones SET name = ?1, updated_at = ?2 WHERE id = ?3", params![n, now, id])?;
+        conn.execute(
+            "UPDATE milestones SET name = ?1, updated_at = ?2 WHERE id = ?3",
+            params![n, now, id],
+        )?;
     }
     if let Some(d) = description {
-        conn.execute("UPDATE milestones SET description = ?1, updated_at = ?2 WHERE id = ?3", params![d, now, id])?;
+        conn.execute(
+            "UPDATE milestones SET description = ?1, updated_at = ?2 WHERE id = ?3",
+            params![d, now, id],
+        )?;
     }
     if let Some(s) = status {
         if s == "completed" {

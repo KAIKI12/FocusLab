@@ -1,6 +1,6 @@
 //! 长线目标 + 里程碑 CRUD 命令。
 
-use chrono::{Datelike, DateTime, TimeZone, Utc};
+use chrono::{DateTime, Datelike, TimeZone, Utc};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -32,7 +32,12 @@ pub fn create_goal(input: CreateGoalInput, db: State<'_, Db>) -> AppResult<Goal>
         return Err(AppError::Custom("目标名不能为空".into()));
     }
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
-    goal::create_goal(&conn, &input.name, input.description.as_deref(), input.target_date.as_deref())
+    goal::create_goal(
+        &conn,
+        &input.name,
+        input.description.as_deref(),
+        input.target_date.as_deref(),
+    )
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,7 +52,13 @@ pub struct UpdateGoalInput {
 #[tauri::command]
 pub fn update_goal(input: UpdateGoalInput, db: State<'_, Db>) -> AppResult<()> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
-    goal::update_goal(&conn, &input.id, input.name.as_deref(), input.description.as_deref(), input.target_date.as_deref())
+    goal::update_goal(
+        &conn,
+        &input.id,
+        input.name.as_deref(),
+        input.description.as_deref(),
+        input.target_date.as_deref(),
+    )
 }
 
 #[tauri::command]
@@ -78,7 +89,12 @@ pub fn create_milestone(input: CreateMilestoneInput, db: State<'_, Db>) -> AppRe
         return Err(AppError::Custom("里程碑名不能为空".into()));
     }
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
-    milestone::create_milestone(&conn, &input.goal_id, &input.name, input.description.as_deref())
+    milestone::create_milestone(
+        &conn,
+        &input.goal_id,
+        &input.name,
+        input.description.as_deref(),
+    )
 }
 
 #[derive(Debug, Deserialize)]
@@ -93,7 +109,13 @@ pub struct UpdateMilestoneInput {
 #[tauri::command]
 pub fn update_milestone(input: UpdateMilestoneInput, db: State<'_, Db>) -> AppResult<()> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
-    milestone::update_milestone(&conn, &input.id, input.name.as_deref(), input.description.as_deref(), input.status.as_deref())
+    milestone::update_milestone(
+        &conn,
+        &input.id,
+        input.name.as_deref(),
+        input.description.as_deref(),
+        input.status.as_deref(),
+    )
 }
 
 #[tauri::command]
@@ -111,7 +133,10 @@ pub struct SetMilestoneTargetDateInput {
 }
 
 #[tauri::command]
-pub fn set_milestone_target_date(input: SetMilestoneTargetDateInput, db: State<'_, Db>) -> AppResult<()> {
+pub fn set_milestone_target_date(
+    input: SetMilestoneTargetDateInput,
+    db: State<'_, Db>,
+) -> AppResult<()> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     milestone::set_milestone_target_date(&conn, &input.milestone_id, input.target_date.as_deref())
 }
@@ -119,7 +144,10 @@ pub fn set_milestone_target_date(input: SetMilestoneTargetDateInput, db: State<'
 // ---------- Milestone Notes ----------
 
 #[tauri::command]
-pub fn list_milestone_notes(milestone_id: String, db: State<'_, Db>) -> AppResult<Vec<MilestoneNote>> {
+pub fn list_milestone_notes(
+    milestone_id: String,
+    db: State<'_, Db>,
+) -> AppResult<Vec<MilestoneNote>> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     milestone_note::list_notes(&conn, &milestone_id)
 }
@@ -132,7 +160,10 @@ pub struct AddMilestoneNoteInput {
 }
 
 #[tauri::command]
-pub fn add_milestone_note(input: AddMilestoneNoteInput, db: State<'_, Db>) -> AppResult<MilestoneNote> {
+pub fn add_milestone_note(
+    input: AddMilestoneNoteInput,
+    db: State<'_, Db>,
+) -> AppResult<MilestoneNote> {
     let text = input.text.trim();
     if text.is_empty() {
         return Err(AppError::Custom("备注内容不能为空".into()));
@@ -217,7 +248,10 @@ pub fn get_goal_weekly_invest(goal_id: String, db: State<'_, Db>) -> AppResult<W
         let (start, mins) = row?;
         // 转本地时间再取 weekday
         if let Ok(dt) = DateTime::parse_from_rfc3339(&start) {
-            let wd = dt.with_timezone(&chrono::Local).weekday().num_days_from_monday() as usize;
+            let wd = dt
+                .with_timezone(&chrono::Local)
+                .weekday()
+                .num_days_from_monday() as usize;
             if wd < 7 {
                 buckets[wd] += mins;
             }
@@ -229,7 +263,10 @@ pub fn get_goal_weekly_invest(goal_id: String, db: State<'_, Db>) -> AppResult<W
 
     Ok(WeeklyInvest {
         buckets: (0..7)
-            .map(|i| WeeklyInvestBucket { weekday: i, minutes: buckets[i as usize] })
+            .map(|i| WeeklyInvestBucket {
+                weekday: i,
+                minutes: buckets[i as usize],
+            })
             .collect(),
         total_minutes,
         today_minutes,

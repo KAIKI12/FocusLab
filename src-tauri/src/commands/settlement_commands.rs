@@ -7,8 +7,8 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::db::Db;
-use crate::models::settlement::{DaySummary, Settlement, YesterdaySummary};
 use crate::models::settings;
+use crate::models::settlement::{DaySummary, Settlement, YesterdaySummary};
 use crate::utils::datetime::current_logical_date;
 use crate::utils::errors::{AppError, AppResult};
 
@@ -217,7 +217,10 @@ pub fn settle_day(input: SettleInput, db: State<'_, Db>) -> AppResult<Settlement
 
 /// 查询某天的结算(如果已结算)
 #[tauri::command]
-pub fn get_settlement(plan_date: Option<String>, db: State<'_, Db>) -> AppResult<Option<Settlement>> {
+pub fn get_settlement(
+    plan_date: Option<String>,
+    db: State<'_, Db>,
+) -> AppResult<Option<Settlement>> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     let boundary = settings::get_boundary_hour(&conn)?;
     let target = plan_date.unwrap_or_else(|| current_logical_date(boundary).to_string());
@@ -264,7 +267,11 @@ pub fn get_settlement(plan_date: Option<String>, db: State<'_, Db>) -> AppResult
 
 /// 查询日期范围内的日摘要(日历视图用)
 #[tauri::command]
-pub fn list_day_summaries(from: String, to: String, db: State<'_, Db>) -> AppResult<Vec<DaySummary>> {
+pub fn list_day_summaries(
+    from: String,
+    to: String,
+    db: State<'_, Db>,
+) -> AppResult<Vec<DaySummary>> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     let mut stmt = conn.prepare(
         "SELECT settle_date, completed_tasks, total_tasks, grade, total_focus_minutes, total_pomodoros
@@ -290,7 +297,8 @@ pub fn list_day_summaries(from: String, to: String, db: State<'_, Db>) -> AppRes
 #[tauri::command]
 pub fn get_persona_hatch_progress(db: State<'_, Db>) -> AppResult<PersonaHatchProgress> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
-    let settlement_days: i64 = conn.query_row("SELECT COUNT(*) FROM settlements", [], |r| r.get(0))?;
+    let settlement_days: i64 =
+        conn.query_row("SELECT COUNT(*) FROM settlements", [], |r| r.get(0))?;
 
     Ok(PersonaHatchProgress {
         settlement_days,
@@ -328,16 +336,28 @@ pub fn get_yesterday_summary(db: State<'_, Db>) -> AppResult<Option<YesterdaySum
         },
     );
 
-    let (settle_date, completed, total, rate, grade, focus_min, pomodoros, longest_tid, _longest_min) =
-        match result {
-            Ok(r) => r,
-            Err(rusqlite::Error::QueryReturnedNoRows) => return Ok(None),
-            Err(e) => return Err(AppError::Custom(e.to_string())),
-        };
+    let (
+        settle_date,
+        completed,
+        total,
+        rate,
+        grade,
+        focus_min,
+        pomodoros,
+        longest_tid,
+        _longest_min,
+    ) = match result {
+        Ok(r) => r,
+        Err(rusqlite::Error::QueryReturnedNoRows) => return Ok(None),
+        Err(e) => return Err(AppError::Custom(e.to_string())),
+    };
 
     // 查最长专注任务名
     let longest_name: Option<String> = longest_tid.and_then(|tid| {
-        conn.query_row("SELECT name FROM tasks WHERE id = ?1", params![tid], |r| r.get(0)).ok()
+        conn.query_row("SELECT name FROM tasks WHERE id = ?1", params![tid], |r| {
+            r.get(0)
+        })
+        .ok()
     });
 
     // 查 carry-over 数量(昨天 pending 被搬到今天)
@@ -435,7 +455,9 @@ pub fn update_settlement_reflection(
         rusqlite::params![reflection, settle_date],
     )?;
     if affected == 0 {
-        return Err(AppError::Custom(format!("settlement not found: {settle_date}")));
+        return Err(AppError::Custom(format!(
+            "settlement not found: {settle_date}"
+        )));
     }
     Ok(())
 }

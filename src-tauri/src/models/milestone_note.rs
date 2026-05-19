@@ -110,7 +110,8 @@ mod tests {
         let conn = mem_db();
         conn.execute("PRAGMA foreign_keys = ON", []).unwrap();
         add_note(&conn, "m1", "note").unwrap();
-        conn.execute("DELETE FROM milestones WHERE id = 'm1'", []).unwrap();
+        conn.execute("DELETE FROM milestones WHERE id = 'm1'", [])
+            .unwrap();
         let notes = list_notes(&conn, "m1").unwrap();
         assert!(notes.is_empty());
     }

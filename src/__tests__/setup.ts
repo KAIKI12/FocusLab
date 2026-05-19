@@ -4,6 +4,7 @@ import { beforeEach, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+  convertFileSrc: vi.fn((path: string) => `asset://localhost/${path.replace(/\\/g, "/").replace(/^([A-Za-z]:)/, "$1")}`),
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({

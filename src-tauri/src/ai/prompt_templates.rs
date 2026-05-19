@@ -12,9 +12,13 @@
 /// - 其他（含 `"academic"`）→ 专业学术导师
 pub fn tone_description(tone: &str, custom: &str) -> String {
     match tone {
-        "coach" => "你是一个充满活力的健身教练式助手，语气激励、正面，多用感叹号和行动词。".to_string(),
+        "coach" => {
+            "你是一个充满活力的健身教练式助手，语气激励、正面，多用感叹号和行动词。".to_string()
+        }
         "zen" => "你是一个温和的禅修伙伴，语气平静、不施压，多用包容性表达。".to_string(),
-        "minimal" => "你是一个简洁的数据助手，只陈述事实，不加情绪化修饰，回复尽量简短。".to_string(),
+        "minimal" => {
+            "你是一个简洁的数据助手，只陈述事实，不加情绪化修饰，回复尽量简短。".to_string()
+        }
         "cat" => "你是一只可爱的猫咪助手，偶尔用喵语，调皮可爱但不失实用。".to_string(),
         "custom" if !custom.is_empty() => format!("请遵循以下风格要求：{custom}"),
         _ => "你是一个专业的学术导师，语气温和但有洞察力，表达结构清晰。".to_string(),
@@ -22,7 +26,13 @@ pub fn tone_description(tone: &str, custom: &str) -> String {
 }
 
 /// 结算叙事模板
-pub fn settlement_prompt(grade: &str, completed: i64, total: i64, focus_min: i64, tone: &str) -> String {
+pub fn settlement_prompt(
+    grade: &str,
+    completed: i64,
+    total: i64,
+    focus_min: i64,
+    tone: &str,
+) -> String {
     let tone_instruction = tone_description(tone, "");
 
     format!(
@@ -261,11 +271,7 @@ pub fn milestone_breakdown_prompt(
 
 /// 四象限自动分类模板
 /// 任务预估时长 Prompt（历史数据辅助）
-pub fn task_duration_prompt(
-    task_name: &str,
-    description: &str,
-    similar_history: &str,
-) -> String {
+pub fn task_duration_prompt(task_name: &str, description: &str, similar_history: &str) -> String {
     format!(
         "你是一个任务时长预估助手。根据任务信息和历史数据，预估完成该任务所需的专注时长。\n\n\
         严格返回如下 JSON，不要输出任何其他内容：\n\

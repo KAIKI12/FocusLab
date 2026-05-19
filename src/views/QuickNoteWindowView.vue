@@ -14,6 +14,7 @@ async function closeWindow() {
 
 async function handleSaved() {
   await emit(INSPIRATIONS_CHANGED_EVENT);
+  await closeWindow();
 }
 
 async function handleCreateTask(text: string, quadrant?: string) {

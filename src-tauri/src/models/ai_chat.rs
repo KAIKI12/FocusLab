@@ -67,7 +67,10 @@ fn map_conversation(r: &rusqlite::Row<'_>) -> rusqlite::Result<Conversation> {
 const CONV_COLUMNS: &str = "id, title, origin_type, origin_id, provider, api_format, model, \
                             system_prompt, message_count, pinned, archived, created_at, updated_at";
 
-pub fn list_conversations(conn: &Connection, include_archived: bool) -> AppResult<Vec<Conversation>> {
+pub fn list_conversations(
+    conn: &Connection,
+    include_archived: bool,
+) -> AppResult<Vec<Conversation>> {
     let sql = if include_archived {
         format!(
             "SELECT {CONV_COLUMNS} FROM ai_conversations \
@@ -87,7 +90,9 @@ pub fn list_conversations(conn: &Connection, include_archived: bool) -> AppResul
 
 pub fn get_conversation(conn: &Connection, id: &str) -> AppResult<Option<Conversation>> {
     let sql = format!("SELECT {CONV_COLUMNS} FROM ai_conversations WHERE id = ?1");
-    let v = conn.query_row(&sql, params![id], map_conversation).optional()?;
+    let v = conn
+        .query_row(&sql, params![id], map_conversation)
+        .optional()?;
     Ok(v)
 }
 
@@ -109,7 +114,17 @@ pub fn insert_conversation(
          (id, title, origin_type, origin_id, provider, api_format, model,
           system_prompt, message_count, pinned, archived, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0, 0, ?9, ?9)",
-        params![id, title, origin_type, origin_id, provider, api_format, model, system_prompt, now],
+        params![
+            id,
+            title,
+            origin_type,
+            origin_id,
+            provider,
+            api_format,
+            model,
+            system_prompt,
+            now
+        ],
     )?;
     Ok(id)
 }
@@ -299,7 +314,14 @@ mod tests {
     fn conversation_round_trip() {
         let conn = fresh_conn();
         let id = insert_conversation(
-            &conn, "测试会话", "manual", None, "openai", "openai", "gpt-4o-mini", "你是助手",
+            &conn,
+            "测试会话",
+            "manual",
+            None,
+            "openai",
+            "openai",
+            "gpt-4o-mini",
+            "你是助手",
         )
         .unwrap();
         let one = get_conversation(&conn, &id).unwrap().unwrap();

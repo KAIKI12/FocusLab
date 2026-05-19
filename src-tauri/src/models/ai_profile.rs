@@ -53,7 +53,9 @@ pub fn list_chat(conn: &Connection) -> AppResult<Vec<ChatProfile>> {
             api_key: r.get(5)?,
             model_fast: r.get(6)?,
             model_strong: r.get(7)?,
-            selected_models: r.get::<_, Option<String>>(8)?.unwrap_or_else(|| "[]".into()),
+            selected_models: r
+                .get::<_, Option<String>>(8)?
+                .unwrap_or_else(|| "[]".into()),
             created_at: r.get(9)?,
             updated_at: r.get(10)?,
         })
@@ -188,7 +190,18 @@ pub fn update_chat(
          SET name = ?2, provider = ?3, api_format = ?4, base_url = ?5, api_key = ?6,
              model_fast = ?7, model_strong = ?8, selected_models = ?9, updated_at = ?10
          WHERE id = ?1",
-        params![id, name, provider, api_format, base_url, api_key, model_fast, model_strong, selected_models, now],
+        params![
+            id,
+            name,
+            provider,
+            api_format,
+            base_url,
+            api_key,
+            model_fast,
+            model_strong,
+            selected_models,
+            now
+        ],
     )?)
 }
 
@@ -214,7 +227,10 @@ pub fn delete_chat(conn: &Connection, id: &str) -> AppResult<usize> {
 }
 
 pub fn delete_embedding(conn: &Connection, id: &str) -> AppResult<usize> {
-    Ok(conn.execute("DELETE FROM ai_embedding_profiles WHERE id = ?1", params![id])?)
+    Ok(conn.execute(
+        "DELETE FROM ai_embedding_profiles WHERE id = ?1",
+        params![id],
+    )?)
 }
 
 pub fn active_chat_id(conn: &Connection) -> AppResult<Option<String>> {
@@ -313,8 +329,7 @@ pub fn ensure_default_profile(conn: &Connection) -> AppResult<()> {
     let chat_api_key = read_setting(conn, "ai_api_key")?.unwrap_or_default();
     let chat_model = read_setting(conn, "ai_model")?.unwrap_or_default();
     let chat_provider = read_setting(conn, "ai_provider")?.unwrap_or_else(|| "openai".into());
-    let chat_api_format =
-        read_setting(conn, "ai_api_format")?.unwrap_or_else(|| "openai".into());
+    let chat_api_format = read_setting(conn, "ai_api_format")?.unwrap_or_else(|| "openai".into());
     let chat_fast = read_setting(conn, "ai_model_fast")?.unwrap_or_else(|| chat_model.clone());
     let chat_strong = read_setting(conn, "ai_model_strong")?.unwrap_or_else(|| chat_model.clone());
 
@@ -348,7 +363,14 @@ pub fn ensure_default_profile(conn: &Connection) -> AppResult<()> {
             "INSERT INTO ai_embedding_profiles
              (id, name, base_url, api_key, model, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
-            params![id, "默认 Embedding", emb_base_url, emb_api_key, emb_model, now],
+            params![
+                id,
+                "默认 Embedding",
+                emb_base_url,
+                emb_api_key,
+                emb_model,
+                now
+            ],
         )?;
         write_setting(conn, ACTIVE_EMBEDDING_KEY, &id, &now)?;
     }
@@ -430,7 +452,13 @@ mod tests {
         write_setting(&conn, "ai_base_url", "https://api.deepseek.com", &now).unwrap();
         write_setting(&conn, "ai_api_key", "sk-xxx", &now).unwrap();
         write_setting(&conn, "ai_model", "deepseek-chat", &now).unwrap();
-        write_setting(&conn, "ai_embedding_base_url", "https://api.openai.com", &now).unwrap();
+        write_setting(
+            &conn,
+            "ai_embedding_base_url",
+            "https://api.openai.com",
+            &now,
+        )
+        .unwrap();
         write_setting(&conn, "ai_embedding_api_key", "sk-yyy", &now).unwrap();
         write_setting(&conn, "ai_embedding_model", "text-embedding-3-small", &now).unwrap();
 
@@ -532,14 +560,26 @@ mod tests {
         .unwrap();
         set_active_chat(&conn, &id).unwrap();
 
-        assert_eq!(read_setting(&conn, "ai_provider").unwrap(), Some("qwen".into()));
+        assert_eq!(
+            read_setting(&conn, "ai_provider").unwrap(),
+            Some("qwen".into())
+        );
         assert_eq!(
             read_setting(&conn, "ai_base_url").unwrap(),
             Some("https://dashscope.aliyuncs.com".into())
         );
-        assert_eq!(read_setting(&conn, "ai_model").unwrap(), Some("qwen-turbo".into()));
-        assert_eq!(read_setting(&conn, "ai_model_fast").unwrap(), Some("qwen-turbo".into()));
-        assert_eq!(read_setting(&conn, "ai_model_strong").unwrap(), Some("qwen-max".into()));
+        assert_eq!(
+            read_setting(&conn, "ai_model").unwrap(),
+            Some("qwen-turbo".into())
+        );
+        assert_eq!(
+            read_setting(&conn, "ai_model_fast").unwrap(),
+            Some("qwen-turbo".into())
+        );
+        assert_eq!(
+            read_setting(&conn, "ai_model_strong").unwrap(),
+            Some("qwen-max".into())
+        );
         assert_eq!(active_chat_id(&conn).unwrap(), Some(id));
     }
 

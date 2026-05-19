@@ -154,11 +154,15 @@ pub fn update_assignment_status(
     db: State<'_, Db>,
 ) -> AppResult<()> {
     // 验证入参
-    let allowed = ["pending", "completed", "carried_forward", "shelved", "cancelled"];
+    let allowed = [
+        "pending",
+        "completed",
+        "carried_forward",
+        "shelved",
+        "cancelled",
+    ];
     if !allowed.contains(&day_status.as_str()) {
-        return Err(AppError::Custom(format!(
-            "非法 day_status: {day_status}"
-        )));
+        return Err(AppError::Custom(format!("非法 day_status: {day_status}")));
     }
 
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;

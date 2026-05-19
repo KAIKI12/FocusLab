@@ -26,7 +26,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             #[cfg(desktop)]
-            app.handle().plugin(tauri_plugin_global_shortcut::Builder::new().build())?;
+            app.handle()
+                .plugin(tauri_plugin_global_shortcut::Builder::new().build())?;
 
             let handle = app.handle();
             let db = db::init(handle)?;
@@ -49,8 +50,13 @@ pub fn run() {
                     .filter(|s| !s.is_empty())
                     .and_then(|id| models::ai_profile::get_chat(&conn, &id).ok().flatten());
 
-                let (provider, api_format, base_url, api_key, model) = if let Some(p) = active_chat {
-                    let primary = if !p.model_fast.is_empty() { p.model_fast } else { p.model_strong };
+                let (provider, api_format, base_url, api_key, model) = if let Some(p) = active_chat
+                {
+                    let primary = if !p.model_fast.is_empty() {
+                        p.model_fast
+                    } else {
+                        p.model_strong
+                    };
                     (p.provider, p.api_format, p.base_url, p.api_key, primary)
                 } else {
                     let get = |key: &str| -> String {
@@ -91,7 +97,9 @@ pub fn run() {
                 if let Some(e) = active_emb {
                     let ai_ref = &ai_service;
                     tauri::async_runtime::block_on(async {
-                        ai_ref.configure_embedding(&e.base_url, &e.api_key, &e.model).await;
+                        ai_ref
+                            .configure_embedding(&e.base_url, &e.api_key, &e.model)
+                            .await;
                     });
                     tracing::info!("Embedding auto-configured from active profile");
                 }
@@ -184,6 +192,7 @@ pub fn run() {
             commands::inspiration_commands::mark_inspiration_converted,
             commands::inspiration_commands::link_inspirations,
             commands::inspiration_commands::unlink_inspirations,
+            commands::inspiration_commands::ignore_inspiration_recommendation,
             commands::inspiration_commands::list_inspiration_links,
             commands::inspiration_commands::suggest_related_inspirations,
             commands::inspiration_commands::migrate_inspirations_from_local,

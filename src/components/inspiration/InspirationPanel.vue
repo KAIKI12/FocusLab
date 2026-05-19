@@ -7,10 +7,13 @@
  * - 一键转任务 / 删除
  */
 
-import { ArrowRight, Check, Lightbulb, Plus, Trash2 } from "lucide-vue-next";
-import { onMounted, ref } from "vue";
+import { ArrowRight, Check, Lightbulb, Plus, Trash2, X } from "lucide-vue-next";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
+import { useInspirationImageDraft } from "@/composables/useInspirationImageDraft";
+import { getInspirationImageSrc } from "@/composables/useInspirationImageAsset";
+import { renderMarkdown } from "@/composables/useMarkdown";
 import { useInspirationStore } from "@/stores/useInspirationStore";
 
 const inspiration = useInspirationStore();
@@ -19,16 +22,19 @@ const router = useRouter();
 const draft = ref("");
 const textareaEl = ref<HTMLTextAreaElement | null>(null);
 const justSaved = ref<string | null>(null); // 刚保存的卡片 id,用于短暂高亮
+const { imageDraft, imageError, clearImage, handlePasteImage, toUploadPayload } = useInspirationImageDraft();
+const canSave = computed(() => !!draft.value.trim() || !!imageDraft.value);
 
 onMounted(() => {
   inspiration.ensureLoaded();
 });
 
 async function onSave() {
-  const content = draft.value.trim();
-  if (!content) return;
-  const item = await inspiration.create(content);
+  const item = await inspiration.create(draft.value, {
+    image: await toUploadPayload(),
+  });
   draft.value = "";
+  clearImage();
   if (item) {
     justSaved.value = item.id;
     setTimeout(() => {
@@ -43,6 +49,10 @@ function onKeydown(e: KeyboardEvent) {
     e.preventDefault();
     onSave();
   }
+}
+
+function onPaste(event: ClipboardEvent) {
+  handlePasteImage(event);
 }
 
 async function onConvert(id: string) {
@@ -85,18 +95,26 @@ function fmtTime(iso: string) {
         ref="textareaEl"
         v-model="draft"
         class="fl-insp-textarea"
-        placeholder="随手记下一个想法… (⌘↵ 保存)"
+        placeholder="支持 Markdown，也可以直接粘贴截图… (⌘↵ 保存)"
         rows="3"
-        maxlength="500"
         spellcheck="false"
         @keydown="onKeydown"
+        @paste="onPaste"
       />
+      <div v-if="imageDraft" class="fl-insp-image-draft">
+        <img :src="imageDraft.previewUrl" alt="待保存的灵感截图" class="fl-insp-image-preview" />
+        <button class="fl-insp-image-remove" type="button" @click="clearImage">
+          <X :size="12" />
+          移除图片
+        </button>
+      </div>
+      <p v-if="imageError" class="fl-insp-image-error">{{ imageError }}</p>
       <div class="fl-insp-input-foot">
-        <span class="fl-insp-hint">{{ draft.length }} / 500</span>
+        <span class="fl-insp-hint">{{ draft.length }} 字 · 支持 Markdown / 截图粘贴</span>
         <button
           class="fl-insp-save"
           type="button"
-          :disabled="!draft.trim()"
+          :disabled="!canSave"
           @click="onSave"
         >
           <Plus :size="14" />
@@ -118,7 +136,15 @@ function fmtTime(iso: string) {
           }"
         >
           <div class="fl-insp-card-body">
-            <p class="fl-insp-card-text">{{ item.content }}</p>
+            <img
+              v-if="item.imagePath"
+              :src="getInspirationImageSrc(item.imagePath)"
+              alt="灵感附图"
+              class="fl-insp-card-image"
+              loading="lazy"
+            />
+            <div v-if="item.content" class="fl-insp-card-text fl-markdown" v-html="renderMarkdown(item.content)" />
+            <p v-else class="fl-insp-card-image-only">图片灵感</p>
             <div class="fl-insp-card-meta">
               <span class="fl-insp-time">{{ fmtTime(item.createdAt) }}</span>
               <span v-if="item.convertedTaskId" class="fl-insp-tag fl-insp-tag-done">
@@ -128,7 +154,7 @@ function fmtTime(iso: string) {
           </div>
           <div class="fl-insp-card-actions">
             <button
-              v-if="!item.convertedTaskId"
+              v-if="item.content.trim() && !item.convertedTaskId"
               class="fl-insp-btn fl-insp-btn-convert"
               type="button"
               :disabled="inspiration.saving"
@@ -251,6 +277,36 @@ function fmtTime(iso: string) {
   padding: var(--sp-2) var(--sp-3);
   border-top: 1px solid var(--color-divider);
 }
+.fl-insp-image-draft {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0 var(--sp-3) var(--sp-3);
+}
+.fl-insp-image-preview {
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--color-border);
+}
+.fl-insp-image-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.fl-insp-image-error {
+  margin: 0;
+  padding: 0 var(--sp-3) var(--sp-3);
+  color: var(--color-danger, #ef4444);
+  font-size: 12px;
+}
 .fl-insp-hint {
   font-size: 11px;
   color: var(--color-text-muted);
@@ -314,16 +370,37 @@ function fmtTime(iso: string) {
   flex: 1;
   min-width: 0;
 }
+.fl-insp-card-image {
+  width: 100%;
+  max-height: 152px;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--color-border);
+  margin-bottom: 8px;
+}
 .fl-insp-card-text {
   font-size: var(--fs-13, 13px);
   color: var(--color-text-primary);
   line-height: 1.6;
   word-break: break-word;
   margin: 0 0 4px;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+}
+.fl-insp-card-image-only {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.fl-markdown :deep(p) {
+  margin: 0;
+}
+.fl-markdown :deep(p + p) {
+  margin-top: 6px;
+}
+.fl-markdown :deep(code) {
+  padding: 1px 4px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg));
+  font-size: 12px;
 }
 .fl-insp-card-meta {
   display: flex;

@@ -31,16 +31,32 @@ pub struct StreamChunk {
 
 impl StreamChunk {
     pub fn delta(s: &str) -> Self {
-        Self { delta: s.to_string(), done: false, error: None }
+        Self {
+            delta: s.to_string(),
+            done: false,
+            error: None,
+        }
     }
     pub fn done() -> Self {
-        Self { delta: String::new(), done: true, error: None }
+        Self {
+            delta: String::new(),
+            done: true,
+            error: None,
+        }
     }
     pub fn aborted() -> Self {
-        Self { delta: String::new(), done: true, error: Some("aborted".into()) }
+        Self {
+            delta: String::new(),
+            done: true,
+            error: Some("aborted".into()),
+        }
     }
     pub fn error(msg: impl Into<String>) -> Self {
-        Self { delta: String::new(), done: true, error: Some(msg.into()) }
+        Self {
+            delta: String::new(),
+            done: true,
+            error: Some(msg.into()),
+        }
     }
 }
 
@@ -76,7 +92,11 @@ pub async fn stream_sse(
         loop {
             let eol = buffer.find("\n\n").or_else(|| buffer.find("\r\n\r\n"));
             let Some(idx) = eol else { break };
-            let sep_len = if buffer[idx..].starts_with("\r\n\r\n") { 4 } else { 2 };
+            let sep_len = if buffer[idx..].starts_with("\r\n\r\n") {
+                4
+            } else {
+                2
+            };
             let raw_event: String = buffer.drain(..idx + sep_len).collect();
 
             // 一个事件可能含 event:/id:/data: 多行,只关心 data:
@@ -116,7 +136,11 @@ pub fn openai_extract(data: &str) -> Option<String> {
     let v: serde_json::Value = serde_json::from_str(trimmed).ok()?;
     let content = v.get("choices")?.get(0)?.get("delta")?.get("content")?;
     let text = content.as_str().unwrap_or("");
-    if text.is_empty() { None } else { Some(text.to_string()) }
+    if text.is_empty() {
+        None
+    } else {
+        Some(text.to_string())
+    }
 }
 
 /// Claude messages stream: 关注 `content_block_delta.delta.text` + `message_stop`
@@ -125,7 +149,11 @@ pub fn claude_extract(data: &str) -> Option<String> {
     match v.get("type")?.as_str()? {
         "content_block_delta" => {
             let text = v.get("delta")?.get("text")?.as_str()?;
-            if text.is_empty() { None } else { Some(text.to_string()) }
+            if text.is_empty() {
+                None
+            } else {
+                Some(text.to_string())
+            }
         }
         "message_stop" => Some(String::new()),
         _ => None,

@@ -16,10 +16,7 @@ pub struct CreateInterruptionInput {
 }
 
 #[tauri::command]
-pub fn create_interruption(
-    input: CreateInterruptionInput,
-    db: State<'_, Db>,
-) -> AppResult<String> {
+pub fn create_interruption(input: CreateInterruptionInput, db: State<'_, Db>) -> AppResult<String> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     interruption::create_interruption(
         &conn,

@@ -6,8 +6,9 @@
 
 import { Sparkles, X, Check, Copy, Edit3, Zap, RefreshCw, MessageSquare } from "lucide-vue-next";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 
+import { useInspirationImageDraft } from "@/composables/useInspirationImageDraft";
 import { useAIStore, type QuickNoteCandidate } from "@/stores/useAIStore";
 import { useChatStore } from "@/stores/useChatStore";
 import { useInspirationStore } from "@/stores/useInspirationStore";
@@ -32,6 +33,7 @@ const ui = useUIStore();
 const appWindow = getCurrentWindow();
 
 const rawText = ref("");
+const { imageDraft, imageError, clearImage, handlePasteImage, toUploadPayload } = useInspirationImageDraft();
 const textareaEl = ref<HTMLTextAreaElement | null>(null);
 const expanded = ref(false);
 const candidates = ref<QuickNoteCandidate[]>([]);
@@ -39,6 +41,7 @@ const pickedIndex = ref(0);
 const aiLoading = ref(false);
 const aiError = ref("");
 const copiedCandIdx = ref<number | null>(null);
+const canSaveRaw = computed(() => !!rawText.value.trim() || !!imageDraft.value);
 
 const candidateIcons = [Check, Edit3, Zap];
 
@@ -50,6 +53,7 @@ watch(() => props.visible, (v) => {
     candidates.value = [];
     pickedIndex.value = 0;
     aiError.value = "";
+    clearImage();
     nextTick(() => textareaEl.value?.focus());
     if (props.standalone) {
       appWindow.setFocus().catch((err) => {
@@ -69,13 +73,18 @@ function onCopyCand(idx: number, text: string) {
   setTimeout(() => { if (copiedCandIdx.value === idx) copiedCandIdx.value = null; }, 1500);
 }
 
-async function onSaveRaw() {
-  const text = rawText.value.trim();
-  if (!text) return;
-  await inspiration.ensureLoaded();
-  await inspiration.create(text);
+function finishAfterSave() {
   emit("saved");
-  emit("close");
+  if (!props.standalone) emit("close");
+}
+
+async function onSaveRaw() {
+  await inspiration.ensureLoaded();
+  await inspiration.create(rawText.value, {
+    image: await toUploadPayload(),
+  });
+  clearImage();
+  finishAfterSave();
 }
 
 async function onAiOptimize() {
@@ -110,9 +119,11 @@ async function onSaveNote() {
   const c = candidates.value[pickedIndex.value];
   if (!c) return;
   await inspiration.ensureLoaded();
-  await inspiration.create(c.text);
-  emit("saved");
-  emit("close");
+  await inspiration.create(c.text, {
+    image: await toUploadPayload(),
+  });
+  clearImage();
+  finishAfterSave();
 }
 
 function onCreateTask() {
@@ -127,7 +138,10 @@ async function onChatAboutQuestion() {
   if (!c || c.style !== "question") return;
   const raw = rawText.value.trim();
   await inspiration.ensureLoaded();
-  const created = await inspiration.create(c.text);
+  const created = await inspiration.create(c.text, {
+    image: await toUploadPayload(),
+  });
+  clearImage();
   emit("saved");
   const noteId = created?.id ?? "";
   await chat.createFromInspiration(noteId, raw, c.text);
@@ -144,6 +158,10 @@ function onKeydown(e: KeyboardEvent) {
     e.preventDefault();
     onClose();
   }
+}
+
+function onPaste(event: ClipboardEvent) {
+  handlePasteImage(event);
 }
 </script>
 
@@ -189,12 +207,23 @@ function onKeydown(e: KeyboardEvent) {
               v-model="rawText"
               class="fl-qn-textarea"
               spellcheck="false"
-              placeholder="比如：明天和导师对一下实验设计，顺便把登录页那个卡顿原因记一下，还要想想周五汇报讲什么"
-              maxlength="500"
+              placeholder="支持 Markdown，也可以直接粘贴截图。比如：明天和导师对一下实验设计……"
+              @click.stop
+              @dblclick.stop
+              @mousedown.stop
+              @paste="onPaste"
             />
+            <div v-if="imageDraft" class="fl-qn-image-draft">
+              <img :src="imageDraft.previewUrl" alt="待保存的灵感截图" class="fl-qn-image-preview" />
+              <button class="fl-qn-image-remove" type="button" @click="clearImage">
+                <X :size="12" />
+                移除图片
+              </button>
+            </div>
+            <p v-if="imageError" class="fl-qn-image-error">{{ imageError }}</p>
             <div class="fl-qn-box-foot">
-              <span>支持关键词、半句话、跳跃表达。</span>
-              <span>{{ rawText.length }} / 500</span>
+              <span>支持关键词、半句话、Markdown 和截图粘贴。</span>
+              <span>{{ rawText.length }} 字</span>
             </div>
           </div>
 
@@ -210,7 +239,7 @@ function onKeydown(e: KeyboardEvent) {
               <button
                 class="fl-qn-btn fl-qn-btn-secondary"
                 type="button"
-                :disabled="!rawText.trim()"
+                :disabled="!canSaveRaw"
                 @click="onSaveRaw"
               >直接保存原文</button>
             </div>
@@ -483,8 +512,42 @@ function onKeydown(e: KeyboardEvent) {
   font-size: var(--fs-14);
   line-height: 1.7;
   font-family: var(--font-sans);
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
 }
 .fl-qn-textarea::placeholder { color: var(--color-text-muted); }
+.fl-qn-image-draft {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0 var(--sp-4) var(--sp-3);
+}
+.fl-qn-image-preview {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+}
+.fl-qn-image-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.fl-qn-image-error {
+  margin: 0;
+  padding: 0 var(--sp-4) var(--sp-3);
+  color: var(--color-danger, #ef4444);
+  font-size: var(--fs-12);
+}
 .fl-qn-box-foot {
   display: flex;
   align-items: center;

@@ -208,6 +208,7 @@ export interface InspirationRecord {
   id: string;
   content: string;
   goalId: string | null;
+  imagePath: string | null;
   summary: string | null;
   keywords: string[];
   verification: InspirationVerification;

@@ -19,19 +19,26 @@ import {
   Trash2,
   X,
 } from "lucide-vue-next";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 import InspirationCorrectionPanel from "@/components/inspiration/InspirationCorrectionPanel.vue";
 import InspirationGoalPicker from "@/components/inspiration/InspirationGoalPicker.vue";
 import InspirationGraphFullscreenModal from "@/components/inspiration/InspirationGraphFullscreenModal.vue";
 import InspirationGraphView from "@/components/inspiration/InspirationGraphView.vue";
 import InspirationLinkModal from "@/components/inspiration/InspirationLinkModal.vue";
+import InspirationReviewInbox from "@/components/inspiration/InspirationReviewInbox.vue";
+import { useInspirationImageDraft } from "@/composables/useInspirationImageDraft";
+import { getInspirationImageSrc } from "@/composables/useInspirationImageAsset";
+import { renderMarkdown } from "@/composables/useMarkdown";
 import { useGoalStore } from "@/stores/useGoalStore";
 import { useInspirationStore, type InspirationItem } from "@/stores/useInspirationStore";
 import { useAIStore, type QuickNoteCandidate } from "@/stores/useAIStore";
 import { useChatStore } from "@/stores/useChatStore";
 import { useUIStore } from "@/stores/useUIStore";
-import type { InspirationRecommendation } from "@/types";
+import type { InspirationLink, InspirationRecommendation } from "@/types";
+
+const DUPLICATE_LINK_TOKEN = "DUPLICATE_LINK";
+const DUPLICATE_LINK_MESSAGE = "这两条灵感已经关联过了";
 
 const inspiration = useInspirationStore();
 const goals = useGoalStore();
@@ -40,6 +47,7 @@ const chat = useChatStore();
 const ui = useUIStore();
 
 const draft = ref("");
+const { imageDraft, imageError, clearImage, handlePasteImage, toUploadPayload } = useInspirationImageDraft();
 const textareaEl = ref<HTMLTextAreaElement | null>(null);
 const justSavedId = ref<string | null>(null);
 const query = ref("");
@@ -77,6 +85,9 @@ const focusedAnalyzeError = computed(() =>
 );
 // 全屏图谱 Modal 开关
 const fullscreenGraphOpen = ref(false);
+const reviewInboxEl = ref<HTMLElement | null>(null);
+const activeReviewKey = ref<string | null>(null);
+const reviewActionKey = ref<string | null>(null);
 
 // 灵感多选
 const selectMode = ref(false);
@@ -113,6 +124,7 @@ const aiDrafts = ref<QuickNoteCandidate[]>([]);
 const aiDraftsLoading = ref(false);
 const aiDraftsError = ref("");
 const showAiDrafts = ref(false);
+const canSaveDraft = computed(() => !!draft.value.trim() || !!imageDraft.value);
 
 // 从 store session 恢复上次的梳理状态（含原文）
 function restoreAiSession() {
@@ -144,10 +156,11 @@ function onCopyDraft(idx: number, text: string) {
 }
 
 async function onSave() {
-  const content = draft.value.trim();
-  if (!content) return;
-  const item = await inspiration.create(content);
+  const item = await inspiration.create(draft.value, {
+    image: await toUploadPayload(),
+  });
   draft.value = "";
+  clearImage();
   if (item) {
     justSavedId.value = item.id;
     setTimeout(() => {
@@ -164,6 +177,10 @@ function onKeydown(e: KeyboardEvent) {
     e.preventDefault();
     onSave();
   }
+}
+
+function onPasteDraft(event: ClipboardEvent) {
+  handlePasteImage(event);
 }
 
 async function onConvert(id: string) {
@@ -187,7 +204,9 @@ async function onAiAssist() {
 }
 
 async function onSaveDraft(candidate: QuickNoteCandidate) {
-  const item = await inspiration.create(candidate.text);
+  const item = await inspiration.create(candidate.text, {
+    image: await toUploadPayload(),
+  });
   if (item) {
     justSavedId.value = item.id;
     setTimeout(() => { justSavedId.value = null; }, 2000);
@@ -195,12 +214,15 @@ async function onSaveDraft(candidate: QuickNoteCandidate) {
   }
   showAiDrafts.value = false;
   draft.value = "";
+  clearImage();
   ai.optimizeSession = null;
 }
 
 async function onChatFromDraft(candidate: QuickNoteCandidate) {
   // 先保存灵感记录
-  const item = await inspiration.create(candidate.text);
+  const item = await inspiration.create(candidate.text, {
+    image: await toUploadPayload(),
+  });
   if (item) {
     justSavedId.value = item.id;
     setTimeout(() => { justSavedId.value = null; }, 2000);
@@ -211,6 +233,7 @@ async function onChatFromDraft(candidate: QuickNoteCandidate) {
   ui.showChat = true;
   showAiDrafts.value = false;
   draft.value = "";
+  clearImage();
   ai.optimizeSession = null;
 }
 
@@ -267,9 +290,38 @@ const groupedItems = computed(() => {
   return groups;
 });
 
+function canConvert(item: InspirationItem) {
+  return !!item.content.trim() && !item.convertedTaskId;
+}
+
+function displayContent(item: InspirationItem | null | undefined): string {
+  if (!item) return "(已删除)";
+  return item.content.trim() || "图片灵感";
+}
+
+function canCreateFollowup(item: InspirationItem) {
+  return !!item.content.trim();
+}
+
+type ReviewInboxEntry = {
+  key: string;
+  itemId: string;
+  sourceContent: string;
+  sourceGoalName: string | null;
+  sourceLinkCount: number;
+  candidateId: string;
+  candidateContent: string;
+  candidateGoalName: string | null;
+  candidateLinkCount: number;
+  reco: InspirationRecommendation;
+};
 
 const goalNameById = computed<Record<string, string>>(() =>
   Object.fromEntries(goals.goals.map((g) => [g.id, g.name])),
+);
+
+const inspirationById = computed<Record<string, InspirationItem>>(() =>
+  Object.fromEntries(inspiration.items.map((item) => [item.id, item])),
 );
 
 function linkCountFor(id: string) {
@@ -316,14 +368,37 @@ async function onAssignGoal(itemId: string, goalId: string | null) {
 
 // D2: 统一 AI/契约错误显式提示通道。
 // 4 秒自动消失,避免堆叠;同 message 多次触发会复位倒计时。
-const aiToast = ref<{ kind: "error" | "info"; text: string } | null>(null);
+const aiToast = ref<{
+  kind: "error" | "info";
+  text: string;
+  actionLabel?: string;
+  action?: () => Promise<void> | void;
+} | null>(null);
 let aiToastTimer: ReturnType<typeof setTimeout> | null = null;
-function showAiToast(text: string, kind: "error" | "info" = "error") {
+function clearAiToast() {
   if (aiToastTimer) clearTimeout(aiToastTimer);
-  aiToast.value = { kind, text };
+  aiToastTimer = null;
+  aiToast.value = null;
+}
+
+function showAiToast(
+  text: string,
+  kind: "error" | "info" = "error",
+  options?: { actionLabel?: string; action?: () => Promise<void> | void },
+) {
+  clearAiToast();
+  aiToast.value = { kind, text, actionLabel: options?.actionLabel, action: options?.action };
   aiToastTimer = setTimeout(() => {
     aiToast.value = null;
+    aiToastTimer = null;
   }, 4000);
+}
+
+async function onAiToastAction() {
+  const action = aiToast.value?.action;
+  clearAiToast();
+  if (!action) return;
+  await action();
 }
 
 async function onSuggestGoal(itemId: string) {
@@ -385,8 +460,33 @@ async function onLink(sourceId: string, targetId: string, relation: "related" | 
 }
 
 async function onUnlink(sourceId: string, targetId: string) {
+  const removedLink = (inspiration.linksById[sourceId] ?? []).find(
+    (link) =>
+      (link.sourceId === sourceId && link.targetId === targetId)
+      || (link.sourceId === targetId && link.targetId === sourceId),
+  );
   await inspiration.unlink(sourceId, targetId);
   await inspiration.loadLinks(sourceId);
+  if (!removedLink) return;
+  const restoreLink: InspirationLink = { ...removedLink };
+  showAiToast("连接已删除", "info", {
+    actionLabel: "撤销",
+    action: async () => {
+      try {
+        await inspiration.linkManually(
+          restoreLink.sourceId,
+          restoreLink.targetId,
+          restoreLink.relation,
+          {
+            sourceType: restoreLink.sourceType,
+            reason: restoreLink.reason,
+          },
+        );
+      } catch (e) {
+        showAiToast(`撤销删除失败: ${e instanceof Error ? e.message : String(e)}`, "error");
+      }
+    },
+  });
 }
 
 function onToggleLinkPanel(itemId: string) {
@@ -401,12 +501,28 @@ function onToggleLinkPanel(itemId: string) {
 
 /// 根据 id 找灵感原文(用于在已关联列表展示)
 function contentForId(id: string): string {
-  return inspiration.items.find((i) => i.id === id)?.content ?? "(已删除)";
+  return displayContent(inspiration.items.find((i) => i.id === id));
 }
 
-function onIgnoreRecommendation(itemId: string, candidateId: string) {
-  const current = inspiration.pendingRecommendations[itemId] ?? [];
-  inspiration.pendingRecommendations[itemId] = current.filter((item) => item.candidateId !== candidateId);
+async function onIgnoreRecommendation(itemId: string, candidateId: string) {
+  try {
+    await inspiration.ignoreRecommendation(itemId, candidateId);
+  } catch (e) {
+    showAiToast(`忽略推荐失败: ${e instanceof Error ? e.message : String(e)}`, "error");
+  }
+}
+
+function isDuplicateLinkError(error: unknown) {
+  const message = String(error ?? "");
+  return message.includes(DUPLICATE_LINK_TOKEN) || message.includes(DUPLICATE_LINK_MESSAGE);
+}
+
+async function onAcceptRecommendation(sourceId: string, reco: InspirationRecommendation) {
+  try {
+    await inspiration.acceptRecommendation(sourceId, reco);
+  } catch (e) {
+    showAiToast(`接受 AI 推荐失败: ${e instanceof Error ? e.message : String(e)}`, "error");
+  }
 }
 
 /**
@@ -414,11 +530,69 @@ function onIgnoreRecommendation(itemId: string, candidateId: string) {
  * 与右侧栏卡片上的"接受"等价,差异是失败时显式 toast。
  */
 async function onAcceptRecoFromGraph(sourceId: string, reco: InspirationRecommendation) {
+  await onAcceptRecommendation(sourceId, reco);
+}
+
+async function onAcceptReview(itemId: string, reco: InspirationRecommendation) {
+  reviewActionKey.value = `${itemId}::${reco.candidateId}::${reco.relation}`;
   try {
-    await inspiration.acceptRecommendation(sourceId, reco);
-  } catch (e) {
-    showAiToast(`接受 AI 推荐失败: ${e instanceof Error ? e.message : String(e)}`, "error");
+    await onAcceptRecommendation(itemId, reco);
+  } finally {
+    reviewActionKey.value = null;
   }
+}
+
+async function onIgnoreReview(itemId: string, candidateId: string, relation: InspirationRecommendation["relation"]) {
+  reviewActionKey.value = `${itemId}::${candidateId}::${relation}`;
+  try {
+    await onIgnoreRecommendation(itemId, candidateId);
+  } finally {
+    reviewActionKey.value = null;
+  }
+}
+
+async function onMarkCandidateNeedsCheck(candidateId: string) {
+  try {
+    await inspiration.updateVerification(candidateId, "needs_check");
+  } catch (e) {
+    showAiToast(`标记待复查失败: ${e instanceof Error ? e.message : String(e)}`, "error");
+  }
+}
+
+async function onMarkCandidateOverturned(candidateId: string) {
+  try {
+    await inspiration.updateVerification(candidateId, "overturned");
+  } catch (e) {
+    showAiToast(`标记已推翻失败: ${e instanceof Error ? e.message : String(e)}`, "error");
+  }
+}
+
+function onDeferInbox(
+  itemId: string,
+  candidateId: string,
+  relation: InspirationRecommendation["relation"],
+) {
+  inspiration.deferRecommendation(itemId, candidateId, relation);
+}
+
+function onIgnoreInbox(itemId: string, candidateId: string) {
+  const entry = allPendingRecommendations.value.find(
+    (candidate) => candidate.itemId === itemId && candidate.candidateId === candidateId,
+  );
+  if (!entry) return;
+  void onIgnoreReview(itemId, candidateId, entry.reco.relation);
+}
+
+function onRestoreDeferredInbox(key: string) {
+  inspiration.restoreDeferredRecommendation(key);
+}
+
+function onRestoreAllDeferredInbox(keys: string[]) {
+  inspiration.restoreDeferredRecommendations(keys);
+}
+
+function onAnalyzeReviewCorrection(itemId: string, candidateId: string, candidateContent: string) {
+  void onAnalyzeCorrection(itemId, candidateId, candidateContent);
 }
 
 /**
@@ -465,6 +639,10 @@ async function onCreateLink(
   try {
     await inspiration.linkManually(sourceId, targetId, relation);
   } catch (e) {
+    if (isDuplicateLinkError(e)) {
+      await inspiration.loadLinks(sourceId);
+      return;
+    }
     showAiToast(`连线失败: ${e instanceof Error ? e.message : String(e)}`, "error");
   }
 }
@@ -488,6 +666,10 @@ function isAnalyzedNoLink(id: string): boolean {
 async function onCreateFollowup(parentId: string) {
   const parent = inspiration.items.find((i) => i.id === parentId);
   if (!parent) return;
+  if (!canCreateFollowup(parent)) {
+    showAiToast("图片灵感需要先补充文字说明，才能创建后续实验。", "info");
+    return;
+  }
   // D2: AI 起草失败时,显式提示并降级到本地模板,而不是 store 内部 silent fallback。
   // 用户能感知"AI 没成功",并仍能继续工作。
   let draftText: string;
@@ -530,14 +712,69 @@ const goalDistribution = computed(() => {
 });
 
 const allPendingRecommendations = computed(() => {
-  const result: { itemId: string; reco: InspirationRecommendation }[] = [];
+  const result: ReviewInboxEntry[] = [];
   for (const [itemId, recos] of Object.entries(inspiration.pendingRecommendations)) {
+    const source = inspirationById.value[itemId];
     for (const reco of recos) {
-      result.push({ itemId, reco });
+      const candidate = inspirationById.value[reco.candidateId];
+      result.push({
+        key: `${itemId}::${reco.candidateId}::${reco.relation}`,
+        itemId,
+        sourceContent: displayContent(source),
+        sourceGoalName: source?.goalId ? goalNameById.value[source.goalId] ?? null : null,
+        sourceLinkCount: linkCountFor(itemId),
+        candidateId: reco.candidateId,
+        candidateContent: candidate ? displayContent(candidate) : reco.candidateContent,
+        candidateGoalName: candidate?.goalId ? goalNameById.value[candidate.goalId] ?? null : null,
+        candidateLinkCount: linkCountFor(reco.candidateId),
+        reco,
+      });
     }
   }
-  return result.slice(0, 5);
+  return result.sort((left, right) => {
+    if (left.reco.relation !== right.reco.relation) {
+      return left.reco.relation === "contradicts" ? -1 : 1;
+    }
+    if (left.reco.confidence !== right.reco.confidence) {
+      return right.reco.confidence - left.reco.confidence;
+    }
+    const leftCreatedAt = inspirationById.value[left.itemId]?.createdAt ?? "";
+    const rightCreatedAt = inspirationById.value[right.itemId]?.createdAt ?? "";
+    return rightCreatedAt.localeCompare(leftCreatedAt);
+  });
 });
+
+const pendingRecommendationPreview = computed(() => allPendingRecommendations.value.slice(0, 3));
+
+function findReviewEntry(key: string | null) {
+  if (!key) return null;
+  return allPendingRecommendations.value.find((entry) => entry.key === key) ?? null;
+}
+
+function setActiveReview(key: string | null) {
+  activeReviewKey.value = key;
+  const entry = findReviewEntry(key);
+  if (entry) onSelectIdea(entry.itemId);
+}
+
+function openReviewInbox(key?: string) {
+  if (key) setActiveReview(key);
+  reviewInboxEl.value?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+watch(
+  allPendingRecommendations,
+  (entries) => {
+    if (!entries.length) {
+      activeReviewKey.value = null;
+      return;
+    }
+    if (!activeReviewKey.value || !entries.some((entry) => entry.key === activeReviewKey.value)) {
+      setActiveReview(entries[0].key);
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -575,15 +812,26 @@ const allPendingRecommendations = computed(() => {
         ref="textareaEl"
         v-model="draft"
         class="fl-ip-textarea"
-        placeholder="例如: 今天读到多次随机划分 + 集成评估,也许能解释我实验结果波动很大的问题……"
+        placeholder="例如: 这段结果也许和采样偏差有关……也支持 Markdown，以及直接粘贴截图"
         rows="3"
         maxlength="500"
         spellcheck="false"
         @keydown="onKeydown"
+        @paste="onPasteDraft"
       />
+      <div v-if="imageDraft" class="fl-ip-image-draft">
+        <img :src="imageDraft.previewUrl" alt="待保存的灵感截图" class="fl-ip-image-preview" />
+        <button class="fl-ip-image-remove" type="button" @click="clearImage">
+          <X :size="12" />
+          移除图片
+        </button>
+      </div>
+      <p v-if="imageError" class="fl-ip-image-error">{{ imageError }}</p>
       <div class="fl-ip-input-foot">
         <div class="fl-ip-hints">
           <span class="fl-ip-hint-tag">低负担记录</span>
+          <span class="fl-ip-hint-tag">Markdown</span>
+          <span class="fl-ip-hint-tag">截图粘贴</span>
           <span class="fl-ip-hint-tag">语义索引</span>
           <span class="fl-ip-hint-tag">只提示高置信关系</span>
           <span
@@ -604,7 +852,7 @@ const allPendingRecommendations = computed(() => {
           <button
             class="fl-ip-btn fl-ip-btn-primary"
             type="button"
-            :disabled="!draft.trim()"
+            :disabled="!canSaveDraft"
             @click="onSave"
           >
             <Plus :size="14" />
@@ -671,6 +919,33 @@ const allPendingRecommendations = computed(() => {
       </div>
     </div>
 
+    <section
+      v-if="allPendingRecommendations.length"
+      ref="reviewInboxEl"
+      class="fl-ip-inbox-wrap"
+    >
+      <InspirationReviewInbox
+        :entries="allPendingRecommendations"
+        :active-key="activeReviewKey"
+        :busy-key="reviewActionKey"
+        :deferred-keys="inspiration.deferredRecommendationKeys"
+        :correction-loading-key="Object.keys(correctionLoading).find((key) => correctionLoading[key]) ?? null"
+        :correction-results="correctionResult"
+        @select-entry="setActiveReview"
+        @accept="onAcceptReview"
+        @ignore="onIgnoreInbox"
+        @defer="onDeferInbox"
+        @focus-source="onSelectIdea"
+        @focus-candidate="onSelectIdea"
+        @analyze-correction="onAnalyzeReviewCorrection"
+        @mark-needs-check="onMarkCandidateNeedsCheck"
+        @mark-overturned="onMarkCandidateOverturned"
+        @create-followup="onCreateFollowup"
+        @restore-deferred="onRestoreDeferredInbox"
+        @restore-all-deferred="onRestoreAllDeferredInbox"
+      />
+    </section>
+
     <!-- 卡片墙 (按时间分组) -->
     <div v-if="hasAnyResult" class="fl-ip-groups">
       <div
@@ -694,13 +969,23 @@ const allPendingRecommendations = computed(() => {
               'is-selected': selectMode && selectedIds.has(item.id),
             }"
             @click="selectMode ? toggleSelect(item.id) : onSelectIdea(item.id)"
-          >
+            >
             <div class="fl-ip-idea-head">
               <button v-if="selectMode" class="fl-ip-check" type="button" @click.stop="toggleSelect(item.id)">
                 <CheckSquare v-if="selectedIds.has(item.id)" :size="16" class="fl-ip-check-on" />
                 <Square v-else :size="16" />
               </button>
-              <p class="fl-ip-idea-text">{{ item.content }}</p>
+              <div class="fl-ip-idea-content">
+                <img
+                  v-if="item.imagePath"
+                  :src="getInspirationImageSrc(item.imagePath)"
+                  alt="灵感附图"
+                  class="fl-ip-idea-image"
+                  loading="lazy"
+                />
+                <div v-if="item.content" class="fl-ip-idea-text fl-ip-markdown" v-html="renderMarkdown(item.content)" />
+                <p v-else class="fl-ip-idea-image-only">图片灵感</p>
+              </div>
               <div class="fl-ip-idea-tools">
                 <button class="fl-ip-tool" type="button" title="复制" @click.stop="onCopy(item.id, item.content)"><Check v-if="copiedId === item.id" :size="14" /><Copy v-else :size="14" /></button>
                 <button class="fl-ip-tool" :class="{ 'is-active': assigningItemId === item.id }" type="button" title="挂目标" @click.stop="assigningItemId = assigningItemId === item.id ? null : item.id"><Search :size="14" /></button>
@@ -757,12 +1042,12 @@ const allPendingRecommendations = computed(() => {
             />
             <!-- 纠偏/操作栏 -->
             <div class="fl-ip-idea-actions">
-              <button v-if="!item.convertedTaskId" class="fl-ip-act-btn" type="button" :disabled="inspiration.saving" @click.stop="onConvert(item.id)">转为任务</button>
+              <button v-if="canConvert(item)" class="fl-ip-act-btn" type="button" :disabled="inspiration.saving" @click.stop="onConvert(item.id)">转为任务</button>
               <button v-if="item.verification !== 'needs_check'" class="fl-ip-act-btn fl-ip-act-warn" type="button" @click.stop="inspiration.updateVerification(item.id, 'needs_check')">标记待复查</button>
               <button v-if="item.verification === 'needs_check' || item.verification === 'possibly_wrong'" class="fl-ip-act-btn fl-ip-act-success" type="button" @click.stop="inspiration.updateVerification(item.id, 'verified')">标记已验证</button>
               <button v-if="item.verification === 'needs_check' || item.verification === 'possibly_wrong'" class="fl-ip-act-btn fl-ip-act-del" type="button" @click.stop="inspiration.updateVerification(item.id, 'overturned')">标记已推翻</button>
               <button v-if="item.verification !== 'none'" class="fl-ip-act-btn" type="button" @click.stop="inspiration.updateVerification(item.id, 'none')">清除状态</button>
-              <button class="fl-ip-act-btn" type="button" @click.stop="onCreateFollowup(item.id)">创建后续实验</button>
+              <button v-if="canCreateFollowup(item)" class="fl-ip-act-btn" type="button" @click.stop="onCreateFollowup(item.id)">创建后续实验</button>
               <button class="fl-ip-act-btn fl-ip-act-del" type="button" @click.stop="inspiration.remove(item.id)"><Trash2 :size="12" /></button>
             </div>
             <div v-if="inspiration.recommendationLoading[item.id]" class="fl-ip-reco fl-ip-reco-state">
@@ -792,7 +1077,7 @@ const allPendingRecommendations = computed(() => {
                 <p class="fl-ip-reco-old">{{ reco.candidateContent }}</p>
                 <p class="fl-ip-reco-reason">{{ reco.reason }}</p>
                 <div class="fl-ip-reco-actions">
-                  <button class="fl-ip-reco-btn" type="button" @click.stop="inspiration.acceptRecommendation(item.id, reco)">
+                  <button class="fl-ip-reco-btn" type="button" @click.stop="void onAcceptRecommendation(item.id, reco)">
                     {{ reco.relation === 'contradicts' ? '建立修正连接' : '接受为相关' }}
                   </button>
                   <button v-if="reco.relation === 'contradicts'" class="fl-ip-reco-btn fl-ip-reco-btn-warn" type="button" @click.stop="inspiration.updateVerification(reco.candidateId, 'needs_check')">
@@ -808,7 +1093,7 @@ const allPendingRecommendations = computed(() => {
                     <Sparkles :size="11" />
                     {{ correctionLoading[correctionKey(item.id, reco.candidateId)] ? '分析中…' : 'AI 纠偏分析' }}
                   </button>
-                  <button class="fl-ip-reco-btn fl-ip-reco-btn-ghost" type="button" @click.stop="onIgnoreRecommendation(item.id, reco.candidateId)">
+                  <button class="fl-ip-reco-btn fl-ip-reco-btn-ghost" type="button" @click.stop="void onIgnoreRecommendation(item.id, reco.candidateId)">
                     忽略
                   </button>
                 </div>
@@ -818,7 +1103,7 @@ const allPendingRecommendations = computed(() => {
                   :result="correctionResult[correctionKey(item.id, reco.candidateId)]!"
                   @mark-needs-check="inspiration.updateVerification(reco.candidateId, 'needs_check')"
                   @mark-overturned="inspiration.updateVerification(reco.candidateId, 'overturned')"
-                  @accept-correction="inspiration.acceptRecommendation(item.id, reco)"
+                  @accept-correction="void onAcceptRecommendation(item.id, reco)"
                   @create-followup="onCreateFollowup(item.id)"
                 />
               </div>
@@ -887,16 +1172,36 @@ const allPendingRecommendations = computed(() => {
           @accept-reco="onAcceptRecoFromGraph"
           @reject-reco="onIgnoreRecommendation"
           @node-click="onSelectIdea"
+          @unlink="onUnlink"
         />
 
-        <!-- 待处理推荐 -->
+        <!-- 关联收件箱摘要 -->
         <section v-if="allPendingRecommendations.length" class="fl-ip-side-card">
-          <h3 class="fl-ip-side-title">待处理推荐</h3>
+          <div class="fl-ip-side-card-head">
+            <h3 class="fl-ip-side-title">关联收件箱</h3>
+            <button class="fl-ip-side-link" type="button" @click="openReviewInbox()">
+              打开
+            </button>
+          </div>
+          <p class="fl-ip-side-note">
+            {{ allPendingRecommendations.length }} 条待处理推荐，优先把矛盾/纠偏关系收敛掉。
+          </p>
           <div class="fl-ip-review-list">
-            <div v-for="(entry, idx) in allPendingRecommendations" :key="idx" class="fl-ip-review-item">
+            <button
+              v-for="entry in pendingRecommendationPreview"
+              :key="entry.key"
+              class="fl-ip-review-item"
+              type="button"
+              @click="openReviewInbox(entry.key)"
+            >
               <span class="fl-ip-review-dot" :class="entry.reco.relation === 'contradicts' ? 'is-warn' : ''"></span>
-              <p>{{ entry.reco.reason }}</p>
-            </div>
+              <div class="fl-ip-review-copy">
+                <p>{{ entry.reco.reason }}</p>
+                <span class="fl-ip-review-meta">
+                  {{ entry.reco.relation === 'contradicts' ? '矛盾/纠偏' : '相关' }} · {{ entry.sourceContent }}
+                </span>
+              </div>
+            </button>
           </div>
         </section>
 
@@ -932,7 +1237,15 @@ const allPendingRecommendations = computed(() => {
     <Transition name="fl-bar">
       <div v-if="aiToast" class="fl-ip-toast" :class="`is-${aiToast.kind}`">
         <span class="fl-ip-toast-text">{{ aiToast.text }}</span>
-        <button class="fl-ip-toast-close" type="button" @click="aiToast = null">
+        <button
+          v-if="aiToast.action && aiToast.actionLabel"
+          class="fl-ip-toast-action"
+          type="button"
+          @click="onAiToastAction"
+        >
+          {{ aiToast.actionLabel }}
+        </button>
+        <button class="fl-ip-toast-close" type="button" @click="clearAiToast()">
           <X :size="14" />
         </button>
       </div>
@@ -952,6 +1265,7 @@ const allPendingRecommendations = computed(() => {
       @reject-reco="onIgnoreRecommendation"
       @node-click="onSelectIdea"
       @create-link="onCreateLink"
+      @delete-link="onUnlink"
     />
   </section>
 </template>
@@ -976,6 +1290,7 @@ const allPendingRecommendations = computed(() => {
   .fl-ip-workspace { grid-template-columns: 1fr; }
 }
 .fl-ip-main { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.fl-ip-inbox-wrap { scroll-margin-top: 20px; }
 .fl-ip-sidebar {
   display: flex;
   flex-direction: column;
@@ -997,6 +1312,31 @@ const allPendingRecommendations = computed(() => {
   font-size: var(--fs-13, 13px);
   font-weight: 700;
 }
+.fl-ip-side-card-head .fl-ip-side-title { margin-bottom: 0; }
+.fl-ip-side-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.fl-ip-side-link {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: var(--fw-medium);
+}
+.fl-ip-side-note {
+  margin: 0 0 var(--sp-3);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
 
 /* 灵感概览 */
 .fl-ip-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); }
@@ -1014,8 +1354,15 @@ const allPendingRecommendations = computed(() => {
 .fl-ip-review-item {
   display: flex;
   gap: var(--sp-2);
+  width: 100%;
   padding: var(--sp-2) 0;
   border-top: 1px solid var(--color-divider);
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
 }
 .fl-ip-review-item:first-child { border-top: 0; padding-top: 0; }
 .fl-ip-review-dot {
@@ -1027,7 +1374,29 @@ const allPendingRecommendations = computed(() => {
   flex-shrink: 0;
 }
 .fl-ip-review-dot.is-warn { background: var(--color-warning); }
-.fl-ip-review-item p { margin: 0; font-size: 12px; line-height: 1.6; color: var(--color-text-secondary); }
+.fl-ip-review-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fl-ip-review-item p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.fl-ip-review-meta {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* 目标分布 */
 .fl-ip-goal-list { display: flex; flex-direction: column; }
@@ -1178,6 +1547,38 @@ const allPendingRecommendations = computed(() => {
 }
 .fl-ip-textarea::placeholder { color: var(--color-text-muted); }
 .fl-ip-textarea:focus-visible { box-shadow: none; }
+.fl-ip-image-draft {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0 var(--sp-4) var(--sp-3);
+}
+.fl-ip-image-preview {
+  width: 112px;
+  height: 112px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+.fl-ip-image-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.fl-ip-image-error {
+  margin: 0;
+  padding: 0 var(--sp-4) var(--sp-3);
+  color: var(--color-danger, #ef4444);
+  font-size: 12px;
+}
 .fl-ip-compose-head {
   display: flex;
   justify-content: space-between;
@@ -1455,12 +1856,50 @@ const allPendingRecommendations = computed(() => {
   gap: var(--sp-3);
   align-items: flex-start;
 }
+.fl-ip-idea-content {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+  flex: 1;
+}
+.fl-ip-idea-image {
+  width: min(320px, 100%);
+  max-height: 240px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
 .fl-ip-idea-text {
   margin: 0;
   font-size: var(--fs-14);
   line-height: 1.74;
   color: var(--color-text-primary);
   max-width: 740px;
+}
+.fl-ip-idea-image-only {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-13);
+}
+.fl-ip-markdown :deep(p) {
+  margin: 0;
+}
+.fl-ip-markdown :deep(p + p) {
+  margin-top: 8px;
+}
+.fl-ip-markdown :deep(code) {
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg));
+  font-size: 0.92em;
+}
+.fl-ip-markdown :deep(pre) {
+  margin: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, black 3%, var(--color-bg));
+  overflow: auto;
 }
 /* ---- 多选勾选框 ---- */
 .fl-ip-check {
@@ -1535,6 +1974,18 @@ const allPendingRecommendations = computed(() => {
   color: var(--color-primary-dark);
 }
 .fl-ip-toast-text { flex: 1; line-height: 1.55; }
+.fl-ip-toast-action {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: var(--fw-medium);
+}
+.fl-ip-toast-action:hover { background: rgba(255, 255, 255, 0.24); }
 .fl-ip-toast-close {
   background: none;
   border: none;

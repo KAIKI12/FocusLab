@@ -48,7 +48,10 @@ pub fn logical_date_range(
         .with_ymd_and_hms(next.year(), next.month(), next.day(), boundary_hour, 0, 0)
         .single()
         .expect("非模糊的本地时刻");
-    (start_local.with_timezone(&Utc), end_local.with_timezone(&Utc))
+    (
+        start_local.with_timezone(&Utc),
+        end_local.with_timezone(&Utc),
+    )
 }
 
 /// 当前时刻所在的逻辑日(基于本机系统时间转到 DEFAULT_TZ)。

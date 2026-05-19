@@ -53,7 +53,9 @@ fn resolve_planned_seconds(preset: &str, custom_planned_seconds: Option<i64>) ->
         return Err(AppError::Custom("自定义番茄钟需要提供时长".into()));
     };
     if !(MIN_CUSTOM_SECONDS..=MAX_CUSTOM_SECONDS).contains(&seconds) {
-        return Err(AppError::Custom("自定义番茄钟时长需在 1-180 分钟之间".into()));
+        return Err(AppError::Custom(
+            "自定义番茄钟时长需在 1-180 分钟之间".into(),
+        ));
     }
     Ok(seconds)
 }
@@ -176,9 +178,7 @@ impl TimerService {
         {
             let guard = self.state.lock().await;
             if guard.is_some() {
-                return Err(AppError::Custom(
-                    "已有计时进行中,请先结束或放弃".into(),
-                ));
+                return Err(AppError::Custom("已有计时进行中,请先结束或放弃".into()));
             }
         }
 
@@ -355,7 +355,13 @@ impl TimerService {
         let session_id = {
             let db = self.app.state::<Db>();
             let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
-            session::create_session(&conn, &task_id, "pomodoro", Some(&preset_str), Some(planned / 60))?
+            session::create_session(
+                &conn,
+                &task_id,
+                "pomodoro",
+                Some(&preset_str),
+                Some(planned / 60),
+            )?
         };
 
         let timer = RunningTimer {
@@ -407,7 +413,13 @@ impl TimerService {
         let session_id = {
             let db = self.app.state::<Db>();
             let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
-            session::create_session(&conn, &new_task_id, "pomodoro", Some(&preset_str), Some(planned / 60))?
+            session::create_session(
+                &conn,
+                &new_task_id,
+                "pomodoro",
+                Some(&preset_str),
+                Some(planned / 60),
+            )?
         };
 
         let timer = RunningTimer {
@@ -666,7 +678,10 @@ impl TimerService {
                 }
 
                 // 自动迁移
-                if t.status == "running" && t.mode != "free" && t.elapsed_seconds >= t.planned_seconds {
+                if t.status == "running"
+                    && t.mode != "free"
+                    && t.elapsed_seconds >= t.planned_seconds
+                {
                     if let Err(e) = transition_focus_to_break(&app, t) {
                         tracing::error!("focus→break 迁移失败: {e}");
                     }
@@ -754,7 +769,11 @@ fn persist_running_to_db(app: &AppHandle, t: &RunningTimer) -> AppResult<()> {
             t.status,
             t.pomodoro_count,
             if t.is_break { 1i64 } else { 0 },
-            if t.is_break { Some(t.break_planned_seconds) } else { None },
+            if t.is_break {
+                Some(t.break_planned_seconds)
+            } else {
+                None
+            },
             now,
         ],
     )?;
@@ -799,7 +818,10 @@ mod tests {
 
     #[test]
     fn custom_planned_seconds_requires_valid_range() {
-        assert_eq!(resolve_planned_seconds("custom", Some(30 * 60)).unwrap(), 1800);
+        assert_eq!(
+            resolve_planned_seconds("custom", Some(30 * 60)).unwrap(),
+            1800
+        );
         assert!(resolve_planned_seconds("custom", None).is_err());
         assert!(resolve_planned_seconds("custom", Some(59)).is_err());
         assert!(resolve_planned_seconds("custom", Some(181 * 60)).is_err());

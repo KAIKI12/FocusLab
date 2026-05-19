@@ -36,6 +36,7 @@ const emit = defineEmits<{
   "reject-reco": [sourceId: string, candidateId: string];
   "node-click": [id: string];
   "create-link": [sourceId: string, targetId: string, relation: "related" | "contradicts"];
+  "delete-link": [sourceId: string, targetId: string];
   analyze: [];
 }>();
 
@@ -168,6 +169,7 @@ watch(
             @reject-reco="(sourceId, candidateId) => emit('reject-reco', sourceId, candidateId)"
             @node-click="(id) => emit('node-click', id)"
             @create-link="(sourceId, targetId, relation) => emit('create-link', sourceId, targetId, relation)"
+            @delete-link="(sourceId, targetId) => emit('delete-link', sourceId, targetId)"
           />
         </div>
       </div>

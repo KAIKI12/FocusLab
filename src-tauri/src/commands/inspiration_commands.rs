@@ -1,21 +1,95 @@
 //! Inspiration graph CRUD / link / recommendation 命令。
 
+use std::collections::HashSet;
+use std::path::PathBuf;
+
 use serde::Deserialize;
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
+use uuid::Uuid;
 
 use crate::ai::AIService;
 use crate::db::Db;
-use crate::models::inspiration::{
-    self, InspirationLink, InspirationRecord,
-};
+use crate::models::inspiration::{self, InspirationLink, InspirationRecord};
 use crate::services::inspiration_service::{self, InspirationRecommendation};
 use crate::utils::errors::{AppError, AppResult};
+
+const MAX_IMAGE_BYTES: usize = 8 * 1024 * 1024;
+
+fn is_valid_relation(relation: &str) -> bool {
+    relation == "related" || relation == "contradicts"
+}
+
+fn filter_ignored_recommendations(
+    recommendations: Vec<InspirationRecommendation>,
+    ignored_keys: &HashSet<(String, String)>,
+) -> Vec<InspirationRecommendation> {
+    recommendations
+        .into_iter()
+        .filter(|item| !ignored_keys.contains(&(item.candidate_id.clone(), item.relation.clone())))
+        .collect()
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateInspirationInput {
     pub content: String,
     pub goal_id: Option<String>,
+    pub image_bytes: Option<Vec<u8>>,
+    pub image_mime_type: Option<String>,
+}
+
+fn image_extension_for_mime(mime: &str) -> AppResult<&'static str> {
+    match mime.trim() {
+        "image/png" => Ok("png"),
+        "image/jpeg" => Ok("jpg"),
+        "image/webp" => Ok("webp"),
+        "image/gif" => Ok("gif"),
+        other => Err(AppError::Custom(format!("暂不支持的图片格式: {other}"))),
+    }
+}
+
+fn save_inspiration_image(
+    app: &AppHandle,
+    image_bytes: &[u8],
+    image_mime_type: &str,
+) -> AppResult<String> {
+    if image_bytes.is_empty() {
+        return Err(AppError::Custom("图片内容不能为空".into()));
+    }
+    if image_bytes.len() > MAX_IMAGE_BYTES {
+        return Err(AppError::Custom("图片不能超过 8 MB".into()));
+    }
+    let ext = image_extension_for_mime(image_mime_type)?;
+    let image_dir = inspiration_image_dir(app)?;
+    std::fs::create_dir_all(&image_dir)?;
+
+    let filename = format!("{}.{}", Uuid::new_v4(), ext);
+    let full_path = image_dir.join(filename);
+    std::fs::write(&full_path, image_bytes)?;
+    Ok(full_path.to_string_lossy().into_owned())
+}
+
+fn inspiration_image_dir(app: &AppHandle) -> AppResult<PathBuf> {
+    let app_data = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| AppError::Custom(format!("cannot resolve app_data_dir: {e}")))?;
+    Ok(app_data.join("inspiration-images"))
+}
+
+fn delete_saved_image(app: &AppHandle, path: &PathBuf) -> AppResult<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+    let image_dir = inspiration_image_dir(app)?;
+    std::fs::create_dir_all(&image_dir)?;
+    let canonical_dir = image_dir.canonicalize()?;
+    let canonical_path = path.canonicalize()?;
+    if !canonical_path.starts_with(&canonical_dir) {
+        return Err(AppError::Custom("拒绝删除应用图片目录外的文件".into()));
+    }
+    std::fs::remove_file(canonical_path)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -27,15 +101,51 @@ pub fn list_inspirations(db: State<'_, Db>) -> AppResult<Vec<InspirationRecord>>
 #[tauri::command]
 pub fn create_inspiration(
     input: CreateInspirationInput,
+    app: AppHandle,
     db: State<'_, Db>,
 ) -> AppResult<InspirationRecord> {
     let content = input.content.trim();
-    if content.is_empty() {
-        return Err(AppError::Custom("灵感内容不能为空".into()));
+    let image_bytes = input.image_bytes.unwrap_or_default();
+    let image_mime_type = input.image_mime_type.unwrap_or_default();
+    let has_image = !image_bytes.is_empty();
+    if content.is_empty() && !has_image {
+        return Err(AppError::Custom("灵感内容和图片不能同时为空".into()));
     }
+    if !has_image && !image_mime_type.trim().is_empty() {
+        return Err(AppError::Custom("缺少图片内容".into()));
+    }
+    if has_image && image_mime_type.trim().is_empty() {
+        return Err(AppError::Custom("缺少图片 MIME 类型".into()));
+    }
+    let saved_image_path = if has_image {
+        Some(PathBuf::from(save_inspiration_image(&app, &image_bytes, &image_mime_type)?))
+    } else {
+        None
+    };
+    let saved_image_path_text = saved_image_path
+        .as_ref()
+        .map(|path| path.to_string_lossy().into_owned());
     let record = {
         let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
-        inspiration::create_inspiration(&conn, content, input.goal_id.as_deref())?
+        match inspiration::create_inspiration(
+            &conn,
+            content,
+            input.goal_id.as_deref(),
+            saved_image_path_text.as_deref(),
+        ) {
+            Ok(record) => record,
+            Err(error) => {
+                if let Some(path) = saved_image_path.as_ref() {
+                    if let Err(cleanup_error) = delete_saved_image(&app, path) {
+                        tracing::error!(
+                            "failed to cleanup saved inspiration image after db error: {}",
+                            cleanup_error
+                        );
+                    }
+                }
+                return Err(error);
+            }
+        }
     };
 
     // 注意:不再创建时自动跑 LLM 推荐,改为用户主动点击「分析关联」按钮触发
@@ -53,7 +163,10 @@ pub struct UpdateInspirationGoalInput {
 }
 
 #[tauri::command]
-pub fn update_inspiration_goal(input: UpdateInspirationGoalInput, db: State<'_, Db>) -> AppResult<()> {
+pub fn update_inspiration_goal(
+    input: UpdateInspirationGoalInput,
+    db: State<'_, Db>,
+) -> AppResult<()> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     inspiration::update_inspiration_goal(&conn, &input.id, input.goal_id.as_deref())
 }
@@ -73,7 +186,10 @@ pub struct UpdateInspirationVerificationInput {
 }
 
 #[tauri::command]
-pub fn update_inspiration_verification(input: UpdateInspirationVerificationInput, db: State<'_, Db>) -> AppResult<()> {
+pub fn update_inspiration_verification(
+    input: UpdateInspirationVerificationInput,
+    db: State<'_, Db>,
+) -> AppResult<()> {
     let verification = input.verification.trim();
     // B6: 5 态 — v0.3 原始设计的 verification 模型。
     // none               未标注
@@ -81,7 +197,14 @@ pub fn update_inspiration_verification(input: UpdateInspirationVerificationInput
     // possibly_wrong     可能错误 (AI 纠偏分析"建议"级结论)
     // verified           已验证
     // overturned         已被推翻 (有实验/证据反驳)
-    const ALLOWED: &[&str] = &["none", "needs_check", "possibly_wrong", "verified", "overturned", "resolved"];
+    const ALLOWED: &[&str] = &[
+        "none",
+        "needs_check",
+        "possibly_wrong",
+        "verified",
+        "overturned",
+        "resolved",
+    ];
     if !ALLOWED.contains(&verification) {
         return Err(AppError::Custom(format!(
             "非法 verification 状态: {verification}"
@@ -92,9 +215,19 @@ pub fn update_inspiration_verification(input: UpdateInspirationVerificationInput
 }
 
 #[tauri::command]
-pub fn delete_inspiration(id: String, db: State<'_, Db>) -> AppResult<()> {
-    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
-    inspiration::delete_inspiration(&conn, &id)
+pub fn delete_inspiration(id: String, app: AppHandle, db: State<'_, Db>) -> AppResult<()> {
+    let image_path = {
+        let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+        inspiration::get_inspiration(&conn, &id)?.and_then(|item| item.image_path)
+    };
+    {
+        let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+        inspiration::delete_inspiration(&conn, &id)?;
+    }
+    if let Some(path) = image_path {
+        delete_saved_image(&app, &PathBuf::from(path))?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -114,10 +247,13 @@ pub struct LinkInspirationsInput {
 }
 
 #[tauri::command]
-pub fn link_inspirations(input: LinkInspirationsInput, db: State<'_, Db>) -> AppResult<InspirationLink> {
+pub fn link_inspirations(
+    input: LinkInspirationsInput,
+    db: State<'_, Db>,
+) -> AppResult<InspirationLink> {
     let relation = input.relation.as_deref().unwrap_or("related");
     let source_type = input.source_type.as_deref().unwrap_or("manual");
-    if relation != "related" && relation != "contradicts" {
+    if !is_valid_relation(relation) {
         return Err(AppError::Custom("非法 relation 类型".into()));
     }
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
@@ -144,8 +280,32 @@ pub fn unlink_inspirations(input: UnlinkInspirationsInput, db: State<'_, Db>) ->
     inspiration::delete_link(&conn, &input.source_id, &input.target_id)
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IgnoreInspirationRecommendationInput {
+    pub source_id: String,
+    pub candidate_id: String,
+    pub relation: String,
+}
+
 #[tauri::command]
-pub fn list_inspiration_links(inspiration_id: String, db: State<'_, Db>) -> AppResult<Vec<InspirationLink>> {
+pub fn ignore_inspiration_recommendation(
+    input: IgnoreInspirationRecommendationInput,
+    db: State<'_, Db>,
+) -> AppResult<()> {
+    let relation = input.relation.trim();
+    if !is_valid_relation(relation) {
+        return Err(AppError::Custom("非法 relation 类型".into()));
+    }
+    let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
+    inspiration::ignore_recommendation(&conn, &input.source_id, &input.candidate_id, relation)
+}
+
+#[tauri::command]
+pub fn list_inspiration_links(
+    inspiration_id: String,
+    db: State<'_, Db>,
+) -> AppResult<Vec<InspirationLink>> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     inspiration::list_links_for_inspiration(&conn, &inspiration_id)
 }
@@ -156,7 +316,7 @@ pub async fn suggest_related_inspirations(
     ai: State<'_, AIService>,
     db: State<'_, Db>,
 ) -> AppResult<Vec<InspirationRecommendation>> {
-    let (items, current, embedding_model, rerank_model, existing_embeddings) = {
+    let (items, current, embedding_model, rerank_model, existing_embeddings, ignored_keys) = {
         let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
         // D3: 用户主动关闭 embedding 时,显式返回空数组而非报错。
         // 这是显式行为(用户知情),不算 silent fallback。
@@ -170,6 +330,17 @@ pub async fn suggest_related_inspirations(
         let Some(current) = current else {
             return Err(AppError::Custom("灵感不存在".into()));
         };
+        if current.content.trim().is_empty() {
+            return Ok(Vec::new());
+        }
+        let linked_peer_ids = inspiration::list_linked_peer_ids(&conn, &inspiration_id)?
+            .into_iter()
+            .collect::<HashSet<_>>();
+        let items = items
+            .into_iter()
+            .filter(|item| item.id == current.id || !linked_peer_ids.contains(&item.id))
+            .collect::<Vec<_>>();
+        let ignored_keys = inspiration::list_ignored_recommendation_keys(&conn, &inspiration_id)?;
         let embedding_model = crate::models::settings::get(&conn, "ai_embedding_model")?
             .unwrap_or_else(|| "text-embedding-3-small".into());
         let rerank_model = crate::models::settings::get(&conn, "ai_model_fast")?
@@ -180,7 +351,14 @@ pub async fn suggest_related_inspirations(
                 existing_embeddings.push(found);
             }
         }
-        (items, current, embedding_model, rerank_model, existing_embeddings)
+        (
+            items,
+            current,
+            embedding_model,
+            rerank_model,
+            existing_embeddings,
+            ignored_keys,
+        )
     };
 
     let (recommendations, updates) = inspiration_service::suggest_related(
@@ -190,7 +368,9 @@ pub async fn suggest_related_inspirations(
         embedding_model.clone(),
         rerank_model,
         &existing_embeddings,
-    ).await?;
+    )
+    .await?;
+    let recommendations = filter_ignored_recommendations(recommendations, &ignored_keys);
 
     if !updates.is_empty() {
         let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
@@ -210,6 +390,7 @@ pub struct MigrateInspirationItem {
     pub id: String,
     pub content: String,
     pub goal_id: Option<String>,
+    pub image_path: Option<String>,
     pub converted_task_id: Option<String>,
     pub converted_at: Option<String>,
     pub created_at: String,
@@ -225,22 +406,35 @@ pub fn migrate_inspirations_from_local(
     let mut count = 0u32;
     for item in &items {
         let content = item.content.trim();
-        if content.is_empty() { continue; }
-        let exists: bool = conn.query_row(
-            "SELECT COUNT(*) > 0 FROM inspirations WHERE id = ?1",
-            rusqlite::params![item.id],
-            |r| r.get(0),
-        ).unwrap_or(false);
-        if exists { continue; }
+        if content.is_empty() && item.image_path.is_none() {
+            continue;
+        }
+        let embedding_status = if content.is_empty() { "done" } else { "pending" };
+        let exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) > 0 FROM inspirations WHERE id = ?1",
+                rusqlite::params![item.id],
+                |r| r.get(0),
+            )
+            .unwrap_or(false);
+        if exists {
+            continue;
+        }
         conn.execute(
             "INSERT INTO inspirations (
-                id, content, goal_id, summary, keywords, verification, embedding_status,
+                id, content, goal_id, image_path, summary, keywords, verification, embedding_status,
                 converted_task_id, converted_at, created_at, updated_at
-             ) VALUES (?1, ?2, ?3, NULL, '[]', 'none', 'pending', ?4, ?5, ?6, ?7)",
+             ) VALUES (?1, ?2, ?3, ?4, NULL, '[]', 'none', ?5, ?6, ?7, ?8, ?9)",
             rusqlite::params![
-                item.id, content, item.goal_id,
-                item.converted_task_id, item.converted_at,
-                item.created_at, item.updated_at,
+                item.id,
+                content,
+                item.goal_id,
+                item.image_path,
+                embedding_status,
+                item.converted_task_id,
+                item.converted_at,
+                item.created_at,
+                item.updated_at,
             ],
         )?;
         count += 1;
@@ -251,10 +445,7 @@ pub fn migrate_inspirations_from_local(
 // ---------- 批量 embedding 索引 ----------
 
 #[tauri::command]
-pub async fn batch_embed_pending(
-    ai: State<'_, AIService>,
-    db: State<'_, Db>,
-) -> AppResult<u32> {
+pub async fn batch_embed_pending(ai: State<'_, AIService>, db: State<'_, Db>) -> AppResult<u32> {
     let (pending_items, embedding_model) = {
         let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
         let embedding_enabled = crate::models::settings::get(&conn, "ai_embedding_enabled")?
@@ -263,7 +454,11 @@ pub async fn batch_embed_pending(
             return Ok(0);
         }
         let mut stmt = conn.prepare(
-            "SELECT id, content FROM inspirations WHERE embedding_status IN ('pending', 'failed') LIMIT 10",
+            "SELECT id, content
+             FROM inspirations
+             WHERE embedding_status IN ('pending', 'failed')
+               AND trim(content) <> ''
+             LIMIT 10",
         ).map_err(|e| AppError::Custom(e.to_string()))?;
         let rows: Vec<(String, String)> = stmt
             .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
@@ -318,6 +513,9 @@ pub async fn retry_embed_inspiration(
         let Some(target) = target else {
             return Err(AppError::Custom("灵感不存在".into()));
         };
+        if target.content.trim().is_empty() {
+            return Err(AppError::Custom("纯图片灵感不支持语义索引".into()));
+        }
         let model = crate::models::settings::get(&conn, "ai_embedding_model")?
             .unwrap_or_else(|| "text-embedding-3-small".into());
         (target.content, model)
@@ -367,25 +565,93 @@ pub async fn extract_inspiration_keywords(
         严格按 JSON 返回，格式：{{\"keywords\":[\"关键词1\",\"关键词2\"],\"summary\":\"一句话摘要\"}}\n\n\
         灵感原文：{content}"
     );
-    let messages = vec![crate::ai::Message { role: "user".into(), content: prompt }];
-    let result = ai.complete(messages, crate::ai::CompletionOptions {
-        temperature: Some(0.3),
-        max_tokens: Some(150),
-        model_override: None,
-    }).await?;
+    let messages = vec![crate::ai::Message {
+        role: "user".into(),
+        content: prompt,
+    }];
+    let result = ai
+        .complete(
+            messages,
+            crate::ai::CompletionOptions {
+                temperature: Some(0.3),
+                max_tokens: Some(150),
+                model_override: None,
+            },
+        )
+        .await?;
 
-    let cleaned = result.trim().trim_start_matches("```json").trim_start_matches("```").trim_end_matches("```").trim();
+    let cleaned = result
+        .trim()
+        .trim_start_matches("```json")
+        .trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim();
     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(cleaned) {
-        let kw_arr: Vec<String> = parsed.get("keywords")
+        let kw_arr: Vec<String> = parsed
+            .get("keywords")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
         let keywords_json = serde_json::to_string(&kw_arr).unwrap_or_else(|_| "[]".into());
-        let summary = parsed.get("summary").and_then(|v| v.as_str()).map(String::from);
+        let summary = parsed
+            .get("summary")
+            .and_then(|v| v.as_str())
+            .map(String::from);
         let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
         inspiration::update_keywords_summary(&conn, &id, &keywords_json, summary.as_deref())?;
-        return Ok(KeywordResult { keywords: kw_arr, summary });
+        return Ok(KeywordResult {
+            keywords: kw_arr,
+            summary,
+        });
     }
-    Ok(KeywordResult { keywords: vec![], summary: None })
+    Ok(KeywordResult {
+        keywords: vec![],
+        summary: None,
+    })
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn recommendation(candidate_id: &str, relation: &str) -> InspirationRecommendation {
+        InspirationRecommendation {
+            candidate_id: candidate_id.to_string(),
+            candidate_content: "candidate".into(),
+            relation: relation.to_string(),
+            reason: "reason".into(),
+            confidence: 0.9,
+        }
+    }
+
+    #[test]
+    fn filter_ignored_recommendations_removes_matching_relation_only() {
+        let ignored = HashSet::from([("old-1".to_string(), "related".to_string())]);
+        let raw = vec![
+            recommendation("old-1", "related"),
+            recommendation("old-1", "contradicts"),
+            recommendation("old-2", "related"),
+        ];
+
+        let filtered = filter_ignored_recommendations(raw, &ignored);
+
+        assert_eq!(filtered.len(), 2);
+        assert_eq!(filtered[0].candidate_id, "old-1");
+        assert_eq!(filtered[0].relation, "contradicts");
+        assert_eq!(filtered[1].candidate_id, "old-2");
+    }
+
+    #[test]
+    fn image_extension_for_mime_supports_png() {
+        assert_eq!(image_extension_for_mime("image/png").unwrap(), "png");
+    }
+
+    #[test]
+    fn image_extension_for_mime_rejects_unsupported_type() {
+        assert!(image_extension_for_mime("image/tiff").is_err());
+    }
+}

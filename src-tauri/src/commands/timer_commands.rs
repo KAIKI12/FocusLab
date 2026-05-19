@@ -69,7 +69,11 @@ pub fn update_timer_state(patch: TimerStatePatch, db: State<'_, Db>) -> AppResul
     push!(patch.pomodoro_preset, "pomodoro_preset", |v: String| v);
     push!(patch.status, "status", |v: String| v);
     push!(patch.pomodoro_count, "pomodoro_count", |v: i64| v);
-    push!(patch.is_break, "is_break", |v: bool| if v { 1i64 } else { 0 });
+    push!(patch.is_break, "is_break", |v: bool| if v {
+        1i64
+    } else {
+        0
+    });
     push!(patch.break_remaining, "break_remaining", |v: i64| v);
 
     // updated_at: 显式传入时保留(调试用);否则落 now()

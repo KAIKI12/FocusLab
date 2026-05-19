@@ -8,16 +8,12 @@ async fn focus_main_window(app: &tauri::AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    tauri::WebviewWindowBuilder::new(
-        app,
-        "main",
-        WebviewUrl::App("index.html".into()),
-    )
-    .title("FocusLab")
-    .inner_size(1000.0, 700.0)
-    .min_inner_size(800.0, 600.0)
-    .build()
-    .map_err(|e| e.to_string())?;
+    tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+        .title("FocusLab")
+        .inner_size(1000.0, 700.0)
+        .min_inner_size(800.0, 600.0)
+        .build()
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }

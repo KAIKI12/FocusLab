@@ -47,6 +47,14 @@ const MIGRATIONS: &[Migration] = &[
         version: "007_ai_selected_models",
         sql: include_str!("migrations/007_ai_selected_models.sql"),
     },
+    Migration {
+        version: "008_inspiration_ignored_recommendations",
+        sql: include_str!("migrations/008_inspiration_ignored_recommendations.sql"),
+    },
+    Migration {
+        version: "009_inspiration_images",
+        sql: include_str!("migrations/009_inspiration_images.sql"),
+    },
 ];
 
 pub fn run(conn: &mut Connection) -> AppResult<()> {

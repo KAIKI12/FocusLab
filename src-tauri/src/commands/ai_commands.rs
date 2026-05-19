@@ -113,8 +113,14 @@ fn resolve_model_for_tier(
 fn load_model_for_scene(conn: &rusqlite::Connection, scene: &str) -> String {
     resolve_model_for_tier(
         scene_tier(scene),
-        settings::get(conn, "ai_model_fast").ok().flatten().as_deref(),
-        settings::get(conn, "ai_model_strong").ok().flatten().as_deref(),
+        settings::get(conn, "ai_model_fast")
+            .ok()
+            .flatten()
+            .as_deref(),
+        settings::get(conn, "ai_model_strong")
+            .ok()
+            .flatten()
+            .as_deref(),
         settings::get(conn, "ai_model").ok().flatten().as_deref(),
     )
 }
@@ -123,7 +129,10 @@ fn with_model_override(opts: CompletionOptions, model: String) -> CompletionOpti
     if model.trim().is_empty() {
         return opts;
     }
-    CompletionOptions { model_override: Some(model), ..opts }
+    CompletionOptions {
+        model_override: Some(model),
+        ..opts
+    }
 }
 
 #[tauri::command]
@@ -142,9 +151,21 @@ pub async fn configure_ai(
     ai: State<'_, AIService>,
     db: State<'_, Db>,
 ) -> AppResult<()> {
-    let effective_fast_model = fast_model.as_deref().filter(|value| !value.trim().is_empty()).unwrap_or(&model).to_string();
-    let effective_strong_model = strong_model.as_deref().filter(|value| !value.trim().is_empty()).unwrap_or(&model).to_string();
-    let effective_model = if model.trim().is_empty() { effective_fast_model.clone() } else { model.clone() };
+    let effective_fast_model = fast_model
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(&model)
+        .to_string();
+    let effective_strong_model = strong_model
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(&model)
+        .to_string();
+    let effective_model = if model.trim().is_empty() {
+        effective_fast_model.clone()
+    } else {
+        model.clone()
+    };
 
     {
         let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
@@ -158,10 +179,18 @@ pub async fn configure_ai(
             ("ai_model_fast", effective_fast_model.clone()),
             ("ai_model_strong", effective_strong_model.clone()),
         ];
-        if let Some(v) = &enabled { pairs.push(("ai_enabled", v.clone())); }
-        if let Some(v) = &tone { pairs.push(("ai_tone", v.clone())); }
-        if let Some(v) = &tone_custom { pairs.push(("ai_tone_custom", v.clone())); }
-        if let Some(v) = &intensity { pairs.push(("ai_tone_intensity", v.clone())); }
+        if let Some(v) = &enabled {
+            pairs.push(("ai_enabled", v.clone()));
+        }
+        if let Some(v) = &tone {
+            pairs.push(("ai_tone", v.clone()));
+        }
+        if let Some(v) = &tone_custom {
+            pairs.push(("ai_tone_custom", v.clone()));
+        }
+        if let Some(v) = &intensity {
+            pairs.push(("ai_tone_intensity", v.clone()));
+        }
         for (k, v) in &pairs {
             conn.execute(
                 "INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
@@ -171,7 +200,14 @@ pub async fn configure_ai(
         }
     }
 
-    ai.configure(&provider, &api_format, &base_url, &api_key, &effective_model).await;
+    ai.configure(
+        &provider,
+        &api_format,
+        &base_url,
+        &api_key,
+        &effective_model,
+    )
+    .await;
     Ok(())
 }
 
@@ -233,8 +269,21 @@ pub async fn configure_embedding(
 }
 
 async fn request_ai_connection(ai: &AIService, scene_model: String) -> AppResult<String> {
-    let messages = vec![Message { role: "user".into(), content: "请回复'连接成功'四个字。".into() }];
-    ai.complete_required(messages, with_model_override(CompletionOptions { max_tokens: Some(20), ..Default::default() }, scene_model)).await
+    let messages = vec![Message {
+        role: "user".into(),
+        content: "请回复'连接成功'四个字。".into(),
+    }];
+    ai.complete_required(
+        messages,
+        with_model_override(
+            CompletionOptions {
+                max_tokens: Some(20),
+                ..Default::default()
+            },
+            scene_model,
+        ),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -287,12 +336,19 @@ pub async fn ai_decompose_task(
         &input.task_name,
         input.description.as_deref().unwrap_or(""),
     );
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let result = ai
         .complete(
             messages,
             with_model_override(
-                CompletionOptions { temperature: Some(0.7), max_tokens: Some(2000), ..Default::default() },
+                CompletionOptions {
+                    temperature: Some(0.7),
+                    max_tokens: Some(2000),
+                    ..Default::default()
+                },
                 scene_model,
             ),
         )
@@ -344,9 +400,15 @@ pub async fn ai_settlement_narrative(
         input.focus_minutes,
         effective_tone,
     );
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let opts = intensity_to_opts(intensity, 200);
-    match ai.complete(messages, with_model_override(opts, scene_model)).await {
+    match ai
+        .complete(messages, with_model_override(opts, scene_model))
+        .await
+    {
         Ok(result) => Ok(ResponseValidator::validate_narrative(&result)),
         Err(_) => Ok(local_quotes::pick_settlement_narrative(
             &input.grade,
@@ -394,7 +456,11 @@ pub async fn ai_daily_suggestions(
             .map_err(|e| AppError::Custom(e.to_string()))?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|e| AppError::Custom(e.to_string()))?;
-        let pending = if names.is_empty() { "无待办任务".into() } else { names.join("、") };
+        let pending = if names.is_empty() {
+            "无待办任务".into()
+        } else {
+            names.join("、")
+        };
 
         let (t, _c) = load_tone(&conn);
         let i = load_intensity(&conn);
@@ -403,9 +469,8 @@ pub async fn ai_daily_suggestions(
     };
 
     let energy = input.energy_level.as_deref().unwrap_or("正常");
-    let local_fallback = || {
-        local_quotes::pick_daily_suggestion(energy, &pending_tasks, &yesterday_summary)
-    };
+    let local_fallback =
+        || local_quotes::pick_daily_suggestion(energy, &pending_tasks, &yesterday_summary);
     if !enabled {
         return Ok(local_fallback());
     }
@@ -415,9 +480,15 @@ pub async fn ai_daily_suggestions(
         energy,
         &tone,
     );
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let opts = intensity_to_opts(intensity, 400);
-    match ai.complete(messages, with_model_override(opts, scene_model)).await {
+    match ai
+        .complete(messages, with_model_override(opts, scene_model))
+        .await
+    {
         Ok(result) if !result.trim().is_empty() => Ok(result),
         _ => Ok(local_fallback()),
     }
@@ -447,12 +518,19 @@ pub async fn ai_classify_quadrant(
         &input.task_name,
         input.description.as_deref().unwrap_or(""),
     );
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let result = ai
         .complete(
             messages,
             with_model_override(
-                CompletionOptions { temperature: Some(0.3), max_tokens: Some(50), ..Default::default() },
+                CompletionOptions {
+                    temperature: Some(0.3),
+                    max_tokens: Some(50),
+                    ..Default::default()
+                },
                 scene_model,
             ),
         )
@@ -488,10 +566,16 @@ pub async fn ai_optimize_quick_note(
     let (intensity, scene_model) = {
         let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
         check_ai_enabled(&conn)?;
-        (load_intensity(&conn), load_model_for_scene(&conn, "ai_optimize_quick_note"))
+        (
+            load_intensity(&conn),
+            load_model_for_scene(&conn, "ai_optimize_quick_note"),
+        )
     };
     let prompt = prompt_templates::quick_note_optimization_prompt(&input.raw_text);
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let opts = intensity_to_opts(intensity, 2000);
     let result = ai
         .complete_required(messages, with_model_override(opts, scene_model))
@@ -543,7 +627,10 @@ pub async fn ai_unfinished_reminder(
         &tone,
         &custom,
     );
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let opts = intensity_to_opts(intensity, 200);
     match ai.complete(messages, opts).await {
         Ok(result) if result.contains("\"message\"") => Ok(result),
@@ -578,9 +665,8 @@ pub async fn ai_task_feedback(
     let estimated = input.estimated_minutes.unwrap_or(0);
     let actual = input.actual_minutes.unwrap_or(0);
     let quadrant = input.quadrant.as_deref().unwrap_or("important_not_urgent");
-    let local_fallback = || {
-        local_quotes::pick_task_feedback(&input.task_name, estimated, actual, quadrant)
-    };
+    let local_fallback =
+        || local_quotes::pick_task_feedback(&input.task_name, estimated, actual, quadrant);
     if !enabled {
         return Ok(local_fallback());
     }
@@ -592,7 +678,10 @@ pub async fn ai_task_feedback(
         &tone,
         &custom,
     );
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let opts = intensity_to_opts(intensity, 150);
     match ai.complete(messages, opts).await {
         Ok(result) if result.contains("\"message\"") => Ok(result),
@@ -630,10 +719,20 @@ pub async fn ai_milestone_breakdown(
         deadline,
         progress,
     );
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     // 里程碑拆解固定稍高 temperature 以保持创意，但不受 intensity 影响
     let result = ai
-        .complete(messages, CompletionOptions { temperature: Some(0.7), max_tokens: Some(2500), ..Default::default() })
+        .complete(
+            messages,
+            CompletionOptions {
+                temperature: Some(0.7),
+                max_tokens: Some(2500),
+                ..Default::default()
+            },
+        )
         .await?;
     if result.contains("\"milestones\"") {
         Ok(result)
@@ -645,10 +744,7 @@ pub async fn ai_milestone_breakdown(
 // ---------- AI 周度小结 ----------
 
 #[tauri::command]
-pub async fn ai_weekly_summary(
-    ai: State<'_, AIService>,
-    db: State<'_, Db>,
-) -> AppResult<String> {
+pub async fn ai_weekly_summary(ai: State<'_, AIService>, db: State<'_, Db>) -> AppResult<String> {
     let (enabled, focus_min, pomodoros, completed, avg_grade, top_task, tone, intensity) = {
         let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
         let enabled = get_setting_or(&conn, "ai_enabled", "1") != "0";
@@ -706,7 +802,10 @@ pub async fn ai_weekly_summary(
     let prompt = prompt_templates::weekly_summary_prompt(
         focus_min, pomodoros, completed, &avg_grade, &top_task, &tone,
     );
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let opts = intensity_to_opts(intensity, 300);
     match ai.complete(messages, opts).await {
         Ok(result) if !result.trim().is_empty() => Ok(result),
@@ -738,7 +837,10 @@ pub async fn ai_estimate_task_duration(
     // 查询历史相似任务的实际用时（按任务名相似度，取最近 10 条）
     let similar_history: String = {
         let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
-        let task_keyword = format!("%{}%", &input.task_name.chars().take(10).collect::<String>());
+        let task_keyword = format!(
+            "%{}%",
+            &input.task_name.chars().take(10).collect::<String>()
+        );
         let mut stmt = conn
             .prepare(
                 "SELECT t.name, COALESCE(SUM(s.actual_duration_minutes), 0) as total_min
@@ -769,12 +871,12 @@ pub async fn ai_estimate_task_duration(
     };
 
     let description = input.description.as_deref().unwrap_or("");
-    let prompt = prompt_templates::task_duration_prompt(
-        &input.task_name,
-        description,
-        &similar_history,
-    );
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let prompt =
+        prompt_templates::task_duration_prompt(&input.task_name, description, &similar_history);
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let opts = intensity_to_opts(intensity, 800);
     let result = ai.complete(messages, opts).await?;
     // 校验：必须包含 estimated_minutes
@@ -843,7 +945,10 @@ pub async fn ai_milestone_risk(
         input.total_subtasks,
         &recent_activity,
     );
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let opts = intensity_to_opts(intensity, 800);
     let result = ai.complete(messages, opts).await?;
     // 校验：必须含 risk_level
@@ -875,7 +980,8 @@ pub async fn fetch_ai_models(
     let client = reqwest::Client::new();
     let url = format!("{}/v1/models", base_url.trim_end_matches('/'));
 
-    let mut req = client.get(&url)
+    let mut req = client
+        .get(&url)
         .timeout(std::time::Duration::from_secs(10))
         .header("User-Agent", "FocusLab/1.0");
 
@@ -937,7 +1043,10 @@ pub async fn ai_suggest_goal_for_inspiration(
         load_model_for_scene(&conn, "ai_suggest_goal_for_inspiration")
     };
     if input.goals.is_empty() {
-        return Ok(SuggestGoalResult { goal_id: None, reason: "暂无可选目标".into() });
+        return Ok(SuggestGoalResult {
+            goal_id: None,
+            reason: "暂无可选目标".into(),
+        });
     }
     let goal_lines: String = input
         .goals
@@ -946,12 +1055,19 @@ pub async fn ai_suggest_goal_for_inspiration(
         .collect::<Vec<_>>()
         .join("\n");
     let prompt = prompt_templates::suggest_goal_prompt(&input.inspiration_content, &goal_lines);
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let raw = ai
         .complete(
             messages,
             with_model_override(
-                CompletionOptions { temperature: Some(0.3), max_tokens: Some(200), ..Default::default() },
+                CompletionOptions {
+                    temperature: Some(0.3),
+                    max_tokens: Some(200),
+                    ..Default::default()
+                },
                 scene_model,
             ),
         )
@@ -961,15 +1077,26 @@ pub async fn ai_suggest_goal_for_inspiration(
     let json_text = extract_json_blob(trimmed);
     let parsed: serde_json::Value = serde_json::from_str(&json_text)
         .map_err(|e| AppError::Custom(format!("AI 返回解析失败: {e}; 原文: {raw}")))?;
-    let raw_goal = parsed.get("goalId").and_then(|v| v.as_str()).unwrap_or("none").trim().to_string();
-    let reason = parsed.get("reason").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let raw_goal = parsed
+        .get("goalId")
+        .and_then(|v| v.as_str())
+        .unwrap_or("none")
+        .trim()
+        .to_string();
+    let reason = parsed
+        .get("reason")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     let valid_ids: std::collections::HashSet<&str> =
         input.goals.iter().map(|(id, _)| id.as_str()).collect();
-    let goal_id = if raw_goal == "none" || raw_goal.is_empty() || !valid_ids.contains(raw_goal.as_str()) {
-        None
-    } else {
-        Some(raw_goal)
-    };
+    let goal_id =
+        if raw_goal == "none" || raw_goal.is_empty() || !valid_ids.contains(raw_goal.as_str()) {
+            None
+        } else {
+            Some(raw_goal)
+        };
     Ok(SuggestGoalResult { goal_id, reason })
 }
 
@@ -993,12 +1120,19 @@ pub async fn ai_draft_followup_experiment(
         load_model_for_scene(&conn, "ai_draft_followup_experiment")
     };
     let prompt = prompt_templates::draft_followup_prompt(&input.parent_content);
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let raw = ai
         .complete(
             messages,
             with_model_override(
-                CompletionOptions { temperature: Some(0.6), max_tokens: Some(200), ..Default::default() },
+                CompletionOptions {
+                    temperature: Some(0.6),
+                    max_tokens: Some(200),
+                    ..Default::default()
+                },
                 scene_model,
             ),
         )
@@ -1039,13 +1173,21 @@ pub async fn ai_analyze_correction(
         check_ai_enabled(&conn)?;
         load_model_for_scene(&conn, "ai_analyze_correction")
     };
-    let prompt = prompt_templates::correction_analysis_prompt(&input.old_content, &input.new_content);
-    let messages = vec![Message { role: "user".into(), content: prompt }];
+    let prompt =
+        prompt_templates::correction_analysis_prompt(&input.old_content, &input.new_content);
+    let messages = vec![Message {
+        role: "user".into(),
+        content: prompt,
+    }];
     let raw = ai
         .complete(
             messages,
             with_model_override(
-                CompletionOptions { temperature: Some(0.4), max_tokens: Some(400), ..Default::default() },
+                CompletionOptions {
+                    temperature: Some(0.4),
+                    max_tokens: Some(400),
+                    ..Default::default()
+                },
                 scene_model,
             ),
         )
@@ -1055,10 +1197,26 @@ pub async fn ai_analyze_correction(
     let parsed: serde_json::Value = serde_json::from_str(&json_text)
         .map_err(|e| AppError::Custom(format!("AI 返回解析失败: {e}; 原文: {raw}")))?;
     Ok(AnalyzeCorrectionResult {
-        summary: parsed.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        old_judgment: parsed.get("oldJudgment").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        new_evidence: parsed.get("newEvidence").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        suggestion: parsed.get("suggestion").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        summary: parsed
+            .get("summary")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        old_judgment: parsed
+            .get("oldJudgment")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        new_evidence: parsed
+            .get("newEvidence")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        suggestion: parsed
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
     })
 }
 

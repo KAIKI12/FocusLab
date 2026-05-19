@@ -38,14 +38,11 @@ const SELECT_COLS: &str =
 
 /// 列出任务。status_filter=None 时返回所有非 completed、非 shelved 的任务。
 #[tauri::command]
-pub fn list_tasks(
-    status_filter: Option<String>,
-    db: State<'_, Db>,
-) -> AppResult<Vec<Task>> {
+pub fn list_tasks(status_filter: Option<String>, db: State<'_, Db>) -> AppResult<Vec<Task>> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     let mut stmt = if status_filter.is_some() {
         conn.prepare(&format!(
-        "SELECT {SELECT_COLS} FROM tasks WHERE status = ?1
+            "SELECT {SELECT_COLS} FROM tasks WHERE status = ?1
              ORDER BY sort_order,
              CASE WHEN due_date IS NOT NULL THEN 0 ELSE 1 END,
              due_date ASC,
@@ -260,10 +257,14 @@ pub fn update_task(input: UpdateTaskInput, db: State<'_, Db>) -> AppResult<Task>
     }
     param_values.push(Box::new(input.id.clone()));
 
-    let params_ref: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|b| b.as_ref()).collect();
+    let params_ref: Vec<&dyn rusqlite::types::ToSql> =
+        param_values.iter().map(|b| b.as_ref()).collect();
     let affected = conn.execute(&sql, params_ref.as_slice())?;
     if affected == 0 {
-        return Err(AppError::Custom(format!("task {} not found or already deleted", input.id)));
+        return Err(AppError::Custom(format!(
+            "task {} not found or already deleted",
+            input.id
+        )));
     }
 
     // 回读返回
@@ -286,7 +287,9 @@ pub fn delete_task(id: String, db: State<'_, Db>) -> AppResult<()> {
         params![now, id],
     )?;
     if affected == 0 {
-        return Err(AppError::Custom(format!("task {id} not found or already deleted")));
+        return Err(AppError::Custom(format!(
+            "task {id} not found or already deleted"
+        )));
     }
     Ok(())
 }
@@ -359,12 +362,14 @@ pub fn generate_recurring_tasks(db: State<'_, Db>) -> AppResult<i64> {
         let should_create = match rule.as_str() {
             "daily" => true,
             "weekdays" => weekday != "6" && weekday != "7", // 排除周六日
-            "weekly" => weekday == "1", // 每周一
-            "monthly" => today.ends_with("-01"), // 每月1号
+            "weekly" => weekday == "1",                     // 每周一
+            "monthly" => today.ends_with("-01"),            // 每月1号
             _ => false,
         };
 
-        if !should_create { continue; }
+        if !should_create {
+            continue;
+        }
 
         // 检查今天是否已有该任务的 DTA
         let exists: bool = conn
@@ -375,7 +380,9 @@ pub fn generate_recurring_tasks(db: State<'_, Db>) -> AppResult<i64> {
             )
             .unwrap_or(false);
 
-        if exists { continue; }
+        if exists {
+            continue;
+        }
 
         let dta_id = Uuid::new_v4().to_string();
         conn.execute(
@@ -451,7 +458,9 @@ pub fn unshelve_task(id: String, db: State<'_, Db>) -> AppResult<()> {
         params![now, id],
     )?;
     if affected == 0 {
-        return Err(AppError::Custom(format!("task {id} not found or not shelved")));
+        return Err(AppError::Custom(format!(
+            "task {id} not found or not shelved"
+        )));
     }
     Ok(())
 }
@@ -461,11 +470,9 @@ pub fn unshelve_task(id: String, db: State<'_, Db>) -> AppResult<()> {
 pub fn get_task_name(id: String, db: State<'_, Db>) -> AppResult<Option<String>> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     let name = conn
-        .query_row(
-            "SELECT name FROM tasks WHERE id = ?1",
-            params![id],
-            |r| r.get::<_, String>(0),
-        )
+        .query_row("SELECT name FROM tasks WHERE id = ?1", params![id], |r| {
+            r.get::<_, String>(0)
+        })
         .ok();
     Ok(name)
 }
@@ -516,7 +523,9 @@ mod tests {
             .unwrap();
         assert_eq!(name, "updated");
         let q: String = conn
-            .query_row("SELECT quadrant FROM tasks WHERE id = 't1'", [], |r| r.get(0))
+            .query_row("SELECT quadrant FROM tasks WHERE id = 't1'", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(q, "important_urgent");
     }
@@ -534,7 +543,9 @@ mod tests {
             .unwrap();
         assert_eq!(affected, 1);
         let shelved: Option<String> = conn
-            .query_row("SELECT shelved_at FROM tasks WHERE id = 't1'", [], |r| r.get(0))
+            .query_row("SELECT shelved_at FROM tasks WHERE id = 't1'", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert!(shelved.is_some());
     }
@@ -630,16 +641,30 @@ mod tests {
         hard_delete_task_inner(&mut conn, "t1").unwrap();
 
         let task_count: i64 = conn
-            .query_row("SELECT COUNT(1) FROM tasks WHERE id = 't1'", [], |r| r.get(0))
+            .query_row("SELECT COUNT(1) FROM tasks WHERE id = 't1'", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         let session_count: i64 = conn
-            .query_row("SELECT COUNT(1) FROM sessions WHERE task_id = 't1'", [], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(1) FROM sessions WHERE task_id = 't1'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         let timer_task_id: Option<String> = conn
-            .query_row("SELECT task_id FROM timer_state WHERE id = 'current'", [], |r| r.get(0))
+            .query_row(
+                "SELECT task_id FROM timer_state WHERE id = 'current'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         let settlement_task_id: Option<String> = conn
-            .query_row("SELECT longest_focus_task_id FROM settlements WHERE id = 'st1'", [], |r| r.get(0))
+            .query_row(
+                "SELECT longest_focus_task_id FROM settlements WHERE id = 'st1'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
 
         assert_eq!(task_count, 0);
@@ -648,4 +673,3 @@ mod tests {
         assert_eq!(settlement_task_id, None);
     }
 }
-

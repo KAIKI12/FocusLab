@@ -10,12 +10,21 @@ import { computed, ref, watch } from "vue";
 import { listen } from "@tauri-apps/api/event";
 
 import { invokeCmd } from "@/composables/useTauriInvoke";
+import type { InspirationImageUpload } from "@/composables/useInspirationImageDraft";
 import { useTaskStore } from "@/stores/useTaskStore";
 import type { InspirationLink, InspirationRecommendation, InspirationRecord } from "@/types";
 
 const STORAGE_KEY = "fl-inspirations";
+const DEFERRED_RECOMMENDATION_STORAGE_KEY = "fl-inspiration-deferred-recommendations";
+const DUPLICATE_LINK_TOKEN = "DUPLICATE_LINK";
+const DUPLICATE_LINK_MESSAGE = "这两条灵感已经关联过了";
 
 export type InspirationItem = InspirationRecord;
+type LinkSourceType = InspirationLink["sourceType"];
+interface CreateInspirationOptions {
+  goalId?: string | null;
+  image?: InspirationImageUpload | null;
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -29,8 +38,6 @@ function normalizeItems(raw: unknown): InspirationItem[] {
       if (!item || typeof item !== "object") return null;
       const record = item as Record<string, unknown>;
       const content = String(record.content ?? "").trim();
-      if (!content) return null;
-
       const createdAt = String(record.createdAt ?? record.created_at ?? nowIso());
       const updatedAt = String(record.updatedAt ?? record.updated_at ?? createdAt);
       const convertedTaskId = record.convertedTaskId
@@ -48,6 +55,12 @@ function normalizeItems(raw: unknown): InspirationItem[] {
         : record.goal_id
           ? String(record.goal_id)
           : null;
+      const imagePath = record.imagePath
+        ? String(record.imagePath)
+        : record.image_path
+          ? String(record.image_path)
+          : null;
+      if (!content && !imagePath) return null;
       const summary = record.summary ? String(record.summary) : null;
       // 兼容三种来源:
       // 1) 后端 SQLite 返回 (D1 修复后已为 string[])
@@ -86,6 +99,7 @@ function normalizeItems(raw: unknown): InspirationItem[] {
         id: String(record.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
         content,
         goalId,
+        imagePath,
         summary,
         keywords,
         verification,
@@ -110,10 +124,36 @@ function readLegacyStorage(): InspirationItem[] {
   }
 }
 
+function recommendationKey(
+  sourceId: string,
+  candidateId: string,
+  relation: "related" | "contradicts",
+) {
+  return `${sourceId}::${candidateId}::${relation}`;
+}
+
+function readDeferredRecommendationKeys(): string[] {
+  try {
+    const raw = localStorage.getItem(DEFERRED_RECOMMENDATION_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item) => String(item).trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function isDuplicateLinkError(error: unknown) {
+  const message = String(error ?? "");
+  return message.includes(DUPLICATE_LINK_TOKEN) || message.includes(DUPLICATE_LINK_MESSAGE);
+}
+
 export const useInspirationStore = defineStore("inspiration", () => {
   const items = ref<InspirationItem[]>([]);
   const linksById = ref<Record<string, InspirationLink[]>>({});
   const pendingRecommendations = ref<Record<string, InspirationRecommendation[]>>({});
+  const deferredRecommendationKeys = ref<string[]>(readDeferredRecommendationKeys());
   const recommendationLoading = ref<Record<string, boolean>>({});
   const recommendationError = ref<Record<string, string>>({});
   /// 每条灵感最近一次"分析关联"完成的时间戳。有值 = UI 显示「重新分析」,无值 = 「分析关联」。
@@ -156,6 +196,13 @@ export const useInspirationStore = defineStore("inspiration", () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items.value));
   }
 
+  function persistDeferredRecommendationKeys() {
+    localStorage.setItem(
+      DEFERRED_RECOMMENDATION_STORAGE_KEY,
+      JSON.stringify(deferredRecommendationKeys.value),
+    );
+  }
+
   async function ensureLoaded() {
     if (loaded.value) return;
     await reload();
@@ -196,20 +243,30 @@ export const useInspirationStore = defineStore("inspiration", () => {
   const pendingCount = computed(() => items.value.filter((item) => !item.convertedTaskId).length);
   const latestItems = computed(() => items.value.slice(0, 3));
 
-  async function create(content: string, goalId?: string | null) {
+  async function create(content: string, options?: CreateInspirationOptions) {
     await ensureLoaded();
     const trimmed = content.trim();
-    if (!trimmed) return null;
+    const image = options?.image ?? null;
+    const hasImage = !!image?.bytes.length;
+    if (!trimmed && !hasImage) return null;
 
-    try {
-      const created = normalizeItems([
-        await invokeCmd<InspirationItem>("create_inspiration", {
-          input: { content: trimmed, goalId: goalId ?? null },
-        }),
-      ])[0];
-      items.value.unshift(created);
-      // D2: 关键词/摘要 AI 提取失败时不再 silent 吞,日志显式记录;
-      // UI 层根据 keywords 是否为空判断展示。失败原因通过 console 留痕。
+    const created = normalizeItems([
+      await invokeCmd<InspirationItem>("create_inspiration", {
+        input: {
+          content: trimmed,
+          goalId: options?.goalId ?? null,
+          imageBytes: image?.bytes ?? null,
+          imageMimeType: image?.mimeType ?? null,
+        },
+      }),
+    ])[0];
+    if (!created) {
+      throw new Error("创建灵感返回数据无效");
+    }
+    items.value.unshift(created);
+    // D2: 关键词/摘要 AI 提取失败时不再 silent 吞,日志显式记录;
+    // UI 层根据 keywords 是否为空判断展示。失败原因通过 console 留痕。
+    if (trimmed) {
       invokeCmd<{ keywords: string[]; summary: string | null }>("extract_inspiration_keywords", { id: created.id })
         .then((result) => {
           const target = items.value.find((i) => i.id === created.id);
@@ -221,25 +278,8 @@ export const useInspirationStore = defineStore("inspiration", () => {
         .catch((err) => {
           console.warn("[inspiration] AI 关键词提取失败,卡片不显示关键词:", err);
         });
-      return created;
-    } catch {
-      const timestamp = nowIso();
-      const item: InspirationItem = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        content: trimmed,
-        goalId: goalId ?? null,
-        summary: null,
-        keywords: [],
-        verification: "none",
-        embeddingStatus: "pending",
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        convertedTaskId: null,
-        convertedAt: null,
-      };
-      items.value.unshift(item);
-      return item;
     }
+    return created;
   }
 
   async function remove(id: string) {
@@ -323,14 +363,20 @@ export const useInspirationStore = defineStore("inspiration", () => {
     return linksById.value[id];
   }
 
-  async function linkManually(sourceId: string, targetId: string, relation: "related" | "contradicts" = "related") {
+  async function linkManually(
+    sourceId: string,
+    targetId: string,
+    relation: "related" | "contradicts" = "related",
+    options?: { sourceType?: LinkSourceType; reason?: string | null },
+  ) {
     try {
       const created = await invokeCmd<InspirationLink>("link_inspirations", {
         input: {
           sourceId,
           targetId,
           relation,
-          sourceType: "manual",
+          sourceType: options?.sourceType ?? "manual",
+          reason: options?.reason ?? null,
         },
       });
       if (!linksById.value[sourceId]) linksById.value[sourceId] = [];
@@ -340,9 +386,8 @@ export const useInspirationStore = defineStore("inspiration", () => {
       return created;
     } catch (error) {
       // D4: 区分"已重复关联"和其他错误,前端可显式 toast/提示。
-      const msg = String(error ?? "");
-      if (msg.includes("DUPLICATE_LINK")) {
-        throw new Error("这两条灵感已经关联过了");
+      if (isDuplicateLinkError(error)) {
+        throw new Error(DUPLICATE_LINK_MESSAGE);
       }
       throw error;
     }
@@ -365,6 +410,7 @@ export const useInspirationStore = defineStore("inspiration", () => {
       pendingRecommendations.value[id] = await invokeCmd<InspirationRecommendation[]>("suggest_related_inspirations", {
         inspirationId: id,
       });
+      pruneDeferredRecommendationsFor(id);
       // 记录"已分析"时间戳,供 UI 区分「分析关联」/「重新分析」
       recommendationAnalyzedAt.value[id] = nowIso();
       return pendingRecommendations.value[id];
@@ -381,17 +427,80 @@ export const useInspirationStore = defineStore("inspiration", () => {
     pendingRecommendations.value[id] = (pendingRecommendations.value[id] ?? []).filter(
       (item) => item.candidateId !== candidateId,
     );
+    deferredRecommendationKeys.value = deferredRecommendationKeys.value.filter(
+      (key) => !key.startsWith(`${id}::${candidateId}::`),
+    );
+  }
+
+  function deferRecommendation(
+    id: string,
+    candidateId: string,
+    relation: "related" | "contradicts",
+  ) {
+    const key = recommendationKey(id, candidateId, relation);
+    if (deferredRecommendationKeys.value.includes(key)) return;
+    deferredRecommendationKeys.value = [...deferredRecommendationKeys.value, key];
+  }
+
+  function restoreDeferredRecommendation(key: string) {
+    deferredRecommendationKeys.value = deferredRecommendationKeys.value.filter(
+      (item) => item !== key,
+    );
+  }
+
+  function restoreDeferredRecommendations(keys: string[]) {
+    if (!keys.length) return;
+    const restoreSet = new Set(keys);
+    deferredRecommendationKeys.value = deferredRecommendationKeys.value.filter(
+      (item) => !restoreSet.has(item),
+    );
+  }
+
+  function pruneDeferredRecommendationsFor(id: string) {
+    const validKeys = new Set(
+      (pendingRecommendations.value[id] ?? []).map((item) =>
+        recommendationKey(id, item.candidateId, item.relation),
+      ),
+    );
+    deferredRecommendationKeys.value = deferredRecommendationKeys.value.filter((key) => {
+      if (!key.startsWith(`${id}::`)) return true;
+      return validKeys.has(key);
+    });
+  }
+
+  async function ignoreRecommendation(id: string, candidateId: string) {
+    const recommendation = (pendingRecommendations.value[id] ?? []).find(
+      (item) => item.candidateId === candidateId,
+    );
+    if (!recommendation) {
+      throw new Error("待忽略的推荐不存在");
+    }
+    await invokeCmd<void>("ignore_inspiration_recommendation", {
+      input: {
+        sourceId: id,
+        candidateId,
+        relation: recommendation.relation,
+      },
+    });
+    clearRecommendation(id, candidateId);
   }
 
   async function acceptRecommendation(id: string, recommendation: InspirationRecommendation) {
-    await linkManually(id, recommendation.candidateId, recommendation.relation);
+    try {
+      await linkManually(id, recommendation.candidateId, recommendation.relation, {
+        sourceType: "ai_accepted",
+        reason: recommendation.reason,
+      });
+    } catch (error) {
+      if (!isDuplicateLinkError(error)) throw error;
+    }
     clearRecommendation(id, recommendation.candidateId);
   }
 
   async function convertToTask(id: string) {
     await ensureLoaded();
     const item = items.value.find((entry) => entry.id === id);
-    if (!item || item.convertedTaskId || saving.value) return null;
+    if (!item || !item.content.trim() || item.convertedTaskId || saving.value) return null;
 
     saving.value = true;
     try {
@@ -426,11 +535,13 @@ export const useInspirationStore = defineStore("inspiration", () => {
   }
 
   watch(items, persistLegacySnapshot, { deep: true });
+  watch(deferredRecommendationKeys, persistDeferredRecommendationKeys, { deep: true });
 
   return {
     items,
     linksById,
     pendingRecommendations,
+    deferredRecommendationKeys,
     recommendationLoading,
     recommendationError,
     recommendationAnalyzedAt,
@@ -451,6 +562,10 @@ export const useInspirationStore = defineStore("inspiration", () => {
     linkManually,
     unlink,
     loadRecommendations,
+    deferRecommendation,
+    restoreDeferredRecommendation,
+    restoreDeferredRecommendations,
+    ignoreRecommendation,
     acceptRecommendation,
     convertToTask,
     retryEmbedding,

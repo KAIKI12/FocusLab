@@ -9,7 +9,7 @@ pub mod interruption;
 pub mod milestone;
 pub mod milestone_note;
 pub mod session;
-pub mod settlement;
 pub mod settings;
+pub mod settlement;
 pub mod task;
 pub mod timer_state;

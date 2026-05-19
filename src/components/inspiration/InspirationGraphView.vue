@@ -10,7 +10,7 @@
  * 父组件接 @analyze 事件后调 inspiration.loadRecommendations(item.id)。
  */
 
-import { RefreshCw, Sparkles } from "lucide-vue-next";
+import { RefreshCw, Sparkles, X } from "lucide-vue-next";
 import { computed } from "vue";
 
 import type { InspirationItem } from "@/stores/useInspirationStore";
@@ -41,6 +41,7 @@ const emit = defineEmits<{
   "accept-reco": [sourceId: string, reco: InspirationRecommendation];
   "reject-reco": [sourceId: string, candidateId: string];
   "node-click": [id: string];
+  unlink: [sourceId: string, targetId: string];
 }>();
 
 const linksMap = computed<Record<string, InspirationLink[]>>(() => {
@@ -61,6 +62,47 @@ const analyzeBtnLabel = computed(() => {
   if (props.analyzing) return "分析中…";
   return props.analyzed ? "重新分析" : "分析关联";
 });
+
+function relationLabel(link: InspirationLink) {
+  return link.relation === "contradicts" ? "矛盾/纠偏" : "相关";
+}
+
+function sourceLabel(link: InspirationLink) {
+  return link.sourceType === "ai_accepted" ? "AI 确认" : "手动连接";
+}
+
+function linkReason(link: InspirationLink) {
+  const raw = link.reason?.trim();
+  if (raw) return raw;
+  return link.sourceType === "ai_accepted" ? "已接受 AI 推荐建立该连接" : "手动建立的连接";
+}
+
+function peerIdOf(link: InspirationLink) {
+  if (!props.item) return link.targetId;
+  return link.sourceId === props.item.id ? link.targetId : link.sourceId;
+}
+
+function contentForId(id: string) {
+  const item = props.allItems?.find((entry) => entry.id === id);
+  if (!item) return "(已删除)";
+  return item.content.trim() || "图片灵感";
+}
+
+const linkRows = computed(() =>
+  props.links.map((link) => {
+    const peerId = peerIdOf(link);
+    return {
+      link,
+      peerId,
+      peerContent: contentForId(peerId),
+    };
+  }),
+);
+
+function onUnlink(peerId: string) {
+  if (!props.item) return;
+  emit("unlink", props.item.id, peerId);
+}
 </script>
 
 <template>
@@ -104,8 +146,47 @@ const analyzeBtnLabel = computed(() => {
       @accept-reco="(sourceId, reco) => emit('accept-reco', sourceId, reco)"
       @reject-reco="(sourceId, candidateId) => emit('reject-reco', sourceId, candidateId)"
       @node-click="(id) => emit('node-click', id)"
+      @delete-link="(sourceId, targetId) => emit('unlink', sourceId, targetId)"
       @expand="emit('expand')"
     />
+
+    <div v-if="item && linkRows.length" class="fl-graph-links">
+      <div class="fl-graph-links-head">
+        <span>已连接</span>
+        <span>{{ linkRows.length }}</span>
+      </div>
+      <div class="fl-graph-link-list">
+        <div
+          v-for="row in linkRows"
+          :key="row.link.id"
+          class="fl-graph-link-row"
+          :class="{ 'is-warn': row.link.relation === 'contradicts' }"
+        >
+          <span class="fl-graph-link-dot" />
+          <div class="fl-graph-link-body">
+            <span class="fl-graph-link-text">{{ row.peerContent }}</span>
+            <div class="fl-graph-link-meta">
+              <span class="fl-graph-link-chip" :class="{ 'is-warn': row.link.relation === 'contradicts' }">
+                {{ relationLabel(row.link) }}
+              </span>
+              <span class="fl-graph-link-chip is-source">
+                {{ sourceLabel(row.link) }}
+              </span>
+            </div>
+            <p class="fl-graph-link-reason">{{ linkReason(row.link) }}</p>
+          </div>
+          <button
+            class="fl-graph-link-remove"
+            type="button"
+            title="删除连接"
+            aria-label="删除连接"
+            @click="onUnlink(row.peerId)"
+          >
+            <X :size="12" />
+          </button>
+        </div>
+      </div>
+    </div>
 
     <p class="fl-graph-tip">
       鼠标悬停虚线可查看 AI 建议详情;点击右上 ⤢ 放大查看全图。
@@ -208,6 +289,123 @@ const analyzeBtnLabel = computed(() => {
   color: var(--color-warning-text);
   font-size: 11px;
   border: 1px solid color-mix(in srgb, var(--color-warning) 24%, transparent);
+}
+
+.fl-graph-links {
+  margin-top: var(--sp-3);
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--sp-3);
+}
+
+.fl-graph-links-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+  margin-bottom: var(--sp-2);
+}
+
+.fl-graph-link-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.fl-graph-link-row {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) 24px;
+  align-items: start;
+  gap: var(--sp-2);
+  padding: 8px 6px;
+  border-radius: var(--r-sm);
+  background: var(--color-bg-subtle);
+}
+
+.fl-graph-link-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-primary);
+}
+
+.fl-graph-link-row.is-warn .fl-graph-link-dot {
+  background: var(--color-warning);
+}
+
+.fl-graph-link-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.fl-graph-link-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+  font-size: 11px;
+  font-weight: var(--fw-medium);
+}
+
+.fl-graph-link-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fl-graph-link-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary-dark);
+  font-size: 10px;
+  font-weight: var(--fw-medium);
+}
+
+.fl-graph-link-chip.is-warn {
+  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  color: var(--color-warning-text);
+}
+
+.fl-graph-link-chip.is-source {
+  background: color-mix(in srgb, var(--color-text-secondary) 10%, transparent);
+  color: var(--color-text-secondary);
+}
+
+.fl-graph-link-reason {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.fl-graph-link-remove {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.fl-graph-link-remove:hover {
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
 }
 
 .fl-graph-tip {

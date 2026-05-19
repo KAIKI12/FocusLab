@@ -27,7 +27,14 @@ import { useGraphForceLayout } from "@/composables/useGraphForceLayout";
 import type { InspirationItem } from "@/stores/useInspirationStore";
 import type { InspirationLink, InspirationRecommendation } from "@/types";
 
+import { getAutoPanDelta, getEdgeHandles } from "./graphGeometry";
+import {
+  prunePersistedGraphPositions,
+  readPersistedGraphPositions,
+  writePersistedGraphPositions,
+} from "./graphPositionPersistence";
 import GraphInspirationNode from "./GraphInspirationNode.vue";
+import GraphLinkEdge from "./GraphLinkEdge.vue";
 import GraphRecoEdge from "./GraphRecoEdge.vue";
 
 const props = defineProps<{
@@ -46,6 +53,7 @@ const emit = defineEmits<{
   "reject-reco": [sourceId: string, candidateId: string];
   "node-click": [id: string];
   "create-link": [sourceId: string, targetId: string, relation: "related" | "contradicts"];
+  "delete-link": [sourceId: string, targetId: string];
   expand: [];
 }>();
 
@@ -56,6 +64,9 @@ const flowId = `fl-graph-${mode}`;
 const stageEl = ref<HTMLElement | null>(null);
 const stageWidth = ref(isFull ? 1000 : 320);
 const stageHeight = ref(isFull ? 700 : 240);
+const persistedPositions = ref(
+  isFull ? readPersistedGraphPositions() : {},
+);
 
 // ---------- 数据派生 ----------
 
@@ -129,7 +140,7 @@ const recoEdges = computed<RecoEdgeRaw[]>(() => {
 
 // ---------- 力布局 ----------
 
-const { positions, pin, unpin, resize } = useGraphForceLayout(
+const { positions, pin, resize } = useGraphForceLayout(
   () => visibleItems.value.map((i) => ({ id: i.id })),
   () => {
     const out: { source: string; target: string }[] = [];
@@ -154,6 +165,10 @@ const { positions, pin, unpin, resize } = useGraphForceLayout(
 
 function truncate(text: string, max: number) {
   return text.length > max ? text.slice(0, max) + "…" : text;
+}
+
+function titleForItem(item: InspirationItem): string {
+  return item.summary || item.content || "图片灵感";
 }
 
 function matchesSearch(item: InspirationItem, query: string): boolean {
@@ -191,9 +206,9 @@ const flowNodes = computed<Node[]>(() => {
     return {
       id: item.id,
       type: "inspiration",
-      position: { x: pos.x, y: pos.y },
+      position: persistedPositions.value[item.id] ?? { x: pos.x, y: pos.y },
       data: {
-        label: truncate(item.summary || item.content, labelMax),
+        label: truncate(titleForItem(item), labelMax),
         item,
         mode,
       },
@@ -205,15 +220,30 @@ const flowNodes = computed<Node[]>(() => {
   });
 });
 
+const flowNodePositionMap = computed(() =>
+  new Map(
+    flowNodes.value.map((node) => [
+      node.id,
+      { x: node.position.x, y: node.position.y },
+    ]),
+  ),
+);
+
 const flowEdges = computed<Edge[]>(() => {
   const result: Edge[] = [];
   for (const link of allLinks.value) {
     const isContradicts = link.relation === "contradicts";
+    const handles = getEdgeHandles(
+      flowNodePositionMap.value.get(link.sourceId) ?? { x: 0, y: 0 },
+      flowNodePositionMap.value.get(link.targetId) ?? { x: 0, y: 0 },
+    );
     result.push({
       id: `link:${link.id}`,
       source: link.sourceId,
       target: link.targetId,
-      type: "default",
+      sourceHandle: handles.sourceHandle,
+      targetHandle: handles.targetHandle,
+      type: "link",
       animated: false,
       style: {
         stroke: isContradicts ? "var(--color-warning)" : "var(--color-primary)",
@@ -224,10 +254,16 @@ const flowEdges = computed<Edge[]>(() => {
     });
   }
   for (const re of recoEdges.value) {
+    const handles = getEdgeHandles(
+      flowNodePositionMap.value.get(re.sourceId) ?? { x: 0, y: 0 },
+      flowNodePositionMap.value.get(re.reco.candidateId) ?? { x: 0, y: 0 },
+    );
     result.push({
       id: `reco:${re.sourceId}:${re.reco.candidateId}`,
       source: re.sourceId,
       target: re.reco.candidateId,
+      sourceHandle: handles.sourceHandle,
+      targetHandle: handles.targetHandle,
       type: "reco",
       data: {
         kind: "reco",
@@ -241,7 +277,7 @@ const flowEdges = computed<Edge[]>(() => {
 
 // ---------- vue-flow API ----------
 
-const { fitView, onConnect, onConnectStart, onConnectEnd } = useVueFlow(flowId);
+const { fitView, onConnect, onConnectStart, onConnectEnd, panBy } = useVueFlow(flowId);
 
 // 全屏模式下:用户拖拽 handle 连接两节点 → 触发 onConnect (默认路径,落在 handle 上)
 // 默认 relation=related;同节点自连 / 重复连线 由 store linkManually 内部去重
@@ -365,17 +401,86 @@ function onRejectReco(sourceId: string, candidateId: string) {
   emit("reject-reco", sourceId, candidateId);
 }
 
-function onNodeDragStart(payload: { node: Node }) {
+function onDeleteLink(sourceId: string, targetId: string) {
+  emit("delete-link", sourceId, targetId);
+}
+
+type FlowNodeDragEvent = {
+  event: MouseEvent | TouchEvent;
+  node: Node;
+};
+
+function pointFromMouseTouchEvent(event: MouseEvent | TouchEvent) {
+  if (event instanceof MouseEvent) {
+    return { x: event.clientX, y: event.clientY };
+  }
+  const touch = event.touches[0] ?? event.changedTouches[0];
+  if (!touch) return null;
+  return { x: touch.clientX, y: touch.clientY };
+}
+
+function maybeAutoPanOnDrag(event: MouseEvent | TouchEvent) {
+  if (!isFull || !stageEl.value) return;
+  const point = pointFromMouseTouchEvent(event);
+  if (!point) return;
+  const rect = stageEl.value.getBoundingClientRect();
+  const delta = getAutoPanDelta(point, rect);
+  if (!delta.x && !delta.y) return;
+  panBy(delta);
+}
+
+function rememberNodePosition(id: string, x: number, y: number) {
+  if (!isFull) return;
+  persistedPositions.value = {
+    ...persistedPositions.value,
+    [id]: { x, y },
+  };
+}
+
+function persistNodePositions() {
+  if (!isFull) return;
+  writePersistedGraphPositions(persistedPositions.value);
+}
+
+function onNodeDragStart(payload: FlowNodeDragEvent) {
+  rememberNodePosition(payload.node.id, payload.node.position.x, payload.node.position.y);
   pin(payload.node.id, payload.node.position.x, payload.node.position.y);
 }
 
-function onNodeDrag(payload: { node: Node }) {
+function onNodeDrag(payload: FlowNodeDragEvent) {
+  rememberNodePosition(payload.node.id, payload.node.position.x, payload.node.position.y);
   pin(payload.node.id, payload.node.position.x, payload.node.position.y);
+  maybeAutoPanOnDrag(payload.event);
 }
 
-function onNodeDragStop(payload: { node: Node }) {
-  unpin(payload.node.id);
+function onNodeDragStop(payload: FlowNodeDragEvent) {
+  rememberNodePosition(payload.node.id, payload.node.position.x, payload.node.position.y);
+  pin(payload.node.id, payload.node.position.x, payload.node.position.y);
+  persistNodePositions();
 }
+
+function syncPersistedPins() {
+  if (!isFull) return;
+  for (const item of visibleItems.value) {
+    const position = persistedPositions.value[item.id];
+    if (!position) continue;
+    pin(item.id, position.x, position.y);
+  }
+}
+
+watch(
+  () => visibleItems.value.map((item) => item.id).join("|"),
+  () => {
+    if (!isFull) return;
+    persistedPositions.value = prunePersistedGraphPositions(
+      persistedPositions.value,
+      visibleItems.value.map((item) => item.id),
+    );
+    persistNodePositions();
+    syncPersistedPins();
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -389,6 +494,7 @@ function onNodeDragStop(payload: { node: Node }) {
       :connection-mode="ConnectionMode.Loose"
       :elements-selectable="true"
       :pan-on-drag="isFull"
+      :auto-pan-on-node-drag="false"
       :zoom-on-scroll="isFull"
       :zoom-on-pinch="isFull"
       :pan-on-scroll="false"
@@ -401,6 +507,12 @@ function onNodeDragStop(payload: { node: Node }) {
       @node-drag="onNodeDrag"
       @node-drag-stop="onNodeDragStop"
     >
+      <template #edge-link="linkProps">
+        <GraphLinkEdge
+          v-bind="linkProps"
+          @delete="onDeleteLink"
+        />
+      </template>
       <template #edge-reco="recoProps">
         <GraphRecoEdge
           v-bind="recoProps"

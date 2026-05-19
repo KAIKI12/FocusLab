@@ -130,11 +130,7 @@ pub async fn pin_conversation(id: String, pinned: bool, db: State<'_, Db>) -> Ap
 }
 
 #[tauri::command]
-pub async fn archive_conversation(
-    id: String,
-    archived: bool,
-    db: State<'_, Db>,
-) -> AppResult<()> {
+pub async fn archive_conversation(id: String, archived: bool, db: State<'_, Db>) -> AppResult<()> {
     let conn = db.0.lock().map_err(|e| AppError::Custom(e.to_string()))?;
     ai_chat::set_conversation_archived(&conn, &id, archived)?;
     Ok(())
@@ -248,17 +244,29 @@ pub async fn send_chat_message(
 
         let history = ai_chat::list_messages(&conn, &conversation_id)?;
 
-        let user_id = ai_chat::insert_message(&conn, &conversation_id, "user", &content, None, "ok")?;
+        let user_id =
+            ai_chat::insert_message(&conn, &conversation_id, "user", &content, None, "ok")?;
 
         // 第一次有 user 消息且 title 还是默认值 → 自动改名
         if conv.title == "新会话" && history.iter().all(|m| m.role != "user") {
-            let _ = ai_chat::rename_conversation(&conn, &conversation_id, &auto_title_from(&content));
+            let _ =
+                ai_chat::rename_conversation(&conn, &conversation_id, &auto_title_from(&content));
         }
 
-        let model_str = if conv.model.is_empty() { None } else { Some(conv.model.clone()) };
+        let model_str = if conv.model.is_empty() {
+            None
+        } else {
+            Some(conv.model.clone())
+        };
         let model_param: Option<&str> = model_str.as_deref();
-        let assistant_id =
-            ai_chat::insert_message(&conn, &conversation_id, "assistant", "", model_param, "streaming")?;
+        let assistant_id = ai_chat::insert_message(
+            &conn,
+            &conversation_id,
+            "assistant",
+            "",
+            model_param,
+            "streaming",
+        )?;
 
         (conv, history, user_id, assistant_id, model_str)
     };

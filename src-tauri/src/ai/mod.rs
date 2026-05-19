@@ -67,7 +67,11 @@ pub struct CompletionOptions {
 pub trait AIProvider: Send + Sync {
     async fn complete(&self, messages: Vec<Message>, opts: CompletionOptions) -> AppResult<String>;
 
-    async fn embed(&self, _texts: Vec<String>, _model_override: Option<String>) -> AppResult<Vec<Vec<f32>>> {
+    async fn embed(
+        &self,
+        _texts: Vec<String>,
+        _model_override: Option<String>,
+    ) -> AppResult<Vec<Vec<f32>>> {
         Err(AppError::Custom("当前 provider 不支持 embedding".into()))
     }
 
@@ -191,7 +195,11 @@ impl AIProvider for OpenAICompatibleProvider {
             .ok_or_else(|| AppError::Custom("AI 返回空结果".into()))
     }
 
-    async fn embed(&self, texts: Vec<String>, model_override: Option<String>) -> AppResult<Vec<Vec<f32>>> {
+    async fn embed(
+        &self,
+        texts: Vec<String>,
+        model_override: Option<String>,
+    ) -> AppResult<Vec<Vec<f32>>> {
         let url = format!("{}/v1/embeddings", self.base_url);
         let body = EmbeddingRequest {
             model: model_override.unwrap_or_else(|| self.model.clone()),
@@ -397,23 +405,50 @@ impl AIService {
         }
     }
 
-    pub async fn configure(&self, provider_type: &str, api_format: &str, base_url: &str, api_key: &str, model: &str) {
+    pub async fn configure(
+        &self,
+        provider_type: &str,
+        api_format: &str,
+        base_url: &str,
+        api_key: &str,
+        model: &str,
+    ) {
         let p: Box<dyn AIProvider> = match api_format {
             "claude" => Box::new(ClaudeProvider::new(
-                if base_url.is_empty() { "https://api.anthropic.com" } else { base_url },
+                if base_url.is_empty() {
+                    "https://api.anthropic.com"
+                } else {
+                    base_url
+                },
                 api_key,
-                if model.is_empty() { "claude-3-5-sonnet-latest" } else { model },
+                if model.is_empty() {
+                    "claude-3-5-sonnet-latest"
+                } else {
+                    model
+                },
             )),
             _ => match provider_type {
                 "ollama" => Box::new(OpenAICompatibleProvider::new(
-                    if base_url.is_empty() { "http://localhost:11434" } else { base_url },
+                    if base_url.is_empty() {
+                        "http://localhost:11434"
+                    } else {
+                        base_url
+                    },
                     "",
                     if model.is_empty() { "llama3" } else { model },
                 )),
                 _ => Box::new(OpenAICompatibleProvider::new(
-                    if base_url.is_empty() { "https://api.openai.com" } else { base_url },
+                    if base_url.is_empty() {
+                        "https://api.openai.com"
+                    } else {
+                        base_url
+                    },
                     api_key,
-                    if model.is_empty() { "gpt-4o-mini" } else { model },
+                    if model.is_empty() {
+                        "gpt-4o-mini"
+                    } else {
+                        model
+                    },
                 )),
             },
         };
@@ -422,14 +457,26 @@ impl AIService {
 
     pub async fn configure_embedding(&self, base_url: &str, api_key: &str, model: &str) {
         let provider: Box<dyn AIProvider> = Box::new(OpenAICompatibleProvider::new(
-            if base_url.is_empty() { "https://api.openai.com" } else { base_url },
+            if base_url.is_empty() {
+                "https://api.openai.com"
+            } else {
+                base_url
+            },
             api_key,
-            if model.is_empty() { "text-embedding-3-small" } else { model },
+            if model.is_empty() {
+                "text-embedding-3-small"
+            } else {
+                model
+            },
         ));
         *self.embedding_provider.write().await = Some(provider);
     }
 
-    pub async fn complete(&self, messages: Vec<Message>, opts: CompletionOptions) -> AppResult<String> {
+    pub async fn complete(
+        &self,
+        messages: Vec<Message>,
+        opts: CompletionOptions,
+    ) -> AppResult<String> {
         let guard = self.provider.read().await;
         let p = match guard.as_ref() {
             Some(p) => p,
@@ -441,11 +488,15 @@ impl AIService {
         }
     }
 
-    pub async fn complete_required(&self, messages: Vec<Message>, opts: CompletionOptions) -> AppResult<String> {
+    pub async fn complete_required(
+        &self,
+        messages: Vec<Message>,
+        opts: CompletionOptions,
+    ) -> AppResult<String> {
         let guard = self.provider.read().await;
-        let provider = guard
-            .as_ref()
-            .ok_or_else(|| AppError::Custom("AI provider 未配置，请先在设置中完成 AI 配置".into()))?;
+        let provider = guard.as_ref().ok_or_else(|| {
+            AppError::Custom("AI provider 未配置，请先在设置中完成 AI 配置".into())
+        })?;
         provider.complete(messages, opts).await
     }
 
@@ -459,13 +510,19 @@ impl AIService {
         abort: Arc<AtomicBool>,
     ) -> AppResult<String> {
         let guard = self.provider.read().await;
-        let provider = guard
-            .as_ref()
-            .ok_or_else(|| AppError::Custom("AI provider 未配置，请先在设置中完成 AI 配置".into()))?;
-        provider.stream_complete(messages, opts, on_delta, abort).await
+        let provider = guard.as_ref().ok_or_else(|| {
+            AppError::Custom("AI provider 未配置，请先在设置中完成 AI 配置".into())
+        })?;
+        provider
+            .stream_complete(messages, opts, on_delta, abort)
+            .await
     }
 
-    pub async fn embed(&self, texts: Vec<String>, model_override: Option<String>) -> AppResult<Vec<Vec<f32>>> {
+    pub async fn embed(
+        &self,
+        texts: Vec<String>,
+        model_override: Option<String>,
+    ) -> AppResult<Vec<Vec<f32>>> {
         let guard = self.embedding_provider.read().await;
         let provider = guard
             .as_ref()
@@ -477,7 +534,8 @@ impl AIService {
         let last = messages.last().map(|m| m.content.as_str()).unwrap_or("");
         if last.contains("总结") || last.contains("表现") {
             "今天辛苦了,每一步推进都有价值。明天继续保持节奏。".into()
-        } else if last.contains("速记") || last.contains("梳理") || last.contains("candidates") {
+        } else if last.contains("速记") || last.contains("梳理") || last.contains("candidates")
+        {
             Self::default_quick_note_for(messages)
         } else if last.contains("拆解") || last.contains("子任务") {
             r#"[{\"name\":\"第一步：分析需求\",\"estimatedMinutes\":30,\"quadrant\":\"important_not_urgent\"},{\"name\":\"第二步：实现核心\",\"estimatedMinutes\":60,\"quadrant\":\"important_not_urgent\"},{\"name\":\"第三步：测试验证\",\"estimatedMinutes\":30,\"quadrant\":\"important_not_urgent\"}]"#.into()
@@ -495,7 +553,10 @@ impl AIService {
     }
 
     fn default_quick_note_for(messages: &[Message]) -> String {
-        let raw = messages.last().map(|m| m.content.as_str()).unwrap_or("你的想法");
+        let raw = messages
+            .last()
+            .map(|m| m.content.as_str())
+            .unwrap_or("你的想法");
         let input = Self::extract_quick_note_input(raw);
         serde_json::json!({
             "candidates": [
@@ -513,7 +574,11 @@ impl AIService {
             .and_then(|(_, rest)| rest.split_once("\n\n").map(|(value, _)| value))
             .unwrap_or(prompt)
             .trim();
-        if input.is_empty() { "你的想法".into() } else { input.into() }
+        if input.is_empty() {
+            "你的想法".into()
+        } else {
+            input.into()
+        }
     }
 }
 
@@ -524,8 +589,12 @@ impl ResponseValidator {
         let parsed: Result<Vec<serde_json::Value>, _> = serde_json::from_str(raw);
         match parsed {
             Ok(mut arr) => {
-                if arr.len() < 3 { return Self::default_decompose(); }
-                if arr.len() > 7 { arr.truncate(7); }
+                if arr.len() < 3 {
+                    return Self::default_decompose();
+                }
+                if arr.len() > 7 {
+                    arr.truncate(7);
+                }
                 for item in &mut arr {
                     if let Some(min) = item.get("estimatedMinutes").and_then(|v| v.as_i64()) {
                         if min < 5 || min > 480 {
@@ -533,7 +602,12 @@ impl ResponseValidator {
                         }
                     }
                     if let Some(q) = item.get("quadrant").and_then(|v| v.as_str()) {
-                        let valid = ["important_urgent", "important_not_urgent", "not_important_urgent", "not_important_not_urgent"];
+                        let valid = [
+                            "important_urgent",
+                            "important_not_urgent",
+                            "not_important_urgent",
+                            "not_important_not_urgent",
+                        ];
                         if !valid.contains(&q) {
                             item["quadrant"] = serde_json::json!("important_not_urgent");
                         }
@@ -582,7 +656,12 @@ impl ResponseValidator {
             for c in candidates.iter_mut() {
                 if c.get("style").and_then(|v| v.as_str()) == Some("task") {
                     if let Some(q) = c.get("quadrant").and_then(|v| v.as_str()) {
-                        let valid = ["important_urgent", "important_not_urgent", "not_important_urgent", "not_important_not_urgent"];
+                        let valid = [
+                            "important_urgent",
+                            "important_not_urgent",
+                            "not_important_urgent",
+                            "not_important_not_urgent",
+                        ];
                         if !valid.contains(&q) {
                             c["quadrant"] = serde_json::json!("important_not_urgent");
                         }
@@ -652,8 +731,10 @@ mod tests {
             content: super::prompt_templates::quick_note_optimization_prompt("论文实验思路"),
         }]);
 
-        let result = ResponseValidator::validate_quick_note(&raw).expect("fallback should be strict JSON");
-        let parsed: serde_json::Value = serde_json::from_str(&result).expect("validated JSON should parse");
+        let result =
+            ResponseValidator::validate_quick_note(&raw).expect("fallback should be strict JSON");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&result).expect("validated JSON should parse");
         let candidates = parsed["candidates"].as_array().unwrap();
 
         assert_eq!(candidates.len(), 3);
@@ -670,7 +751,10 @@ mod tests {
         let ai = AIService::new();
         let result = ai
             .complete_required(
-                vec![Message { role: "user".into(), content: "hello".into() }],
+                vec![Message {
+                    role: "user".into(),
+                    content: "hello".into(),
+                }],
                 CompletionOptions::default(),
             )
             .await;
@@ -690,8 +774,10 @@ mod tests {
         })
         .to_string();
 
-        let result = ResponseValidator::validate_quick_note(&raw).expect("valid AI JSON should pass");
-        let parsed: serde_json::Value = serde_json::from_str(&result).expect("validated JSON should parse");
+        let result =
+            ResponseValidator::validate_quick_note(&raw).expect("valid AI JSON should pass");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&result).expect("validated JSON should parse");
 
         assert_eq!(parsed["candidates"][0]["text"].as_str().unwrap(), long_text);
     }

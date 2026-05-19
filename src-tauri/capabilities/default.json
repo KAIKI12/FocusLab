@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for all FocusLab windows",
-  "windows": ["main", "bubble"],
+  "windows": ["main", "bubble", "quick-add", "quick-note", "command-palette"],
   "permissions": [
     "core:default",
     "core:event:default",

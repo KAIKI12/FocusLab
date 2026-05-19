@@ -54,22 +54,30 @@ fn settlement_pool() -> &'static SettlementPool {
 
 fn feedback_pool() -> &'static FeedbackPool {
     static POOL: OnceLock<FeedbackPool> = OnceLock::new();
-    POOL.get_or_init(|| serde_json::from_str(TASK_FEEDBACK_JSON).expect("task_feedback.json 解析失败"))
+    POOL.get_or_init(|| {
+        serde_json::from_str(TASK_FEEDBACK_JSON).expect("task_feedback.json 解析失败")
+    })
 }
 
 fn reminder_pool() -> &'static ReminderPool {
     static POOL: OnceLock<ReminderPool> = OnceLock::new();
-    POOL.get_or_init(|| serde_json::from_str(UNFINISHED_REMINDER_JSON).expect("unfinished_reminder.json 解析失败"))
+    POOL.get_or_init(|| {
+        serde_json::from_str(UNFINISHED_REMINDER_JSON).expect("unfinished_reminder.json 解析失败")
+    })
 }
 
 fn daily_suggestion_pool() -> &'static TextPool {
     static POOL: OnceLock<TextPool> = OnceLock::new();
-    POOL.get_or_init(|| serde_json::from_str(DAILY_SUGGESTION_JSON).expect("daily_suggestion.json 解析失败"))
+    POOL.get_or_init(|| {
+        serde_json::from_str(DAILY_SUGGESTION_JSON).expect("daily_suggestion.json 解析失败")
+    })
 }
 
 fn weekly_summary_pool() -> &'static TextPool {
     static POOL: OnceLock<TextPool> = OnceLock::new();
-    POOL.get_or_init(|| serde_json::from_str(WEEKLY_SUMMARY_JSON).expect("weekly_summary.json 解析失败"))
+    POOL.get_or_init(|| {
+        serde_json::from_str(WEEKLY_SUMMARY_JSON).expect("weekly_summary.json 解析失败")
+    })
 }
 
 /// 基于时间戳的轻量伪随机,避免引入 rand crate
@@ -106,7 +114,12 @@ fn settlement_bucket_key(grade: &str) -> &'static str {
 }
 
 /// 选取结算叙事本地文案
-pub fn pick_settlement_narrative(grade: &str, completed: i64, total: i64, focus_min: i64) -> String {
+pub fn pick_settlement_narrative(
+    grade: &str,
+    completed: i64,
+    total: i64,
+    focus_min: i64,
+) -> String {
     let pool = settlement_pool();
     let bucket = pool
         .buckets
@@ -158,8 +171,7 @@ pub fn pick_task_feedback(task_name: &str, estimated: i64, actual: i64, quadrant
     let entries = match bucket {
         Some(b) if !b.is_empty() => b,
         _ => {
-            return Value::String(format!("「{task_name}」完成了,继续保持。"))
-                .to_string();
+            return Value::String(format!("「{task_name}」完成了,继续保持。")).to_string();
         }
     };
     let idx = pseudo_random_index(entries.len());
@@ -239,11 +251,7 @@ fn daily_suggestion_bucket_key(energy: &str, has_tasks: bool) -> String {
 }
 
 /// 选取每日建议本地文案,返回纯文本
-pub fn pick_daily_suggestion(
-    energy: &str,
-    pending_tasks: &str,
-    yesterday_summary: &str,
-) -> String {
+pub fn pick_daily_suggestion(energy: &str, pending_tasks: &str, yesterday_summary: &str) -> String {
     let pool = daily_suggestion_pool();
     let tasks: Vec<&str> = pending_tasks
         .split('、')
@@ -286,9 +294,7 @@ pub fn pick_weekly_summary(
     let templates = match bucket {
         Some(b) if !b.is_empty() => b,
         _ => {
-            return format!(
-                "本周专注 {focus_min} 分钟,完成 {completed} 项任务,继续保持节奏。"
-            );
+            return format!("本周专注 {focus_min} 分钟,完成 {completed} 项任务,继续保持节奏。");
         }
     };
     let idx = pseudo_random_index(templates.len());
@@ -371,7 +377,11 @@ mod tests {
 
     #[test]
     fn unfinished_reminder_many_tasks() {
-        let s = pick_unfinished_reminder("写周报、整理文档、开会、写代码、测试", "完成 1/6 项", "待定");
+        let s = pick_unfinished_reminder(
+            "写周报、整理文档、开会、写代码、测试",
+            "完成 1/6 项",
+            "待定",
+        );
         let v: Value = serde_json::from_str(&s).expect("应当是合法 JSON");
         assert!(!v["message"].as_str().unwrap().is_empty());
     }

@@ -38,8 +38,8 @@ pub fn export_tasks_json(path: String, db: State<'_, Db>) -> AppResult<String> {
     let json = serde_json::to_string_pretty(&rows)
         .map_err(|e| AppError::Custom(format!("JSON 序列化失败: {e}")))?;
 
-    let mut f = std::fs::File::create(&path)
-        .map_err(|e| AppError::Custom(format!("无法创建文件: {e}")))?;
+    let mut f =
+        std::fs::File::create(&path).map_err(|e| AppError::Custom(format!("无法创建文件: {e}")))?;
     f.write_all(json.as_bytes())
         .map_err(|e| AppError::Custom(format!("写入失败: {e}")))?;
 
@@ -104,8 +104,8 @@ pub fn export_sessions_csv(path: String, db: State<'_, Db>) -> AppResult<String>
         }
     });
 
-    let mut f = std::fs::File::create(&path)
-        .map_err(|e| AppError::Custom(format!("无法创建文件: {e}")))?;
+    let mut f =
+        std::fs::File::create(&path).map_err(|e| AppError::Custom(format!("无法创建文件: {e}")))?;
 
     // BOM for Excel compatibility
     f.write_all(&[0xEF, 0xBB, 0xBF])

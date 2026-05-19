@@ -11,9 +11,9 @@ use crate::utils::errors::{AppError, AppResult};
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HeatmapCell {
-    pub day_of_week: i64,  // 0=Sun, 6=Sat
-    pub hour: i64,         // 0-23
-    pub minutes: i64,      // 该时段的总专注分钟
+    pub day_of_week: i64, // 0=Sun, 6=Sat
+    pub hour: i64,        // 0-23
+    pub minutes: i64,     // 该时段的总专注分钟
 }
 
 /// 热力图：按周几×小时聚合近 N 天的专注数据
@@ -138,10 +138,10 @@ pub struct StatsOverview {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BadgeExtraStats {
-    pub has_early_session: bool,    // 6-8 时段有完成的 session
-    pub has_night_session: bool,    // 22-2 时段有完成的 session
-    pub has_midnight_session: bool, // 0-3 时段有完成的 session
-    pub has_3am_session: bool,      // 3:00 时段完成的 session
+    pub has_early_session: bool,      // 6-8 时段有完成的 session
+    pub has_night_session: bool,      // 22-2 时段有完成的 session
+    pub has_midnight_session: bool,   // 0-3 时段有完成的 session
+    pub has_3am_session: bool,        // 3:00 时段完成的 session
     pub morning_3_pomodoro_day: bool, // 某日 9-12 时段 ≥3 个番茄
     pub evening_2_pomodoro_day: bool, // 某日 17-19 时段 ≥2 个番茄
     pub max_day_focus_minutes: i64,
@@ -175,50 +175,71 @@ pub fn get_badge_extra_stats(db: State<'_, Db>) -> AppResult<BadgeExtraStats> {
         [], |r| r.get(0),
     ).unwrap_or(false);
 
-    let morning_3: bool = conn.query_row(
-        "SELECT EXISTS(
+    let morning_3: bool = conn
+        .query_row(
+            "SELECT EXISTS(
             SELECT 1 FROM sessions
             WHERE status='completed' AND mode='pomodoro'
               AND CAST(strftime('%H', start_time) AS INTEGER) BETWEEN 9 AND 11
             GROUP BY date(start_time) HAVING COUNT(*) >= 3
-        )", [], |r| r.get(0),
-    ).unwrap_or(false);
+        )",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(false);
 
-    let evening_2: bool = conn.query_row(
-        "SELECT EXISTS(
+    let evening_2: bool = conn
+        .query_row(
+            "SELECT EXISTS(
             SELECT 1 FROM sessions
             WHERE status='completed' AND mode='pomodoro'
               AND CAST(strftime('%H', start_time) AS INTEGER) BETWEEN 17 AND 18
             GROUP BY date(start_time) HAVING COUNT(*) >= 2
-        )", [], |r| r.get(0),
-    ).unwrap_or(false);
+        )",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(false);
 
-    let max_day_focus: i64 = conn.query_row(
-        "SELECT COALESCE(MAX(dm), 0) FROM (
+    let max_day_focus: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(dm), 0) FROM (
             SELECT SUM(actual_duration_minutes) AS dm FROM sessions
             WHERE status='completed' GROUP BY date(start_time)
-        )", [], |r| r.get(0),
-    ).unwrap_or(0);
+        )",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     let has_90min: bool = conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM sessions WHERE status='completed' AND actual_duration_minutes >= 90)",
         [], |r| r.get(0),
     ).unwrap_or(false);
 
-    let free_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM sessions WHERE status='completed' AND mode='free'",
-        [], |r| r.get(0),
-    ).unwrap_or(0);
+    let free_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sessions WHERE status='completed' AND mode='free'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
-    let zero_int_days: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM settlements WHERE total_interruptions = 0",
-        [], |r| r.get(0),
-    ).unwrap_or(0);
+    let zero_int_days: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM settlements WHERE total_interruptions = 0",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
-    let completed_ms: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM milestones WHERE status='completed'",
-        [], |r| r.get(0),
-    ).unwrap_or(0);
+    let completed_ms: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM milestones WHERE status='completed'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     Ok(BadgeExtraStats {
         has_early_session: has_early,
